@@ -14,6 +14,8 @@
 #include "MqttClient.h"
 #include "TelegramBot.h"
 #include "SleepManager.h"
+#include "StatusLED.h"
+#include "SafetyManager.h"
 
 // ---- Global instances ----
 ConfigManager  configMgr;
@@ -24,6 +26,8 @@ WebPortal      webPortal(configMgr, sensorMgr, pumpCtrl, wifiMgr);
 MqttClient     mqttClient(configMgr, sensorMgr, pumpCtrl);
 TelegramBot    telegramBot(configMgr, sensorMgr, pumpCtrl);
 SleepManager   sleepMgr(configMgr);
+StatusLED      statusLed;
+SafetyManager  safetyMgr(sensorMgr, statusLed);
 
 // ---- Button ISR ----
 volatile bool buttonPressed = false;
@@ -46,15 +50,46 @@ TaskHandle_t taskCommsHandle  = NULL;
 // ---- FreeRTOS Tasks ----
 
 void taskSensorLoop(void* param) {
-    const TickType_t interval = pdMS_TO_TICKS(30000);  // 30s
+    const TickType_t interval = pdMS_TO_TICKS(30000);
+    
+    // Clear boot crash counter after 60s of stable operation
+    vTaskDelay(pdMS_TO_TICKS(60000));
+    if (!safetyMgr.isSafeMode()) {
+        Preferences p;
+        p.begin("safety", false);
+        p.putUChar("bootCnt", 0);
+        p.end();
+        Serial.println("[MAIN] Boot stable 60s — compteur crash remis à 0.");
+    }
+    
     for (;;) {
         sensorMgr.readAll();
+        safetyMgr.update();
         
-        Serial.printf("[MAIN] Humidité moy: %d%% | Réservoir: %d%% | T°: %.1f°C\n",
+        Serial.printf("[MAIN] Hum: %d%% | Rés: %d%% | T°: %.1f°C | Sécurité: %s\n",
                       sensorMgr.avgMoisture(),
                       sensorMgr.tankLevel(),
-                      sensorMgr.temperature());
+                      sensorMgr.temperature(),
+                      safetyMgr.isLockout() ? "LOCKOUT" : 
+                      safetyMgr.isSafeMode() ? "SAFE_MODE" : "OK");
         
+        // Update LED based on system state (priority order)
+        if (safetyMgr.isLockout()) {
+            statusLed.setState(LedState::CRITICAL);
+        } else if (safetyMgr.state() == SafetyState::WARNING) {
+            statusLed.setState(LedState::WARNING);
+        } else if (pumpCtrl.isBlocked()) {
+            statusLed.setState(LedState::FAILSAFE);
+        } else if (pumpCtrl.isRunning()) {
+            statusLed.setState(LedState::WATERING);
+        } else if (wifiMgr.isAPMode()) {
+            statusLed.setState(LedState::AP_MODE);
+        } else if (configMgr.isTankWarning(sensorMgr.tankLevel())) {
+            statusLed.setState(LedState::WARNING);
+        } else {
+            statusLed.setState(LedState::OK);
+        }
+
         if (configMgr.isTankCritical(sensorMgr.tankLevel())) {
             Serial.println("[MAIN] ⚠ RÉSERVOIR CRITIQUE");
             telegramBot.sendAlert("🔴 Réservoir CRITIQUE — pompe bloquée!");
@@ -80,20 +115,28 @@ void taskPumpLoop(void* param) {
         // Physical button check
         if (buttonPressed) {
             buttonPressed = false;
+            statusLed.flashButtonAck();
+            
             if (pumpCtrl.isRunning()) {
                 Serial.println("[MAIN] Bouton pressé → arrêt pompe");
                 pumpCtrl.stop(PumpStopReason::MANUAL_STOP);
+                safetyMgr.disarmPump();
+            } else if (safetyMgr.isLockout()) {
+                Serial.println("[MAIN] Bouton pressé → LOCKOUT sécurité actif");
+                statusLed.flashError();
             } else if (!pumpCtrl.isBlocked()) {
-                Serial.println("[MAIN] Bouton pressé → démarrage pompe");
-                pumpCtrl.start();
-                telegramBot.sendAlert("🔘 Arrosage manuel (bouton)");
-            } else {
-                Serial.println("[MAIN] Bouton pressé → pompe BLOQUÉE (failsafe actif)");
-                // LED feedback: 3 blinks rapides = erreur
-                for (int i = 0; i < 3; i++) {
-                    digitalWrite(PIN_LED, HIGH); delay(100);
-                    digitalWrite(PIN_LED, LOW); delay(100);
+                if (safetyMgr.armPump()) {
+                    Serial.println("[MAIN] Bouton pressé → relay armé → démarrage pompe");
+                    pumpCtrl.start();
+                    telegramBot.sendAlert("🔘 Arrosage manuel (bouton)");
+                    statusLed.setState(LedState::WATERING);
+                } else {
+                    Serial.println("[MAIN] Bouton pressé → relay REFUSÉ (sécurité)");
+                    statusLed.flashError();
                 }
+            } else {
+                Serial.println("[MAIN] Bouton pressé → pompe BLOQUÉE (failsafe)");
+                statusLed.flashError();
             }
         }
         
@@ -104,10 +147,18 @@ void taskPumpLoop(void* param) {
             struct tm timeinfo;
             if (getLocalTime(&timeinfo, 1000)) {
                 if (pumpCtrl.shouldWater(timeinfo.tm_hour, timeinfo.tm_min)) {
-                    if (!pumpCtrl.isRunning() && !pumpCtrl.isBlocked()) {
-                        Serial.println("[MAIN] Heure d'arrosage — démarrage pompe");
-                        pumpCtrl.start();
+                    if (!pumpCtrl.isRunning() && !pumpCtrl.isBlocked() && !safetyMgr.isLockout()) {
+                        if (safetyMgr.armPump()) {
+                            Serial.println("[MAIN] Heure d'arrosage — relay armé → démarrage pompe");
+                            pumpCtrl.start();
+                            statusLed.setState(LedState::WATERING);
+                        }
                     }
+                }
+                // Disarm relay when pump stops
+                if (!pumpCtrl.isRunning() && safetyMgr.isPumpArmed()) {
+                    safetyMgr.disarmPump();
+                    statusLed.setState(LedState::OK);
                 }
             }
         }
@@ -150,33 +201,52 @@ void setup() {
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, HIGH);
 
-    Serial.println("[BOOT] 1/8 — Configuration...");
+    Serial.println("[BOOT] 1/10 — LED status...");
+    statusLed.begin();
+    
+    Serial.println("[BOOT] 2/10 — Configuration...");
     configMgr.begin();
     
-    Serial.println("[BOOT] 2/8 — Sleep manager...");
+    Serial.println("[BOOT] 3/10 — Sleep manager...");
     sleepMgr.begin();
     
-    Serial.println("[BOOT] 3/8 — Capteurs...");
+    Serial.println("[BOOT] 4/10 — Capteurs...");
     sensorMgr.begin();
     
-    Serial.println("[BOOT] 4/8 — Pompe...");
+    Serial.println("[BOOT] 5/10 — Sécurité hardware...");
+    safetyMgr.begin();
+    // Wire up safety alerts to Telegram
+    safetyMgr.onAlert([](const char* msg) {
+        telegramBot.sendAlert(String(msg));
+        mqttClient.publishAlert(msg);
+    });
+    
+    // If safe mode, skip pump/WiFi/comms init
+    if (safetyMgr.isSafeMode()) {
+        Serial.println("[BOOT] ⚠ SAFE MODE — boot minimal. Pompe désactivée.");
+        Serial.println("[BOOT] Appui bouton 10s pour reset.");
+        while (true) { statusLed.update(); delay(100); }  // Halt in safe mode
+    }
+    
+    Serial.println("[BOOT] 6/10 — Pompe...");
     pumpCtrl.begin();
     
     // Bouton poussoir (pull-up interne, appui = LOW)
     pinMode(PIN_BUTTON, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), buttonISR, FALLING);
-    Serial.println("[BOOT]      Bouton poussoir GPIO 5 activé.");
+    Serial.println("[BOOT]       Bouton poussoir GPIO 5 activé.");
     
-    Serial.println("[BOOT] 5/8 — WiFi...");
+    Serial.println("[BOOT] 7/10 — WiFi...");
     wifiMgr.begin();
+    if (wifiMgr.isAPMode()) statusLed.setState(LedState::AP_MODE);
     
-    Serial.println("[BOOT] 6/8 — Portail web...");
+    Serial.println("[BOOT] 8/10 — Portail web...");
     webPortal.begin();
     
-    Serial.println("[BOOT] 7/8 — MQTT...");
+    Serial.println("[BOOT] 9/10 — MQTT...");
     mqttClient.begin();
     
-    Serial.println("[BOOT] 8/8 — Telegram...");
+    Serial.println("[BOOT] 10/10 — Telegram...");
     telegramBot.begin();
     
     Serial.println("[BOOT] Lecture initiale...");
@@ -207,14 +277,8 @@ void setup() {
 // ---- Loop ----
 
 void loop() {
-    // Heartbeat LED
-    static uint32_t lastBlink = 0;
-    if (millis() - lastBlink > 5000) {
-        lastBlink = millis();
-        digitalWrite(PIN_LED, HIGH);
-        delay(50);
-        digitalWrite(PIN_LED, LOW);
-    }
+    // StatusLED animation update
+    statusLed.update();
     
     // Serial debug commands
     if (Serial.available()) {

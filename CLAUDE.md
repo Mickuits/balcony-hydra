@@ -23,7 +23,7 @@ Système d'arrosage automatique solaire pour 20 pots sur un balcon à Cogolin (G
 firmware/
 ├── platformio.ini          # Config build + dépendances
 ├── src/
-│   └── main.cpp            # Point d'entrée, boot 8 étapes, FreeRTOS tasks, CLI série
+│   └── main.cpp            # Point d'entrée, boot 10 étapes, FreeRTOS tasks, CLI série
 ├── include/
 │   ├── config.h            # Toutes les constantes (pins, seuils, defaults, topics MQTT)
 │   └── secrets.h.example   # Template credentials (copier en secrets.h)
@@ -31,6 +31,8 @@ firmware/
     ├── ConfigManager/      # NVS persistence, JSON serialization, validation params
     ├── SensorManager/      # MUX multiplexing, US médiane, BME280, INA219
     ├── PumpController/     # Logique arrosage 3 modes, 6 failsafes
+    ├── SafetyManager/      # Couche sécurité HW: relais, thermal lockout, crash detection
+    ├── StatusLED/          # LED RGB (R=G17, G=G19, B=G23) — état visuel système
     ├── WifiManager/        # AP captif + STA, auto-reconnexion, DNS redirect
     ├── WebPortal/          # AsyncWebServer, HTML PROGMEM, REST API complète
     ├── MqttClient/         # PubSubClient, auto-publish 60s, subscribe cmd
@@ -89,8 +91,41 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 - Anti-rebond logiciel 300ms
 - **Appui 1× pompe OFF** → démarre un cycle (durée config)
 - **Appui 1× pompe ON** → arrête la pompe
-- **Appui si failsafe** → 3 blinks LED (erreur, pompe bloquée)
+- **Appui si failsafe** → 3 blinks LED rouge (erreur, pompe bloquée)
 - Fonctionne dans TOUS les modes, même sans WiFi
+
+### LED RGB (common cathode)
+- `GPIO 17` → Rouge (LEDC PWM ch4)
+- `GPIO 19` → Vert (LEDC PWM ch5)
+- `GPIO 23` → Bleu (LEDC PWM ch6)
+
+Code couleur :
+| Couleur | Pattern | Signification |
+|---------|---------|---------------|
+| Vert fixe | Continu | Système OK |
+| Vert respiration | Pulse 2s | OK, deep sleep imminent |
+| Bleu fixe | Continu | WiFi AP mode (config) |
+| Bleu clignotant | 500ms | Connexion WiFi en cours |
+| Cyan fixe | Continu | Arrosage en cours |
+| Jaune clignotant | 1s | Alerte (réservoir bas, T° haute) |
+| Rouge fixe | Continu | Failsafe pompe actif |
+| Rouge clignotant rapide | 200ms | Erreur critique (T° critique, lockout) |
+| Blanc flash ×3 | 100ms | Feedback bouton pressé |
+
+### Relais de sécurité
+- `GPIO 18` → Relais sécurité pompe (normalement OUVERT)
+- HIGH = relay fermé = pompe peut fonctionner
+- LOW / MCU mort / reset = relay ouvert = pompe coupée
+- **Indépendant du PumpController** — géré par SafetyManager
+- Le PumpController commande le MOSFET, le SafetyManager commande le relais
+- La pompe ne tourne QUE si les deux sont actifs (relay ET MOSFET)
+
+### Sécurité hardware (indépendant du firmware)
+- **Fusible 5A** sur sortie batterie (protection court-circuit global)
+- **Fusible 3A** sur ligne pompe 12V (protection pompe bloquée)
+- **Fusible thermique 72°C** sur câble batterie (auto-coupure irréversible si surchauffe)
+- **Pull-down 10kΩ** sur Gate MOSFET (pompe OFF si MCU crash/reset)
+- **BMS intégré** LiFePO4 (surcharge/décharge/court-circuit)
 
 ### I2C
 - `GPIO 21` → SDA (BME280 0x76 + INA219 0x40) — pull-up 4.7kΩ
@@ -100,7 +135,24 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 - `GPIO 2` → LED onboard
 
 ### Libres
-- `GPIO 15, 17, 18, 19, 23` — disponibles pour extension
+- `GPIO 15` — disponible pour extension
+
+## Architecture de sécurité (défense en profondeur)
+
+```
+COUCHE 5 — MONITORING    Telegram alertes + dashboard web + MQTT
+COUCHE 4 — FIRMWARE      SafetyManager (thermal lockout, crash detect) + PumpController (6 failsafes)
+COUCHE 3 — RELAIS HW     Relay sécurité GPIO 18 (coupe 12V si MCU non-responsive)
+COUCHE 2 — PROTECTION    Fusible 5A batterie + 3A pompe + pull-down MOSFET
+COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BMS intégré
+```
+
+Chaque risque est couvert par au minimum 2 couches indépendantes. Le fusible thermique et les fusibles sont purement passifs — ils fonctionnent même si le firmware, le MCU, et le relais sont tous en panne.
+
+### SafetyManager — détails
+- **Thermal lockout** : T° > 58°C → coupe relay + alerte. Auto-resume quand T° < 45°C.
+- **Boot crash detection** : 3+ resets en 30s → safe mode (pompe désactivée, LED rouge clignotant). Reset par appui long bouton.
+- **Relay arm/disarm** : le PumpController ne peut pas démarrer la pompe sans que SafetyManager ait armé le relay. Double verrou.
 
 ### Alimentation (3 rails)
 - **12V** (batterie directe) → pompe via MOSFET, entrée LM2596
