@@ -215,27 +215,27 @@ void setup() {
     
     Serial.println("[BOOT] 5/10 — Sécurité hardware...");
     safetyMgr.begin();
-    // Wire up safety alerts to Telegram
+    // Wire up safety alerts to Telegram + MQTT
     safetyMgr.onAlert([](const char* msg) {
         telegramBot.sendAlert(String(msg));
         mqttClient.publishAlert(msg);
     });
     
-    // If safe mode, skip pump/WiFi/comms init
-    if (safetyMgr.isSafeMode()) {
-        Serial.println("[BOOT] ⚠ SAFE MODE — boot minimal. Pompe désactivée.");
-        Serial.println("[BOOT] Appui bouton 10s pour reset.");
-        while (true) { statusLed.update(); delay(100); }  // Halt in safe mode
+    Serial.println("[BOOT] 6/10 — Pompe...");
+    if (!safetyMgr.isSafeMode()) {
+        pumpCtrl.begin();
+    } else {
+        Serial.println("[BOOT]       ⚠ SAFE MODE — pompe désactivée");
+        pinMode(PIN_PUMP, OUTPUT);
+        digitalWrite(PIN_PUMP, LOW);  // Force OFF
     }
     
-    Serial.println("[BOOT] 6/10 — Pompe...");
-    pumpCtrl.begin();
-    
-    // Bouton poussoir (pull-up interne, appui = LOW)
+    // Bouton poussoir — actif même en safe mode (pour physical reset)
     pinMode(PIN_BUTTON, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), buttonISR, FALLING);
     Serial.println("[BOOT]       Bouton poussoir GPIO 5 activé.");
     
+    // WiFi + Telegram démarrent MÊME en safe mode (pour /unlock distant)
     Serial.println("[BOOT] 7/10 — WiFi...");
     wifiMgr.begin();
     if (wifiMgr.isAPMode()) statusLed.setState(LedState::AP_MODE);
@@ -248,6 +248,15 @@ void setup() {
     
     Serial.println("[BOOT] 10/10 — Telegram...");
     telegramBot.begin();
+    telegramBot.setSafetyManager(&safetyMgr);  // Wire /unlock command
+    
+    if (safetyMgr.isSafeMode()) {
+        Serial.println();
+        Serial.println("[BOOT] ⚠⚠⚠ SAFE MODE ACTIF ⚠⚠⚠");
+        Serial.println("[BOOT] Pompe désactivée. WiFi/Telegram actifs pour /unlock.");
+        Serial.println("[BOOT] Bouton physique 10s pour reset local.");
+        telegramBot.sendAlert("🔴 SAFE MODE — pompe désactivée (boot loop). Envoyez /unlock pour réarmer.");
+    }
     
     Serial.println("[BOOT] Lecture initiale...");
     sensorMgr.readAll();

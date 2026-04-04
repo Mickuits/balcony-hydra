@@ -13,6 +13,9 @@
 #include "SensorManager.h"
 #include "PumpController.h"
 
+// Forward declaration
+class SafetyManager;
+
 class TelegramBot {
 public:
     TelegramBot(ConfigManager& configMgr, SensorManager& sensorMgr, PumpController& pumpCtrl);
@@ -22,6 +25,9 @@ public:
     void sendAlert(const String& message);
     void sendHeartbeat();
     bool isEnabled() const;
+    
+    // Inject SafetyManager after construction (circular dependency)
+    void setSafetyManager(SafetyManager* mgr) { _safetyMgr = mgr; }
 
 private:
     WiFiClientSecure _secureClient;
@@ -29,6 +35,7 @@ private:
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
     PumpController& _pumpCtrl;
+    SafetyManager*  _safetyMgr = nullptr;
     
     uint32_t _lastCheck;
     uint32_t _lastHeartbeat;

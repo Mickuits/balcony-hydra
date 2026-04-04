@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "TelegramBot.h"
+#include "SafetyManager.h"
 
 TelegramBot::TelegramBot(ConfigManager& configMgr, SensorManager& sensorMgr, PumpController& pumpCtrl)
     : _bot(nullptr), _configMgr(configMgr), _sensorMgr(sensorMgr), _pumpCtrl(pumpCtrl),
@@ -87,7 +88,26 @@ void TelegramBot::_handleMessages(int numNew) {
         }
         else if (text == "/reset") {
             _pumpCtrl.resetFailsafe();
-            _bot->sendMessage(chatId, "✅ Failsafe réinitialisé", "");
+            _bot->sendMessage(chatId, "✅ Failsafe pompe réinitialisé", "");
+        }
+        else if (text == "/unlock") {
+            if (_safetyMgr) {
+                if (_safetyMgr->isHardLockout()) {
+                    _safetyMgr->remoteUnlock("Telegram");
+                    _bot->sendMessage(chatId, "🔓 Système déverrouillé à distance", "");
+                } else if (_safetyMgr->isLockout()) {
+                    _bot->sendMessage(chatId, "ℹ Lockout auto-recovery en cours — patience, le système se réarmera seul", "");
+                } else {
+                    _bot->sendMessage(chatId, "ℹ Pas de lockout actif", "");
+                }
+            } else {
+                _bot->sendMessage(chatId, "⚠ SafetyManager non disponible", "");
+            }
+        }
+        else if (text == "/safety") {
+            if (_safetyMgr) {
+                _bot->sendMessage(chatId, _safetyMgr->toJson(), "");
+            }
         }
         else if (text == "/reboot") {
             _bot->sendMessage(chatId, "🔄 Redémarrage...", "");
@@ -96,11 +116,13 @@ void TelegramBot::_handleMessages(int numNew) {
         }
         else if (text == "/help" || text == "/start") {
             String help = "🌱 *Hydra v" HYDRA_VERSION "*\n\n";
-            help += "/status — État complet\n";
-            help += "/water — Arroser maintenant\n";
-            help += "/stop — Arrêter la pompe\n";
-            help += "/reset — Reset failsafe\n";
-            help += "/reboot — Redémarrer le système\n";
+            help += "📊 /status — État complet\n";
+            help += "💧 /water — Arroser maintenant\n";
+            help += "⏹ /stop — Arrêter pompe\n";
+            help += "🔄 /reset — Reset failsafe pompe\n";
+            help += "🔓 /unlock — Déverrouiller lockout dur\n";
+            help += "🛡 /safety — État sécurité détaillé\n";
+            help += "🔄 /reboot — Redémarrer système\n";
             _bot->sendMessage(chatId, help, "Markdown");
         }
     }

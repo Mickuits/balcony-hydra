@@ -25,6 +25,26 @@ void WifiManager::update() {
     switch (_state) {
         case WifiState::AP_MODE:
             _dns.processNextRequest();
+            // Periodic STA retry from AP mode (every 2 min) — WiFi routeur peut revenir
+            if (_hasCredentials() && millis() - _lastConnectAttempt > 120000) {
+                Serial.println("[WIFI] AP mode — tentative reconnexion STA en arrière-plan...");
+                WiFi.mode(WIFI_AP_STA);  // Keep AP running while trying STA
+                WiFi.begin(_configMgr.config().network.wifiSsid,
+                           _configMgr.config().network.wifiPass);
+                _lastConnectAttempt = millis();
+                // Non-blocking: check result next update cycle
+                _state = WifiState::AP_MODE;  // Stay in AP mode
+                // Quick check after 8s
+                delay(8000);
+                if (WiFi.status() == WL_CONNECTED) {
+                    _dns.stop();
+                    WiFi.mode(WIFI_STA);
+                    _onConnected();
+                    Serial.println("[WIFI] Reconnexion STA réussie depuis AP mode!");
+                } else {
+                    WiFi.mode(WIFI_AP);  // Back to pure AP
+                }
+            }
             break;
             
         case WifiState::CONNECTING:
@@ -33,10 +53,13 @@ void WifiManager::update() {
             } else if (millis() - _lastConnectAttempt > RETRY_INTERVAL_MS) {
                 _connectRetries++;
                 if (_connectRetries >= MAX_RETRIES) {
-                    Serial.println("[WIFI] Échec connexion après 3 tentatives → mode AP");
+                    Serial.println("[WIFI] Échec connexion après 3 tentatives → mode AP (retry auto 2 min)");
                     startAP();
                 } else {
                     Serial.printf("[WIFI] Tentative %d/%d...\n", _connectRetries + 1, MAX_RETRIES);
+                    WiFi.disconnect();
+                    WiFi.begin(_configMgr.config().network.wifiSsid,
+                               _configMgr.config().network.wifiPass);
                     _lastConnectAttempt = millis();
                 }
             }
@@ -48,11 +71,15 @@ void WifiManager::update() {
             }
             break;
             
-        case WifiState::DISCONNECTED:
-            // Auto-reconnect after delay
-            if (_hasCredentials() && millis() - _lastConnectAttempt > 30000) {
+        case WifiState::DISCONNECTED: {
+            // Exponential backoff: 10s, 20s, 40s, 60s max
+            uint32_t backoff = min(10000UL * (1UL << min(_connectRetries, (uint8_t)4)), 60000UL);
+            if (_hasCredentials() && millis() - _lastConnectAttempt > backoff) {
+                Serial.printf("[WIFI] Reconnexion (backoff %ds)...\n", backoff / 1000);
                 startSTA();
             }
+            break;
+        }
             break;
     }
 }

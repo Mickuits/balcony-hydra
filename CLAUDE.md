@@ -140,19 +140,43 @@ Code couleur :
 ## Architecture de sécurité (défense en profondeur)
 
 ```
-COUCHE 5 — MONITORING    Telegram alertes + dashboard web + MQTT
-COUCHE 4 — FIRMWARE      SafetyManager (thermal lockout, crash detect) + PumpController (6 failsafes)
+COUCHE 5 — MONITORING    Telegram (/status /unlock /safety) + dashboard web + MQTT
+COUCHE 4 — FIRMWARE      SafetyManager (auto-recovery + hard lockout) + PumpController (6 failsafes)
 COUCHE 3 — RELAIS HW     Relay sécurité GPIO 18 (coupe 12V si MCU non-responsive)
 COUCHE 2 — PROTECTION    Fusible 5A batterie + 3A pompe + pull-down MOSFET
 COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BMS intégré
 ```
 
-Chaque risque est couvert par au minimum 2 couches indépendantes. Le fusible thermique et les fusibles sont purement passifs — ils fonctionnent même si le firmware, le MCU, et le relais sont tous en panne.
+### Politique de réarmement (CRITIQUE — système autonome sans surveillance)
+
+**Auto-recovery (le système se réarme SEUL) :**
+- Thermal lockout (T° > 58°C) → quand T° < 45°C **stable pendant 5 min** → auto-réarm + alerte Telegram
+- Tank critique (<10%) → quand niveau remonte > 10% → auto-reset failsafe + alerte
+- WiFi perdu → reconnexion agressive (backoff exponentiel 10-60s, retry depuis AP toutes les 2 min)
+- 1-2 boot crashes → watchdog reset → reboot propre, compteur incrémenté
+
+**Hard lockout (nécessite `/unlock` Telegram OU bouton physique) :**
+- 3+ boot crashes → safe mode (WiFi+Telegram restent actifs pour `/unlock` distant)
+- Surintensité pompe >3A (problème mécanique probable)
+- Dry-run pompe <50mA (problème hydraulique probable)
+
+**Irréversible (remplacement physique du composant) :**
+- Fusible thermique 72°C (soudé, auto-coupure définitive)
+- Fusibles 5A / 3A (à remplacer)
 
 ### SafetyManager — détails
-- **Thermal lockout** : T° > 58°C → coupe relay + alerte. Auto-resume quand T° < 45°C.
-- **Boot crash detection** : 3+ resets en 30s → safe mode (pompe désactivée, LED rouge clignotant). Reset par appui long bouton.
-- **Relay arm/disarm** : le PumpController ne peut pas démarrer la pompe sans que SafetyManager ait armé le relay. Double verrou.
+- **Thermal auto-recovery** : T° > 58°C → lockout auto → quand T° < 45°C stable 5 min → réarm. Si T° remonte pendant le cooling, le timer de 5 min se reset.
+- **Boot crash detection** : compteur NVS incrémenté à chaque boot. Remis à 0 après 60s de fonctionnement stable. 3+ = safe mode.
+- **Safe mode** : pompe désactivée MAIS WiFi + Telegram + Web restent actifs → `/unlock` fonctionne à distance.
+- **Double verrou pompe** : SafetyManager arme le relay, PumpController commande le MOSFET. Les deux doivent être actifs pour que la pompe tourne.
+- **Remote unlock** : `/unlock` depuis Telegram ou POST `/api/safety/unlock` depuis le portail web.
+
+### Robustesse WiFi (système autonome)
+- Reconnexion avec backoff exponentiel (10s → 20s → 40s → 60s max)
+- Après 3 échecs → mode AP, MAIS retry STA toutes les 2 min en arrière-plan
+- Si WiFi routeur revient → reconnexion automatique depuis AP mode
+- Mode dégradé sans WiFi : arrosage local continue sur le schedule NVS, pas de monitoring
+- `WiFi.setAutoReconnect(true)` activé comme filet de sécurité supplémentaire
 
 ### Alimentation (3 rails)
 - **12V** (batterie directe) → pompe via MOSFET, entrée LM2596
@@ -230,7 +254,10 @@ struct PumpStatus {
 
 ## Telegram Bot
 
-**Commandes:** `/status` `/water` `/stop` `/reset` `/reboot` `/help`
+**Commandes:** `/status` `/water` `/stop` `/reset` `/unlock` `/safety` `/reboot` `/help`
+
+- `/unlock` — déverrouille un hard lockout à distance (surintensité, dry-run, safe mode)
+- `/safety` — affiche l'état détaillé du SafetyManager (JSON)
 
 **Alertes push automatiques:**
 - Réservoir critique (<10%)
