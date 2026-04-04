@@ -806,7 +806,7 @@ void test_T10_08_scheduled_mode_exact_time_match() {
 // MAIN — 92 tests total
 // ================================================================
 
-void setup() {
+int setup() {
     UNITY_BEGIN();
 
     // Cat 1: Protocol (11)
@@ -924,3 +924,6 @@ void setup() {
 }
 
 void loop() {}
+
+// Native runner
+NATIVE_TEST_RUNNER

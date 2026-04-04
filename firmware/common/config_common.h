@@ -55,3 +55,4 @@ constexpr uint32_t SAFETY_STABLE_BOOT_MS   = 60000;   // 60s
 // ---- SOLAR ----
 constexpr int8_t  DEFAULT_SUNRISE_OFFSET_MIN = 0;
 constexpr int8_t  DEFAULT_SUNSET_OFFSET_MIN  = 30;
+constexpr uint16_t DEFAULT_PUMP_DURATION = 60;

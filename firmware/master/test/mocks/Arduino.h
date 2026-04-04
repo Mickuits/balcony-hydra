@@ -151,7 +151,7 @@ inline TwoWire Wire;
 // ---- Adafruit_BME280 ----
 class Adafruit_BME280{public:
     float _t=25,_h=50,_p=1013.25;
-    bool begin(uint8_t=0x76,TwoWire*=&Wire){return true;}
+    bool begin(uint8_t addr=0x76, TwoWire* w=nullptr){return true;}
     float readTemperature(){return _t;}
     float readHumidity(){return _h;}
     float readPressure(){return _p*100;} // Pa
@@ -161,7 +161,7 @@ class Adafruit_BME280{public:
 // ---- Adafruit_INA219 ----
 class Adafruit_INA219{public:
     float _v=5,_c=150;
-    bool begin(TwoWire*=&Wire){return true;}
+    bool begin(TwoWire* w=nullptr){return true;}
     float getBusVoltage_V(){return _v;}
     float getCurrent_mA(){return _c;}
     float getPower_mW(){return _v*_c;}
