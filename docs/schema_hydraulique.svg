@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 750" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2980B9"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#27AE60"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#E74C3C"/>
+    </marker>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#AED6F1;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#2980B9;stop-opacity:0.6"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="750" fill="#FAFAFA" rx="8"/>
+  
+  <!-- Title -->
+  <text x="550" y="35" text-anchor="middle" font-size="20" font-weight="bold" fill="#2C3E50">BALCONY HYDRA v2 — Schéma Hydraulique</text>
+  <text x="550" y="55" text-anchor="middle" font-size="12" fill="#7F8C8D">3 bidons 25L vases communicants · 1 pompe · 20 goutteurs · Cogolin</text>
+
+  <!-- ==================== BIDONS ==================== -->
+  <!-- Bidon 1 -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="120" width="140" height="200" rx="8" fill="#ECF0F1" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="80" y="200" width="140" height="120" rx="0 0 8 8" fill="url(#waterGrad)"/>
+    <text x="150" y="145" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">BIDON 1</text>
+    <text x="150" y="162" text-anchor="middle" font-size="10" fill="#7F8C8D">25L — Réserve</text>
+  </g>
+  
+  <!-- Capteur US bidon 1 -->
+  <rect x="110" y="105" width="80" height="18" rx="3" fill="#F39C12" stroke="#E67E22" stroke-width="1"/>
+  <text x="150" y="117" text-anchor="middle" font-size="8" font-weight="bold" fill="white">US SENSOR #2</text>
+  <text x="150" y="98" text-anchor="middle" font-size="8" fill="#E67E22">JSN-SR04T (redondance)</text>
+
+  <!-- Bidon 2 -->
+  <g filter="url(#shadow)">
+    <rect x="310" y="120" width="140" height="200" rx="8" fill="#ECF0F1" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="310" y="200" width="140" height="120" rx="0 0 8 8" fill="url(#waterGrad)"/>
+    <text x="380" y="145" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">BIDON 2</text>
+    <text x="380" y="162" text-anchor="middle" font-size="10" fill="#7F8C8D">25L — Central</text>
+  </g>
+
+  <!-- Bidon 3 -->
+  <g filter="url(#shadow)">
+    <rect x="540" y="120" width="140" height="200" rx="8" fill="#ECF0F1" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="540" y="200" width="140" height="120" rx="0 0 8 8" fill="url(#waterGrad)"/>
+    <text x="610" y="145" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">BIDON 3</text>
+    <text x="610" y="162" text-anchor="middle" font-size="10" fill="#7F8C8D">25L — Pompe</text>
+  </g>
+
+  <!-- Capteur US bidon 3 (principal) -->
+  <rect x="570" y="105" width="80" height="18" rx="3" fill="#E74C3C" stroke="#C0392B" stroke-width="1"/>
+  <text x="610" y="117" text-anchor="middle" font-size="8" font-weight="bold" fill="white">US SENSOR #1</text>
+  <text x="610" y="98" text-anchor="middle" font-size="8" fill="#E74C3C">JSN-SR04T (principal)</text>
+
+  <!-- ==================== RACCORDS INTER-BIDONS ==================== -->
+  <!-- Raccord 1-2 -->
+  <line x1="220" y1="300" x2="310" y2="300" stroke="#2980B9" stroke-width="4" stroke-dasharray="8,4"/>
+  <circle cx="225" cy="300" r="6" fill="white" stroke="#2980B9" stroke-width="2"/>
+  <circle cx="305" cy="300" r="6" fill="white" stroke="#2980B9" stroke-width="2"/>
+  <text x="265" y="293" text-anchor="middle" font-size="8" fill="#2980B9" font-weight="bold">Passe-cloison</text>
+  <text x="265" y="315" text-anchor="middle" font-size="7" fill="#2980B9">1/2" + joint EPDM</text>
+  <text x="265" y="326" text-anchor="middle" font-size="7" fill="#2980B9">tube tressé 30cm</text>
+  
+  <!-- Raccord 2-3 -->
+  <line x1="450" y1="300" x2="540" y2="300" stroke="#2980B9" stroke-width="4" stroke-dasharray="8,4"/>
+  <circle cx="455" cy="300" r="6" fill="white" stroke="#2980B9" stroke-width="2"/>
+  <circle cx="535" cy="300" r="6" fill="white" stroke="#2980B9" stroke-width="2"/>
+  <text x="495" y="293" text-anchor="middle" font-size="8" fill="#2980B9" font-weight="bold">Passe-cloison</text>
+  <text x="495" y="315" text-anchor="middle" font-size="7" fill="#2980B9">1/2" + joint EPDM</text>
+
+  <!-- Niveau d'eau ligne -->
+  <line x1="80" y1="200" x2="680" y2="200" stroke="#2980B9" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <text x="710" y="204" font-size="9" fill="#2980B9" font-style="italic">Niveau d'eau = identique (Pascal)</text>
+
+  <!-- ==================== POMPE ==================== -->
+  <!-- Sortie bidon 3 vers pompe -->
+  <line x1="610" y1="320" x2="610" y2="390" stroke="#2980B9" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  
+  <!-- Pompe -->
+  <g filter="url(#shadow)">
+    <rect x="560" y="395" width="100" height="50" rx="10" fill="#E74C3C" stroke="#C0392B" stroke-width="2"/>
+    <text x="610" y="418" text-anchor="middle" font-size="10" font-weight="bold" fill="white">POMPE 12V</text>
+    <text x="610" y="433" text-anchor="middle" font-size="8" fill="#FADBD8">Diaphragme 2L/min</text>
+  </g>
+  
+  <!-- INA219 sur pompe -->
+  <rect x="670" y="400" width="65" height="25" rx="3" fill="#8E44AD" stroke="#6C3483" stroke-width="1"/>
+  <text x="702" y="416" text-anchor="middle" font-size="7" font-weight="bold" fill="white">INA219</text>
+  <line x1="660" y1="420" x2="670" y2="415" stroke="#8E44AD" stroke-width="1.5"/>
+  <text x="702" y="438" text-anchor="middle" font-size="7" fill="#8E44AD">Mesure courant</text>
+  
+  <!-- MOSFET -->
+  <rect x="670" y="450" width="65" height="25" rx="3" fill="#2C3E50" stroke="#1A252F" stroke-width="1"/>
+  <text x="702" y="466" text-anchor="middle" font-size="7" font-weight="bold" fill="white">MOSFET</text>
+  <text x="702" y="488" text-anchor="middle" font-size="7" fill="#2C3E50">IRLZ44N + 1N4007</text>
+  <line x1="660" y1="435" x2="670" y2="460" stroke="#2C3E50" stroke-width="1.5"/>
+
+  <!-- ==================== MANIFOLD & DISTRIBUTION ==================== -->
+  <!-- Sortie pompe vers manifold -->
+  <line x1="610" y1="445" x2="610" y2="490" stroke="#27AE60" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  
+  <!-- Manifold -->
+  <g filter="url(#shadow)">
+    <rect x="100" y="500" width="920" height="40" rx="6" fill="#27AE60" stroke="#1E8449" stroke-width="2"/>
+    <text x="550" y="525" text-anchor="middle" font-size="12" font-weight="bold" fill="white">MANIFOLD — Tube principal 4/6mm → 20 dérivations T/Y</text>
+  </g>
+
+  <!-- Goutteurs -->
+  <g>
+    <text x="550" y="565" text-anchor="middle" font-size="10" font-weight="bold" fill="#2C3E50">20 GOUTTEURS RÉGLABLES (0-70 L/h)</text>
+    <!-- Draw 20 goutteurs -->
+    <g>
+      <!-- Row of pots -->
+      <text x="60" y="605" font-size="9" fill="#7F8C8D" font-weight="bold">POTS:</text>
+    </g>
+    <!-- 20 pots in a row -->
+    <line x1="100" y1="540" x2="100" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="145" y1="540" x2="145" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="190" y1="540" x2="190" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="235" y1="540" x2="235" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="280" y1="540" x2="280" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="325" y1="540" x2="325" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="370" y1="540" x2="370" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="415" y1="540" x2="415" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="460" y1="540" x2="460" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="505" y1="540" x2="505" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="550" y1="540" x2="550" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="595" y1="540" x2="595" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="640" y1="540" x2="640" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="685" y1="540" x2="685" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="730" y1="540" x2="730" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="775" y1="540" x2="775" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="820" y1="540" x2="820" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="865" y1="540" x2="865" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="910" y1="540" x2="910" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    <line x1="955" y1="540" x2="955" y2="580" stroke="#27AE60" stroke-width="1.5"/>
+    
+    <!-- Pot icons (simplified) -->
+    <g fill="#D5A26F" stroke="#8B6914" stroke-width="1">
+      <path d="M88,585 L95,620 L105,620 L112,585 Z"/>
+      <path d="M133,585 L140,620 L150,620 L157,585 Z"/>
+      <path d="M178,585 L185,620 L195,620 L202,585 Z"/>
+      <path d="M223,585 L230,620 L240,620 L247,585 Z"/>
+      <path d="M268,585 L275,620 L285,620 L292,585 Z"/>
+      <path d="M313,585 L320,620 L330,620 L337,585 Z"/>
+      <path d="M358,585 L365,620 L375,620 L382,585 Z"/>
+      <path d="M403,585 L410,620 L420,620 L427,585 Z"/>
+      <path d="M448,585 L455,620 L465,620 L472,585 Z"/>
+      <path d="M493,585 L500,620 L510,620 L517,585 Z"/>
+      <path d="M538,585 L545,620 L555,620 L562,585 Z"/>
+      <path d="M583,585 L590,620 L600,620 L607,585 Z"/>
+      <path d="M628,585 L635,620 L645,620 L652,585 Z"/>
+      <path d="M673,585 L680,620 L690,620 L697,585 Z"/>
+      <path d="M718,585 L725,620 L735,620 L742,585 Z"/>
+      <path d="M763,585 L770,620 L780,620 L787,585 Z"/>
+      <path d="M808,585 L815,620 L825,620 L832,585 Z"/>
+      <path d="M853,585 L860,620 L870,620 L877,585 Z"/>
+      <path d="M898,585 L905,620 L915,620 L922,585 Z"/>
+      <path d="M943,585 L950,620 L960,620 L967,585 Z"/>
+    </g>
+    
+    <!-- Plant icons (tiny green) -->
+    <g fill="#27AE60" opacity="0.7">
+      <circle cx="100" cy="580" r="4"/>
+      <circle cx="145" cy="580" r="4"/>
+      <circle cx="190" cy="580" r="4"/>
+      <circle cx="235" cy="580" r="4"/>
+      <circle cx="280" cy="580" r="4"/>
+      <circle cx="325" cy="580" r="4"/>
+      <circle cx="370" cy="580" r="4"/>
+      <circle cx="415" cy="580" r="4"/>
+      <circle cx="460" cy="580" r="4"/>
+      <circle cx="505" cy="580" r="4"/>
+      <circle cx="550" cy="580" r="4"/>
+      <circle cx="595" cy="580" r="4"/>
+      <circle cx="640" cy="580" r="4"/>
+      <circle cx="685" cy="580" r="4"/>
+      <circle cx="730" cy="580" r="4"/>
+      <circle cx="775" cy="580" r="4"/>
+      <circle cx="820" cy="580" r="4"/>
+      <circle cx="865" cy="580" r="4"/>
+      <circle cx="910" cy="580" r="4"/>
+      <circle cx="955" cy="580" r="4"/>
+    </g>
+
+    <!-- Pot numbers -->
+    <text x="100" y="635" text-anchor="middle" font-size="7" fill="#8B6914">1</text>
+    <text x="280" y="635" text-anchor="middle" font-size="7" fill="#8B6914">5</text>
+    <text x="505" y="635" text-anchor="middle" font-size="7" fill="#8B6914">10</text>
+    <text x="730" y="635" text-anchor="middle" font-size="7" fill="#8B6914">15</text>
+    <text x="955" y="635" text-anchor="middle" font-size="7" fill="#8B6914">20</text>
+  </g>
+
+  <!-- ==================== CAPTEURS HUMIDITÉ ==================== -->
+  <!-- Soil sensors indication -->
+  <g>
+    <rect x="100" y="645" width="870" height="25" rx="4" fill="#F39C12" opacity="0.15" stroke="#F39C12" stroke-width="1" stroke-dasharray="4,2"/>
+    <text x="535" y="662" text-anchor="middle" font-size="9" fill="#E67E22" font-weight="bold">20× CAPTEURS HUMIDITÉ CAPACITIFS v2.0 → 2× MUX CD74HC4067 → ADC1 ESP32</text>
+  </g>
+
+  <!-- ==================== ESP32 BOX ==================== -->
+  <g filter="url(#shadow)">
+    <rect x="800" y="120" width="250" height="280" rx="10" fill="white" stroke="#2C3E50" stroke-width="2"/>
+    <rect x="800" y="120" width="250" height="35" rx="10 10 0 0" fill="#2C3E50"/>
+    <text x="925" y="143" text-anchor="middle" font-size="13" font-weight="bold" fill="white">BOÎTIER IP65</text>
+    
+    <!-- ESP32 -->
+    <rect x="830" y="170" width="100" height="35" rx="4" fill="#3498DB" stroke="#2980B9" stroke-width="1.5"/>
+    <text x="880" y="190" text-anchor="middle" font-size="9" font-weight="bold" fill="white">ESP32 WROOM</text>
+    <text x="880" y="200" text-anchor="middle" font-size="7" fill="#D6EAF8">WiFi + BLE + FreeRTOS</text>
+    
+    <!-- MUX x2 -->
+    <rect x="830" y="215" width="100" height="25" rx="4" fill="#F39C12" stroke="#E67E22" stroke-width="1"/>
+    <text x="880" y="232" text-anchor="middle" font-size="8" font-weight="bold" fill="white">2× MUX CD74HC4067</text>
+    
+    <!-- LM2596 -->
+    <rect x="830" y="250" width="100" height="22" rx="4" fill="#1ABC9C" stroke="#16A085" stroke-width="1"/>
+    <text x="880" y="265" text-anchor="middle" font-size="8" font-weight="bold" fill="white">LM2596 12V→5V</text>
+    
+    <!-- BME280 -->
+    <rect x="945" y="170" width="85" height="22" rx="4" fill="#9B59B6" stroke="#8E44AD" stroke-width="1"/>
+    <text x="987" y="185" text-anchor="middle" font-size="7" font-weight="bold" fill="white">BME280 I2C</text>
+    <text x="987" y="200" text-anchor="middle" font-size="7" fill="#9B59B6">T° / HR / P</text>
+
+    <!-- Connections labels -->
+    <text x="820" y="295" font-size="8" fill="#2C3E50" font-weight="bold">Connexions:</text>
+    <text x="820" y="308" font-size="7" fill="#7F8C8D">→ WiFi → MQTT → Grafana</text>
+    <text x="820" y="320" font-size="7" fill="#7F8C8D">→ Telegram Bot (alertes)</text>
+    <text x="820" y="332" font-size="7" fill="#7F8C8D">→ OTA firmware updates</text>
+    <text x="820" y="344" font-size="7" fill="#7F8C8D">→ Deep sleep ~10µA</text>
+    
+    <!-- WiFi icon -->
+    <text x="1010" y="320" font-size="22" fill="#3498DB">📡</text>
+  </g>
+
+  <!-- ==================== ÉNERGIE ==================== -->
+  <g filter="url(#shadow)">
+    <rect x="800" y="420" width="250" height="120" rx="10" fill="#FFF9E6" stroke="#F1C40F" stroke-width="2"/>
+    <text x="925" y="445" text-anchor="middle" font-size="12" font-weight="bold" fill="#F39C12">⚡ ÉNERGIE</text>
+    
+    <!-- Solar panel -->
+    <rect x="820" y="455" width="90" height="30" rx="3" fill="#2C3E50" stroke="#1A252F" stroke-width="1"/>
+    <text x="865" y="474" text-anchor="middle" font-size="8" font-weight="bold" fill="#F1C40F">☀ SOLAIRE 20W</text>
+    <text x="865" y="500" text-anchor="middle" font-size="7" fill="#7F8C8D">Mono 18V Vmp</text>
+    
+    <!-- Arrow solar → MPPT -->
+    <line x1="910" y1="470" x2="930" y2="470" stroke="#F39C12" stroke-width="2" marker-end="url(#arrowRed)"/>
+    
+    <!-- MPPT -->
+    <rect x="940" y="455" width="90" height="30" rx="3" fill="#E74C3C" stroke="#C0392B" stroke-width="1"/>
+    <text x="985" y="470" text-anchor="middle" font-size="8" font-weight="bold" fill="white">MPPT 10A</text>
+    <text x="985" y="480" text-anchor="middle" font-size="7" fill="#FADBD8">LiFePO4 14.6V</text>
+    
+    <!-- Arrow MPPT → Battery -->
+    <line x1="985" y1="485" x2="985" y2="500" stroke="#F39C12" stroke-width="2"/>
+    
+    <!-- Battery -->
+    <rect x="930" y="505" width="110" height="25" rx="3" fill="#27AE60" stroke="#1E8449" stroke-width="1.5"/>
+    <text x="985" y="522" text-anchor="middle" font-size="9" font-weight="bold" fill="white">LiFePO4 12V 6Ah</text>
+  </g>
+
+  <!-- Connection lines ESP32 box → Pump MOSFET -->
+  <line x1="800" y1="380" x2="735" y2="460" stroke="#2C3E50" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="780" y="415" font-size="7" fill="#2C3E50" transform="rotate(-30,780,415)">GPIO → MOSFET</text>
+
+  <!-- Energy → ESP32 -->
+  <line x1="880" y1="420" x2="880" y2="400" stroke="#F39C12" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="880" y="410" text-anchor="middle" font-size="7" fill="#F39C12">12V → LM2596 → 3.3V</text>
+
+  <!-- ==================== LÉGENDE ==================== -->
+  <g>
+    <rect x="30" y="680" width="1040" height="55" rx="6" fill="white" stroke="#BDC3C7" stroke-width="1"/>
+    <text x="50" y="700" font-size="10" font-weight="bold" fill="#2C3E50">LÉGENDE:</text>
+    
+    <line x1="130" y1="697" x2="165" y2="697" stroke="#2980B9" stroke-width="3" stroke-dasharray="8,4"/>
+    <text x="170" y="700" font-size="9" fill="#2C3E50">Liaison hydraulique inter-bidons</text>
+    
+    <line x1="340" y1="697" x2="375" y2="697" stroke="#2980B9" stroke-width="3" marker-end="url(#arrowBlue)"/>
+    <text x="380" y="700" font-size="9" fill="#2C3E50">Aspiration pompe</text>
+    
+    <line x1="490" y1="697" x2="525" y2="697" stroke="#27AE60" stroke-width="3" marker-end="url(#arrowGreen)"/>
+    <text x="530" y="700" font-size="9" fill="#2C3E50">Distribution eau</text>
+    
+    <line x1="650" y1="697" x2="685" y2="697" stroke="#F39C12" stroke-width="2"/>
+    <text x="690" y="700" font-size="9" fill="#2C3E50">Énergie (solaire/batterie)</text>
+    
+    <line x1="830" y1="697" x2="865" y2="697" stroke="#2C3E50" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="870" y="700" font-size="9" fill="#2C3E50">Signal (GPIO/I2C)</text>
+    
+    <text x="50" y="722" font-size="8" fill="#95A5A6">Volume total: 75L · Autonomie eau: 3-7 jours (selon saison) · Autonomie énergie sans soleil: 15+ jours · Failsafe: pompe coupée si réservoir &lt;10%</text>
+  </g>
+</svg>

@@ -1,0 +1,424 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1150" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arw" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#2C3E50"/>
+    </marker>
+    <marker id="arwR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#E74C3C"/>
+    </marker>
+    <marker id="arwB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#2980B9"/>
+    </marker>
+    <marker id="arwY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#F39C12"/>
+    </marker>
+    <filter id="sh">
+      <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="1150" fill="#FDFDFD" rx="6"/>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="1400" height="60" fill="#2C3E50"/>
+  <text x="700" y="28" text-anchor="middle" font-size="20" font-weight="bold" fill="white">BALCONY HYDRA v2 — Wiring Diagram (Rev 1.1)</text>
+  <text x="700" y="48" text-anchor="middle" font-size="11" fill="#BDC3C7">ESP32 WROOM-32 · 20 capteurs · Pompe 12V · Solaire LiFePO4 · MQTT/Telegram</text>
+  <text x="1370" y="48" text-anchor="end" font-size="9" fill="#F1C40F">Rails alimentation corrigés</text>
+
+  <!-- POWER RAILS BANNER -->
+  <rect x="30" y="70" width="1340" height="50" rx="6" fill="#FEF9E7" stroke="#F1C40F" stroke-width="1.5"/>
+  <text x="50" y="90" font-size="11" font-weight="bold" fill="#E67E22">RAILS D'ALIMENTATION — 3 niveaux</text>
+  <rect x="50" y="98" width="14" height="14" rx="2" fill="#E74C3C"/>
+  <text x="70" y="110" font-size="9" fill="#2C3E50" font-weight="bold">12V direct batterie</text>
+  <text x="200" y="110" font-size="8" fill="#7F8C8D">→ Pompe (via MOSFET) + entrée LM2596</text>
+  <rect x="470" y="98" width="14" height="14" rx="2" fill="#F39C12"/>
+  <text x="490" y="110" font-size="9" fill="#2C3E50" font-weight="bold">5V (sortie LM2596)</text>
+  <text x="610" y="110" font-size="8" fill="#7F8C8D">→ ESP32 VIN + Capteurs US JSN-SR04T</text>
+  <rect x="900" y="98" width="14" height="14" rx="2" fill="#3498DB"/>
+  <text x="920" y="110" font-size="9" fill="#2C3E50" font-weight="bold">3.3V (pin 3V3 ESP32)</text>
+  <text x="1060" y="110" font-size="8" fill="#7F8C8D">→ MUX ×2 + BME280 + INA219 + Capteurs humidité</text>
+
+  <!-- ============ ESP32 ============ -->
+  <g filter="url(#sh)">
+    <rect x="520" y="200" width="360" height="360" rx="8" fill="white" stroke="#2C3E50" stroke-width="2.5"/>
+    <rect x="520" y="200" width="360" height="32" rx="8 8 0 0" fill="#3498DB"/>
+    <text x="700" y="221" text-anchor="middle" font-size="14" font-weight="bold" fill="white">ESP32 DEVKIT WROOM-32 (30 pins)</text>
+
+    <!-- Left pins -->
+    <g font-size="8">
+      <rect x="530" y="242" width="80" height="16" rx="2" fill="#D6EAF8" stroke="#3498DB" stroke-width="1"/>
+      <text x="570" y="253" text-anchor="middle" font-weight="bold" fill="#2980B9">3V3 OUT</text>
+      <rect x="530" y="262" width="80" height="16" rx="2" fill="#F2F3F4" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="570" y="273" text-anchor="middle" font-weight="bold" fill="#2C3E50">GND</text>
+      <rect x="530" y="282" width="80" height="16" rx="2" fill="#FADBD8" stroke="#E74C3C" stroke-width="0.8"/>
+      <text x="570" y="293" text-anchor="middle" font-weight="bold" fill="#C0392B">GPIO 36 (VP)</text>
+      <rect x="530" y="302" width="80" height="16" rx="2" fill="#FADBD8" stroke="#E74C3C" stroke-width="0.8"/>
+      <text x="570" y="313" text-anchor="middle" font-weight="bold" fill="#C0392B">GPIO 39 (VN)</text>
+      <rect x="530" y="322" width="80" height="16" rx="2" fill="#D5F5E3" stroke="#27AE60" stroke-width="0.8"/>
+      <text x="570" y="333" text-anchor="middle" font-weight="bold" fill="#1E8449">GPIO 34</text>
+      <rect x="530" y="342" width="80" height="16" rx="2" fill="#D5F5E3" stroke="#27AE60" stroke-width="0.8"/>
+      <text x="570" y="353" text-anchor="middle" font-weight="bold" fill="#1E8449">GPIO 35</text>
+      <rect x="530" y="362" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="373" text-anchor="middle" font-weight="bold">GPIO 32</text>
+      <rect x="530" y="382" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="393" text-anchor="middle" font-weight="bold">GPIO 33</text>
+      <rect x="530" y="402" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="413" text-anchor="middle" font-weight="bold">GPIO 25</text>
+      <rect x="530" y="422" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="433" text-anchor="middle" font-weight="bold">GPIO 26</text>
+      <rect x="530" y="442" width="80" height="16" rx="2" fill="#FADBD8" stroke="#E74C3C" stroke-width="0.8"/>
+      <text x="570" y="453" text-anchor="middle" font-weight="bold" fill="#C0392B">GPIO 27</text>
+      <rect x="530" y="462" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="473" text-anchor="middle" font-weight="bold">GPIO 14</text>
+      <rect x="530" y="482" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="570" y="493" text-anchor="middle" font-weight="bold">GPIO 12</text>
+      <rect x="530" y="502" width="80" height="16" rx="2" fill="#F2F3F4" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="570" y="513" text-anchor="middle" font-weight="bold">GND</text>
+      <rect x="530" y="522" width="80" height="16" rx="2" fill="#FCF3CF" stroke="#F39C12" stroke-width="1"/>
+      <text x="570" y="533" text-anchor="middle" font-weight="bold" fill="#E67E22">VIN (5V in)</text>
+    </g>
+
+    <!-- Right pins -->
+    <g font-size="8">
+      <rect x="790" y="242" width="80" height="16" rx="2" fill="#F2F3F4" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="253" text-anchor="middle" font-weight="bold">EN</text>
+      <rect x="790" y="262" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="273" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 23</text>
+      <rect x="790" y="282" width="80" height="16" rx="2" fill="#E8DAEF" stroke="#8E44AD" stroke-width="0.8"/>
+      <text x="830" y="293" text-anchor="middle" font-weight="bold" fill="#6C3483">GPIO 22 (SCL)</text>
+      <rect x="790" y="302" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="313" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 1 (TX)</text>
+      <rect x="790" y="322" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="333" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 3 (RX)</text>
+      <rect x="790" y="342" width="80" height="16" rx="2" fill="#E8DAEF" stroke="#8E44AD" stroke-width="0.8"/>
+      <text x="830" y="353" text-anchor="middle" font-weight="bold" fill="#6C3483">GPIO 21 (SDA)</text>
+      <rect x="790" y="362" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="373" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 19</text>
+      <rect x="790" y="382" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="393" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 18</text>
+      <rect x="790" y="402" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="413" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 5</text>
+      <rect x="790" y="422" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="433" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 17</text>
+      <rect x="790" y="442" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="830" y="453" text-anchor="middle" font-weight="bold">GPIO 16</text>
+      <rect x="790" y="462" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="830" y="473" text-anchor="middle" font-weight="bold">GPIO 4</text>
+      <rect x="790" y="482" width="80" height="16" rx="2" fill="#D4E6F1" stroke="#2980B9" stroke-width="0.8"/>
+      <text x="830" y="493" text-anchor="middle" font-weight="bold">GPIO 2</text>
+      <rect x="790" y="502" width="80" height="16" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="513" text-anchor="middle" font-weight="bold" fill="#95A5A6">GPIO 15</text>
+      <rect x="790" y="522" width="80" height="16" rx="2" fill="#F2F3F4" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="830" y="533" text-anchor="middle" font-weight="bold">GND</text>
+    </g>
+
+    <rect x="670" y="540" width="60" height="15" rx="3" fill="#7F8C8D"/>
+    <text x="700" y="551" text-anchor="middle" font-size="7" fill="white">USB-C (prog)</text>
+    <rect x="625" y="232" width="150" height="22" rx="3" fill="#D6EAF8" stroke="#2980B9" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="700" y="247" text-anchor="middle" font-size="7" fill="#2980B9">AMS1117 onboard: VIN 5V → 3V3 (500mA)</text>
+  </g>
+
+  <!-- ============ PIN TABLE ============ -->
+  <g filter="url(#sh)">
+    <rect x="30" y="135" width="430" height="420" rx="6" fill="white" stroke="#2C3E50" stroke-width="1.5"/>
+    <rect x="30" y="135" width="430" height="25" rx="6 6 0 0" fill="#2C3E50"/>
+    <text x="245" y="152" text-anchor="middle" font-size="11" font-weight="bold" fill="white">PIN ASSIGNMENT TABLE (Rev 1.1)</text>
+    <g font-size="8">
+      <text x="45" y="175" font-weight="bold" fill="#2C3E50">GPIO</text>
+      <text x="110" y="175" font-weight="bold" fill="#2C3E50">Fonction</text>
+      <text x="310" y="175" font-weight="bold" fill="#2C3E50">Type</text>
+      <text x="390" y="175" font-weight="bold" fill="#2C3E50">Rail</text>
+      <line x1="35" y1="179" x2="455" y2="179" stroke="#BDC3C7" stroke-width="0.5"/>
+
+      <rect x="38" y="182" width="415" height="13" fill="#FADBD8" opacity="0.3"/>
+      <text x="245" y="192" text-anchor="middle" font-size="7" font-weight="bold" fill="#E74C3C">— ANALOG (ADC1 only — WiFi safe) —</text>
+      <text x="45" y="207" fill="#C0392B" font-weight="bold">36</text><text x="110" y="207">MUX 1 SIG out</text><text x="310" y="207" fill="#E74C3C">ADC1_CH0</text><text x="390" y="207" fill="#7F8C8D">—</text>
+      <text x="45" y="222" fill="#C0392B" font-weight="bold">39</text><text x="110" y="222">MUX 2 SIG out</text><text x="310" y="222" fill="#E74C3C">ADC1_CH3</text><text x="390" y="222" fill="#7F8C8D">—</text>
+
+      <rect x="38" y="228" width="415" height="13" fill="#D5F5E3" opacity="0.3"/>
+      <text x="245" y="238" text-anchor="middle" font-size="7" font-weight="bold" fill="#27AE60">— INPUT ONLY —</text>
+      <text x="45" y="253" fill="#1E8449" font-weight="bold">34</text><text x="110" y="253">US #1 ECHO</text><text x="310" y="253" fill="#27AE60">Input</text><text x="390" y="253" fill="#7F8C8D">—</text>
+      <text x="45" y="268" fill="#1E8449" font-weight="bold">35</text><text x="110" y="268">US #2 ECHO</text><text x="310" y="268" fill="#27AE60">Input</text><text x="390" y="268" fill="#7F8C8D">—</text>
+
+      <rect x="38" y="274" width="415" height="13" fill="#D4E6F1" opacity="0.3"/>
+      <text x="245" y="284" text-anchor="middle" font-size="7" font-weight="bold" fill="#2980B9">— MUX CONTROL (S0-S3 partagés) —</text>
+      <text x="45" y="299" fill="#2980B9" font-weight="bold">32</text><text x="110" y="299">MUX S0</text><text x="310" y="299" fill="#2980B9">Dig OUT</text><text x="390" y="299" fill="#7F8C8D">—</text>
+      <text x="45" y="314" fill="#2980B9" font-weight="bold">33</text><text x="110" y="314">MUX S1</text><text x="310" y="314" fill="#2980B9">Dig OUT</text><text x="390" y="314" fill="#7F8C8D">—</text>
+      <text x="45" y="329" fill="#2980B9" font-weight="bold">25</text><text x="110" y="329">MUX S2</text><text x="310" y="329" fill="#2980B9">Dig OUT</text><text x="390" y="329" fill="#7F8C8D">—</text>
+      <text x="45" y="344" fill="#2980B9" font-weight="bold">26</text><text x="110" y="344">MUX S3</text><text x="310" y="344" fill="#2980B9">Dig OUT</text><text x="390" y="344" fill="#7F8C8D">—</text>
+      <text x="45" y="359" fill="#F39C12" font-weight="bold">4</text><text x="110" y="359">MUX 1 EN (LOW=actif)</text><text x="310" y="359" fill="#2980B9">Dig OUT</text><text x="390" y="359" fill="#7F8C8D">—</text>
+      <text x="45" y="374" fill="#F39C12" font-weight="bold">16</text><text x="110" y="374">MUX 2 EN (LOW=actif)</text><text x="310" y="374" fill="#2980B9">Dig OUT</text><text x="390" y="374" fill="#7F8C8D">—</text>
+
+      <rect x="38" y="380" width="415" height="13" fill="#FADBD8" opacity="0.3"/>
+      <text x="245" y="390" text-anchor="middle" font-size="7" font-weight="bold" fill="#E74C3C">— ACTIONNEURS —</text>
+      <text x="45" y="405" fill="#E74C3C" font-weight="bold">27</text><text x="110" y="405">POMPE Gate MOSFET</text><text x="310" y="405" fill="#E74C3C">Dig OUT</text><text x="390" y="405" fill="#7F8C8D">—</text>
+      <text x="45" y="420" fill="#2980B9" font-weight="bold">14</text><text x="110" y="420">US #1 TRIGGER</text><text x="310" y="420" fill="#2980B9">Dig OUT</text><text x="390" y="420" fill="#7F8C8D">—</text>
+      <text x="45" y="435" fill="#2980B9" font-weight="bold">12</text><text x="110" y="435">US #2 TRIGGER</text><text x="310" y="435" fill="#2980B9">Dig OUT</text><text x="390" y="435" fill="#7F8C8D">—</text>
+
+      <rect x="38" y="441" width="415" height="13" fill="#E8DAEF" opacity="0.3"/>
+      <text x="245" y="451" text-anchor="middle" font-size="7" font-weight="bold" fill="#8E44AD">— I2C BUS —</text>
+      <text x="45" y="466" fill="#8E44AD" font-weight="bold">21</text><text x="110" y="466">SDA (BME280+INA219)</text><text x="310" y="466" fill="#8E44AD">I2C</text><text x="390" y="466" fill="#3498DB">3.3V</text>
+      <text x="45" y="481" fill="#8E44AD" font-weight="bold">22</text><text x="110" y="481">SCL (BME280+INA219)</text><text x="310" y="481" fill="#8E44AD">I2C</text><text x="390" y="481" fill="#3498DB">3.3V</text>
+
+      <text x="45" y="499" fill="#2980B9" font-weight="bold">2</text><text x="110" y="499">LED status onboard</text><text x="310" y="499" fill="#2980B9">Dig OUT</text><text x="390" y="499" fill="#7F8C8D">—</text>
+
+      <rect x="38" y="505" width="415" height="13" fill="#FCF3CF" opacity="0.3"/>
+      <text x="245" y="515" text-anchor="middle" font-size="7" font-weight="bold" fill="#E67E22">— POWER —</text>
+      <text x="45" y="530" fill="#F39C12" font-weight="bold">VIN</text><text x="110" y="530">5V in (LM2596 out)</text><text x="310" y="530" fill="#F39C12">PWR IN</text><text x="390" y="530" fill="#F39C12" font-weight="bold">5V</text>
+      <text x="45" y="545" fill="#3498DB" font-weight="bold">3V3</text><text x="110" y="545">3.3V out → MUX, capteurs, I2C</text><text x="310" y="545" fill="#3498DB">PWR OUT</text><text x="390" y="545" fill="#3498DB" font-weight="bold">3.3V</text>
+    </g>
+  </g>
+
+  <!-- ============ MUX 1 ============ -->
+  <g filter="url(#sh)">
+    <rect x="30" y="580" width="300" height="165" rx="6" fill="white" stroke="#F39C12" stroke-width="2"/>
+    <rect x="30" y="580" width="300" height="25" rx="6 6 0 0" fill="#F39C12"/>
+    <text x="180" y="597" text-anchor="middle" font-size="10" font-weight="bold" fill="white">MUX 1 — CD74HC4067 (ch 1-16)</text>
+    <g font-size="8" fill="#2C3E50">
+      <text x="45" y="620" font-weight="bold" fill="#3498DB">VCC → ESP32 3V3</text>
+      <text x="45" y="637" font-weight="bold">GND → GND commun</text>
+      <text x="45" y="654" font-weight="bold" fill="#E74C3C">SIG → GPIO 36 (ADC1_CH0)</text>
+      <text x="45" y="671" font-weight="bold" fill="#2980B9">S0-S3 → GPIO 32,33,25,26</text>
+      <text x="45" y="688" font-weight="bold" fill="#F39C12">EN → GPIO 4 (LOW=actif)</text>
+      <text x="45" y="708" fill="#E67E22" font-weight="bold">C0-C15 ← 16 capteurs humidité</text>
+      <text x="45" y="735" fill="#7F8C8D" font-size="7">Capteurs alimentés via 3.3V (ESP32 3V3 pin)</text>
+    </g>
+  </g>
+
+  <!-- ============ MUX 2 ============ -->
+  <g filter="url(#sh)">
+    <rect x="30" y="760" width="300" height="130" rx="6" fill="white" stroke="#E67E22" stroke-width="2"/>
+    <rect x="30" y="760" width="300" height="25" rx="6 6 0 0" fill="#E67E22"/>
+    <text x="180" y="777" text-anchor="middle" font-size="10" font-weight="bold" fill="white">MUX 2 — CD74HC4067 (ch 17-20 + spare)</text>
+    <g font-size="8" fill="#2C3E50">
+      <text x="45" y="802" font-weight="bold" fill="#3498DB">VCC → ESP32 3V3</text>
+      <text x="45" y="819" font-weight="bold">GND → GND commun</text>
+      <text x="45" y="836" font-weight="bold" fill="#E74C3C">SIG → GPIO 39 (ADC1_CH3)</text>
+      <text x="45" y="853" font-weight="bold" fill="#2980B9">S0-S3 → partagés MUX 1</text>
+      <text x="45" y="870" font-weight="bold" fill="#F39C12">EN → GPIO 16 (LOW=actif)</text>
+      <text x="45" y="885" fill="#D35400" font-weight="bold">C0-C3 ← 4 capteurs | C4-C15 libre</text>
+    </g>
+  </g>
+
+  <!-- Wires MUX SIG → ESP32 ADC -->
+  <path d="M330,650 L440,650 L440,290 L530,290" stroke="#E74C3C" stroke-width="2" fill="none" stroke-dasharray="6,3"/>
+  <text x="400" y="470" font-size="8" fill="#E74C3C" font-weight="bold" transform="rotate(-90,400,470)">MUX1 SIG → ADC1_CH0</text>
+  <path d="M330,835 L460,835 L460,310 L530,310" stroke="#E74C3C" stroke-width="2" fill="none" stroke-dasharray="6,3"/>
+  <text x="420" y="570" font-size="8" fill="#E74C3C" font-weight="bold" transform="rotate(-90,420,570)">MUX2 SIG → ADC1_CH3</text>
+
+  <!-- 3V3 rail ESP32 → MUX -->
+  <path d="M530,250 L500,250 L500,620 L330,620" stroke="#3498DB" stroke-width="2.5" fill="none" marker-end="url(#arwB)"/>
+  <text x="505" y="435" font-size="8" fill="#3498DB" font-weight="bold" transform="rotate(-90,505,435)">3.3V rail (ESP32 3V3)</text>
+
+  <!-- MUX S0-S3 wires -->
+  <path d="M330,671 L480,671 L480,370 L530,370" stroke="#2980B9" stroke-width="1.2" fill="none"/>
+  <path d="M330,671 L485,671 L485,390 L530,390" stroke="#2980B9" stroke-width="1.2" fill="none"/>
+
+  <!-- ============ CAPTEURS HUMIDITÉ ============ -->
+  <g filter="url(#sh)">
+    <rect x="30" y="905" width="300" height="55" rx="6" fill="#FEF9E7" stroke="#F39C12" stroke-width="1.5"/>
+    <text x="180" y="925" text-anchor="middle" font-size="9" font-weight="bold" fill="#E67E22">20× CAPTEUR HUMIDITÉ CAPACITIF v2.0</text>
+    <text x="180" y="940" text-anchor="middle" font-size="7" fill="#7F8C8D">VCC→3.3V (ESP32) | GND | AOUT→MUX Cx</text>
+    <text x="180" y="953" text-anchor="middle" font-size="7" fill="#7F8C8D">16 sur MUX1 + 4 sur MUX2 | Calibration: air~3V, eau~1.2V</text>
+  </g>
+  <line x1="180" y1="905" x2="180" y2="892" stroke="#F39C12" stroke-width="1.5" marker-end="url(#arwY)"/>
+
+  <!-- ============ CAPTEURS US ============ -->
+  <g filter="url(#sh)">
+    <rect x="380" y="640" width="230" height="145" rx="6" fill="white" stroke="#27AE60" stroke-width="2"/>
+    <rect x="380" y="640" width="230" height="25" rx="6 6 0 0" fill="#27AE60"/>
+    <text x="495" y="657" text-anchor="middle" font-size="10" font-weight="bold" fill="white">CAPTEURS NIVEAU — JSN-SR04T</text>
+    <g font-size="8" fill="#2C3E50">
+      <text x="395" y="682" font-weight="bold" fill="#27AE60">US #1 (Bidon 3 — principal)</text>
+      <text x="395" y="697" fill="#F39C12" font-weight="bold">VCC → 5V (LM2596)</text>
+      <text x="395" y="710">GND | TRIG→GPIO 14 | ECHO→GPIO 34</text>
+      <line x1="390" y1="718" x2="600" y2="718" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="395" y="731" font-weight="bold" fill="#27AE60">US #2 (Bidon 1 — redondance)</text>
+      <text x="395" y="746" fill="#F39C12" font-weight="bold">VCC → 5V (LM2596)</text>
+      <text x="395" y="759">GND | TRIG→GPIO 12 | ECHO→GPIO 35</text>
+      <text x="395" y="778" font-size="7" fill="#E74C3C" font-weight="bold">⚠ Si niveaux divergent → raccord obstrué</text>
+    </g>
+  </g>
+
+  <!-- US ECHO → ESP32 -->
+  <path d="M530,330 L510,330 L510,700 L380,700" stroke="#27AE60" stroke-width="1.3" fill="none"/>
+  <path d="M530,350 L515,350 L515,755 L380,755" stroke="#27AE60" stroke-width="1.3" fill="none"/>
+
+  <!-- ============ I2C BUS ============ -->
+  <g filter="url(#sh)">
+    <rect x="1000" y="150" width="350" height="200" rx="6" fill="white" stroke="#8E44AD" stroke-width="2"/>
+    <rect x="1000" y="150" width="350" height="25" rx="6 6 0 0" fill="#8E44AD"/>
+    <text x="1175" y="167" text-anchor="middle" font-size="11" font-weight="bold" fill="white">BUS I2C — GPIO 21 (SDA) / GPIO 22 (SCL)</text>
+
+    <rect x="1020" y="190" width="140" height="60" rx="4" fill="#F5EEF8" stroke="#8E44AD" stroke-width="1.5"/>
+    <text x="1090" y="210" text-anchor="middle" font-size="10" font-weight="bold" fill="#8E44AD">BME280</text>
+    <text x="1090" y="225" text-anchor="middle" font-size="8" fill="#7F8C8D">0x76 | T°/HR/P</text>
+    <text x="1090" y="240" text-anchor="middle" font-size="7" fill="#3498DB" font-weight="bold">VCC → 3.3V (ESP32)</text>
+
+    <rect x="1195" y="190" width="140" height="60" rx="4" fill="#F5EEF8" stroke="#8E44AD" stroke-width="1.5"/>
+    <text x="1265" y="210" text-anchor="middle" font-size="10" font-weight="bold" fill="#8E44AD">INA219</text>
+    <text x="1265" y="225" text-anchor="middle" font-size="8" fill="#7F8C8D">0x40 | courant pompe</text>
+    <text x="1265" y="240" text-anchor="middle" font-size="7" fill="#3498DB" font-weight="bold">VCC → 3.3V (ESP32)</text>
+
+    <line x1="1020" y1="265" x2="1340" y2="265" stroke="#8E44AD" stroke-width="2.5"/>
+    <circle cx="1090" cy="265" r="4" fill="#8E44AD"/>
+    <circle cx="1265" cy="265" r="4" fill="#8E44AD"/>
+    <text x="1175" y="285" text-anchor="middle" font-size="8" fill="#8E44AD" font-weight="bold">Pull-up 4.7kΩ SDA + SCL → 3.3V</text>
+
+    <rect x="1020" y="300" width="310" height="38" rx="3" fill="#FEF9E7" stroke="#F39C12" stroke-width="1"/>
+    <text x="1030" y="316" font-size="8" fill="#2C3E50" font-weight="bold">INA219 mesure courant pompe (en série):</text>
+    <text x="1030" y="330" font-size="7" fill="#E74C3C">VIN+ ← 12V batterie | VIN- → Pompe V+ (shunt 0.1Ω intégré)</text>
+  </g>
+
+  <!-- I2C → ESP32 -->
+  <path d="M870,290 L935,290 L935,240 L1000,240" stroke="#8E44AD" stroke-width="2" fill="none"/>
+  <path d="M870,350 L945,350 L945,250 L1000,250" stroke="#8E44AD" stroke-width="1.5" fill="none" stroke-dasharray="4,2"/>
+  <text x="920" y="235" font-size="7" fill="#8E44AD" font-weight="bold">SCL</text>
+  <text x="950" y="265" font-size="7" fill="#8E44AD" font-weight="bold">SDA</text>
+
+  <!-- ============ POMPE MOSFET ============ -->
+  <g filter="url(#sh)">
+    <rect x="1000" y="390" width="350" height="230" rx="6" fill="white" stroke="#E74C3C" stroke-width="2"/>
+    <rect x="1000" y="390" width="350" height="25" rx="6 6 0 0" fill="#E74C3C"/>
+    <text x="1175" y="407" text-anchor="middle" font-size="11" font-weight="bold" fill="white">CIRCUIT POMPE — GPIO 27 → MOSFET</text>
+
+    <!-- 12V rail -->
+    <line x1="1040" y1="440" x2="1310" y2="440" stroke="#E74C3C" stroke-width="2.5"/>
+    <text x="1040" y="435" font-size="9" fill="#E74C3C" font-weight="bold">+12V DIRECT BATTERIE</text>
+
+    <!-- INA219 shunt -->
+    <rect x="1050" y="448" width="55" height="20" rx="2" fill="#E8DAEF" stroke="#8E44AD" stroke-width="1"/>
+    <text x="1077" y="462" text-anchor="middle" font-size="6" font-weight="bold" fill="#8E44AD">INA219</text>
+    <line x1="1077" y1="440" x2="1077" y2="448" stroke="#E74C3C" stroke-width="1.5"/>
+    <line x1="1077" y1="468" x2="1077" y2="480" stroke="#E74C3C" stroke-width="1.5"/>
+
+    <!-- Pump -->
+    <rect x="1047" y="482" width="80" height="40" rx="5" fill="#FADBD8" stroke="#E74C3C" stroke-width="2"/>
+    <text x="1087" y="502" text-anchor="middle" font-size="9" font-weight="bold" fill="#C0392B">POMPE</text>
+    <text x="1087" y="515" text-anchor="middle" font-size="7" fill="#C0392B">12V 2L/min</text>
+
+    <!-- Flyback diode -->
+    <polygon points="1142,490 1156,490 1149,500" fill="#E74C3C"/>
+    <line x1="1142" y1="500" x2="1156" y2="500" stroke="#E74C3C" stroke-width="1.5"/>
+    <line x1="1149" y1="455" x2="1149" y2="520" stroke="#E74C3C" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <text x="1165" y="492" font-size="7" fill="#C0392B" font-weight="bold">1N4007</text>
+
+    <!-- Pump → MOSFET -->
+    <line x1="1087" y1="522" x2="1087" y2="545" stroke="#2C3E50" stroke-width="1.5"/>
+
+    <!-- MOSFET -->
+    <rect x="1057" y="547" width="60" height="30" rx="4" fill="#2C3E50"/>
+    <text x="1087" y="565" text-anchor="middle" font-size="8" font-weight="bold" fill="white">IRLZ44N</text>
+    <text x="1087" y="574" text-anchor="middle" font-size="6" fill="#BDC3C7">N-ch logic level</text>
+
+    <!-- Gate -->
+    <line x1="1057" y1="562" x2="1025" y2="562" stroke="#3498DB" stroke-width="2"/>
+    <text x="1025" y="555" font-size="7" fill="#3498DB" font-weight="bold">Gate ← GPIO 27</text>
+
+    <!-- Pull-down -->
+    <rect x="1030" y="575" width="25" height="10" rx="2" fill="#F2F3F4" stroke="#BDC3C7" stroke-width="0.5"/>
+    <text x="1042" y="583" text-anchor="middle" font-size="5" fill="#7F8C8D">10kΩ</text>
+    <line x1="1042" y1="585" x2="1042" y2="600" stroke="#7F8C8D" stroke-width="1"/>
+
+    <!-- Source → GND -->
+    <line x1="1087" y1="577" x2="1087" y2="600" stroke="#2C3E50" stroke-width="1.5"/>
+    <line x1="1040" y1="600" x2="1310" y2="600" stroke="#2C3E50" stroke-width="2.5"/>
+    <text x="1040" y="614" font-size="9" fill="#2C3E50" font-weight="bold">GND COMMUN</text>
+
+    <!-- Explanation -->
+    <rect x="1195" y="450" width="140" height="85" rx="3" fill="#FEF9E7" stroke="#F1C40F" stroke-width="0.8"/>
+    <text x="1205" y="465" font-size="7" font-weight="bold" fill="#E67E22">Séquence:</text>
+    <text x="1205" y="478" font-size="6" fill="#27AE60">GPIO 27 = HIGH (3.3V)</text>
+    <text x="1205" y="489" font-size="6" fill="#2C3E50">→ Vgs > Vth (1V)</text>
+    <text x="1205" y="500" font-size="6" fill="#2C3E50">→ MOSFET passant</text>
+    <text x="1205" y="511" font-size="6" fill="#27AE60">→ Pompe ON</text>
+    <text x="1205" y="525" font-size="6" fill="#E74C3C">GPIO 27 = LOW → Pompe OFF</text>
+  </g>
+
+  <!-- GPIO27 → MOSFET wire -->
+  <path d="M530,450 L495,450 L495,562 L1025,562" stroke="#3498DB" stroke-width="1.8" fill="none" marker-end="url(#arwB)"/>
+  <text x="760" y="557" font-size="8" fill="#3498DB" font-weight="bold">GPIO 27 → Gate MOSFET</text>
+
+  <!-- ============ CHAÎNE ÉNERGIE ============ -->
+  <g filter="url(#sh)">
+    <rect x="1000" y="650" width="350" height="270" rx="6" fill="white" stroke="#F1C40F" stroke-width="2"/>
+    <rect x="1000" y="650" width="350" height="25" rx="6 6 0 0" fill="#F1C40F"/>
+    <text x="1175" y="667" text-anchor="middle" font-size="11" font-weight="bold" fill="#2C3E50">⚡ CHAÎNE ÉNERGIE — 3 rails</text>
+
+    <!-- Solar -->
+    <rect x="1020" y="690" width="120" height="35" rx="4" fill="#2C3E50"/>
+    <text x="1080" y="708" text-anchor="middle" font-size="9" font-weight="bold" fill="#F1C40F">☀ PANNEAU 20W</text>
+    <text x="1080" y="720" text-anchor="middle" font-size="7" fill="#BDC3C7">Mono 18V / 1.1A</text>
+
+    <line x1="1140" y1="707" x2="1175" y2="707" stroke="#F39C12" stroke-width="2" marker-end="url(#arwR)"/>
+
+    <!-- MPPT -->
+    <rect x="1185" y="690" width="120" height="35" rx="4" fill="#E74C3C"/>
+    <text x="1245" y="708" text-anchor="middle" font-size="9" font-weight="bold" fill="white">MPPT 10A</text>
+    <text x="1245" y="720" text-anchor="middle" font-size="7" fill="#FADBD8">LiFePO4 14.6V</text>
+
+    <line x1="1245" y1="725" x2="1245" y2="745" stroke="#F39C12" stroke-width="2"/>
+
+    <!-- Battery -->
+    <rect x="1140" y="748" width="180" height="40" rx="5" fill="#27AE60" stroke="#1E8449" stroke-width="2"/>
+    <text x="1230" y="768" text-anchor="middle" font-size="11" font-weight="bold" fill="white">LiFePO4 12V 6Ah</text>
+    <text x="1230" y="782" text-anchor="middle" font-size="7" fill="#D5F5E3">12.8V nom. | BMS | 76.8Wh</text>
+
+    <!-- 3 output branches -->
+    <line x1="1140" y1="768" x2="1060" y2="768" stroke="#E74C3C" stroke-width="2"/>
+
+    <!-- LM2596 -->
+    <rect x="1020" y="795" width="80" height="28" rx="4" fill="#1ABC9C" stroke="#16A085" stroke-width="1.5"/>
+    <text x="1060" y="812" text-anchor="middle" font-size="9" font-weight="bold" fill="white">LM2596</text>
+    <text x="1060" y="822" text-anchor="middle" font-size="6" fill="#D1F2EB">12V → 5V</text>
+    <line x1="1060" y1="790" x2="1060" y2="795" stroke="#E74C3C" stroke-width="1.5"/>
+
+    <!-- Rail labels -->
+    <rect x="1020" y="835" width="295" height="22" rx="3" fill="#FADBD8" stroke="#E74C3C" stroke-width="1"/>
+    <text x="1167" y="850" text-anchor="middle" font-size="8" font-weight="bold" fill="#C0392B">RAIL 12V → Pompe via MOSFET (direct batterie)</text>
+
+    <rect x="1020" y="862" width="295" height="22" rx="3" fill="#FCF3CF" stroke="#F39C12" stroke-width="1"/>
+    <text x="1167" y="877" text-anchor="middle" font-size="8" font-weight="bold" fill="#E67E22">RAIL 5V (LM2596) → ESP32 VIN + Capteurs US (×2)</text>
+
+    <rect x="1020" y="889" width="295" height="22" rx="3" fill="#D6EAF8" stroke="#3498DB" stroke-width="1"/>
+    <text x="1167" y="904" text-anchor="middle" font-size="8" font-weight="bold" fill="#2980B9">RAIL 3.3V (ESP32 3V3) → MUX ×2 + BME280 + INA219 + capteurs</text>
+
+    <text x="1020" y="915" font-size="6" fill="#7F8C8D">Conso max 3.3V: ~25mA (MUX+1capteur+I2C) &lt;&lt; 500mA AMS1117</text>
+  </g>
+
+  <!-- 5V wire LM2596 → ESP32 VIN -->
+  <path d="M870,530 L935,530 L935,870 L1020,870" stroke="#F39C12" stroke-width="2.5" fill="none" stroke-dasharray="5,3"/>
+  <text x="940" y="700" font-size="8" fill="#F39C12" font-weight="bold" transform="rotate(-90,940,700)">5V (LM2596) → ESP32 VIN</text>
+
+  <!-- ============ LÉGENDE ============ -->
+  <g>
+    <rect x="30" y="980" width="1320" height="155" rx="6" fill="white" stroke="#BDC3C7" stroke-width="1"/>
+    <text x="50" y="1005" font-size="12" font-weight="bold" fill="#2C3E50">LÉGENDE &amp; NOTES CRITIQUES</text>
+
+    <g font-size="8">
+      <rect x="50" y="1012" width="12" height="12" rx="2" fill="#E74C3C"/>
+      <text x="68" y="1022">12V (batterie)</text>
+      <rect x="170" y="1012" width="12" height="12" rx="2" fill="#F39C12"/>
+      <text x="188" y="1022">5V (LM2596)</text>
+      <rect x="280" y="1012" width="12" height="12" rx="2" fill="#3498DB"/>
+      <text x="298" y="1022">3.3V (ESP32 3V3)</text>
+      <rect x="420" y="1012" width="12" height="12" rx="2" fill="#8E44AD"/>
+      <text x="438" y="1022">I2C</text>
+      <rect x="480" y="1012" width="12" height="12" rx="2" fill="#27AE60"/>
+      <text x="498" y="1022">Ultrasons</text>
+      <line x1="580" y1="1018" x2="620" y2="1018" stroke="#E74C3C" stroke-width="2" stroke-dasharray="6,3"/>
+      <text x="628" y="1022">Analogique</text>
+      <rect x="710" y="1012" width="12" height="12" rx="2" fill="#E8E8E8" stroke="#BDC3C7" stroke-width="0.5"/>
+      <text x="728" y="1022" fill="#95A5A6">Pin libre (5,15,17,18,19,23)</text>
+
+      <text x="50" y="1048" font-weight="bold" fill="#E74C3C">⚠ NOTES CRITIQUES:</text>
+      <text x="50" y="1065">1. ADC2 inutilisable pour analog quand WiFi actif. Seul ADC1 (GPIO 32-39) est safe → MUX SIG sur GPIO 36 et 39.</text>
+      <text x="50" y="1080">2. GPIO 34,35,36,39 = INPUT ONLY. Utilisés pour MUX SIG et US ECHO (lecture seule = correct).</text>
+      <text x="50" y="1095">3. Pull-up 4.7kΩ sur SDA + SCL vers 3.3V obligatoire. Vérifier si les breakouts BME280/INA219 les incluent déjà.</text>
+      <text x="50" y="1110">4. Pull-down 10kΩ Gate MOSFET → GND. Empêche pompe ON au boot (GPIO flottant pendant ~100ms au démarrage ESP32).</text>
+      <text x="50" y="1125" fill="#27AE60" font-weight="bold">5. Condensateur 100µF 25V en entrée du LM2596 + 10µF en sortie. Filtre les pics de courant de la pompe.</text>
+    </g>
+  </g>
+
+  <text x="1350" y="1145" text-anchor="end" font-size="8" fill="#BDC3C7">Balcony Hydra v2 — Wiring Rev 1.1 — Avril 2026 — 3 rails clarifiés</text>
+</svg>
