@@ -84,6 +84,14 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 - `GPIO 14` → US#1 TRIGGER
 - `GPIO 12` → US#2 TRIGGER
 
+### Bouton physique
+- `GPIO 5` → Bouton poussoir (INPUT_PULLUP, appui = LOW, ISR FALLING)
+- Anti-rebond logiciel 300ms
+- **Appui 1× pompe OFF** → démarre un cycle (durée config)
+- **Appui 1× pompe ON** → arrête la pompe
+- **Appui si failsafe** → 3 blinks LED (erreur, pompe bloquée)
+- Fonctionne dans TOUS les modes, même sans WiFi
+
 ### I2C
 - `GPIO 21` → SDA (BME280 0x76 + INA219 0x40) — pull-up 4.7kΩ
 - `GPIO 22` → SCL — pull-up 4.7kΩ
@@ -92,7 +100,7 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 - `GPIO 2` → LED onboard
 
 ### Libres
-- `GPIO 5, 15, 17, 18, 19, 23` — disponibles pour extension
+- `GPIO 15, 17, 18, 19, 23` — disponibles pour extension
 
 ### Alimentation (3 rails)
 - **12V** (batterie directe) → pompe via MOSFET, entrée LM2596
@@ -292,9 +300,9 @@ help     — Liste des commandes
 - [ ] Mode AP timeout (retour STA après 5 min sans client)
 
 ### Hardware
+- [x] Bouton poussoir GPIO 5 pour arrosage manuel (implémenté)
 - [ ] Conception PCB custom (KiCad) pour remplacer le breakout board
 - [ ] Impression 3D boîtier sur mesure (Bambu Lab P2S)
-- [ ] Ajout bouton physique (GPIO 5) pour forcer AP mode
 - [ ] Ajout buzzer piezo pour alarme locale (GPIO 18)
 
 ### Infrastructure

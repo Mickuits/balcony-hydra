@@ -45,6 +45,18 @@
 | 14 | US Sensor #1 — TRIGGER | Digital OUT | |
 | 12 | US Sensor #2 — TRIGGER | Digital OUT | |
 
+### Bouton physique
+
+| GPIO | Fonction | Type | Notes |
+|------|----------|------|-------|
+| 5 | Bouton poussoir arrosage | INPUT_PULLUP | ISR FALLING, debounce 300ms |
+
+Comportement :
+- **Pompe OFF + appui** → démarre un cycle d'arrosage (durée config, failsafes actifs)
+- **Pompe ON + appui** → arrête la pompe immédiatement
+- **Failsafe actif + appui** → 3 blinks LED (erreur), pompe reste bloquée
+- Fonctionne dans tous les modes (auto/schedulé/manuel), avec ou sans WiFi
+
 ### Bus I2C
 
 | GPIO | Fonction | Type | Notes |
@@ -60,7 +72,7 @@
 
 ### Libres (extension future)
 
-`GPIO 5, 15, 17, 18, 19, 23`
+`GPIO 15, 17, 18, 19, 23`
 
 ## Notes critiques
 

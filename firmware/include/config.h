@@ -42,6 +42,10 @@ constexpr uint8_t PIN_SCL           = 22;
 // Status LED (onboard)
 constexpr uint8_t PIN_LED           = 2;
 
+// Physical button (manual watering trigger)
+constexpr uint8_t PIN_BUTTON        = 5;    // Bouton poussoir, pull-up interne
+constexpr uint32_t BUTTON_DEBOUNCE_MS = 300; // Anti-rebond
+
 // ---- SENSOR CONFIG ----
 constexpr uint8_t  NUM_MOISTURE_SENSORS  = 20;
 constexpr uint8_t  MUX1_CHANNELS         = 16;  // Sensors 0-15

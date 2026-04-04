@@ -25,6 +25,18 @@ MqttClient     mqttClient(configMgr, sensorMgr, pumpCtrl);
 TelegramBot    telegramBot(configMgr, sensorMgr, pumpCtrl);
 SleepManager   sleepMgr(configMgr);
 
+// ---- Button ISR ----
+volatile bool buttonPressed = false;
+volatile uint32_t lastButtonPress = 0;
+
+void IRAM_ATTR buttonISR() {
+    uint32_t now = millis();
+    if (now - lastButtonPress > BUTTON_DEBOUNCE_MS) {
+        buttonPressed = true;
+        lastButtonPress = now;
+    }
+}
+
 // ---- FreeRTOS task handles ----
 TaskHandle_t taskSensorHandle = NULL;
 TaskHandle_t taskPumpHandle   = NULL;
@@ -64,6 +76,26 @@ void taskPumpLoop(void* param) {
     const TickType_t interval = pdMS_TO_TICKS(1000);
     for (;;) {
         pumpCtrl.update();
+        
+        // Physical button check
+        if (buttonPressed) {
+            buttonPressed = false;
+            if (pumpCtrl.isRunning()) {
+                Serial.println("[MAIN] Bouton pressé → arrêt pompe");
+                pumpCtrl.stop(PumpStopReason::MANUAL_STOP);
+            } else if (!pumpCtrl.isBlocked()) {
+                Serial.println("[MAIN] Bouton pressé → démarrage pompe");
+                pumpCtrl.start();
+                telegramBot.sendAlert("🔘 Arrosage manuel (bouton)");
+            } else {
+                Serial.println("[MAIN] Bouton pressé → pompe BLOQUÉE (failsafe actif)");
+                // LED feedback: 3 blinks rapides = erreur
+                for (int i = 0; i < 3; i++) {
+                    digitalWrite(PIN_LED, HIGH); delay(100);
+                    digitalWrite(PIN_LED, LOW); delay(100);
+                }
+            }
+        }
         
         // Watering check every minute
         static uint32_t lastMinuteCheck = 0;
@@ -129,6 +161,11 @@ void setup() {
     
     Serial.println("[BOOT] 4/8 — Pompe...");
     pumpCtrl.begin();
+    
+    // Bouton poussoir (pull-up interne, appui = LOW)
+    pinMode(PIN_BUTTON, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), buttonISR, FALLING);
+    Serial.println("[BOOT]      Bouton poussoir GPIO 5 activé.");
     
     Serial.println("[BOOT] 5/8 — WiFi...");
     wifiMgr.begin();
