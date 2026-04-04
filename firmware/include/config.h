@@ -35,6 +35,17 @@ constexpr uint8_t PIN_US2_ECHO      = 35;   // Input only
 // Pump MOSFET gate
 constexpr uint8_t PIN_PUMP          = 27;
 
+// ---- DUAL ZONE ----
+constexpr uint8_t PIN_PUMP_A        = 27;   // Zone A — Balcon
+constexpr uint8_t PIN_PUMP_B        = 15;   // Zone B — Intérieur
+
+constexpr uint8_t ZONE_A_SENSORS_START = 0;    // MUX1 C0
+constexpr uint8_t ZONE_A_SENSORS_END   = 9;    // MUX1 C9 (10 capteurs)
+constexpr uint8_t ZONE_B_SENSORS_START = 10;   // MUX1 C10
+constexpr uint8_t ZONE_B_SENSORS_END   = 19;   // MUX2 C3 (10 capteurs)
+
+constexpr uint8_t NUM_ZONES = 2;
+
 // I2C (default ESP32)
 constexpr uint8_t PIN_SDA           = 21;
 constexpr uint8_t PIN_SCL           = 22;

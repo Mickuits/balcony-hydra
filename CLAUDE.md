@@ -134,8 +134,35 @@ Code couleur :
 ### Status
 - `GPIO 2` → LED onboard
 
-### Libres
-- `GPIO 15` — disponible pour extension
+## Architecture dual-zone
+
+Le système gère **2 zones indépendantes** avec chacune sa pompe, son réservoir et ses capteurs :
+
+### Zone A — Balcon (extérieur)
+- 10 pots (citronnier, aromates, méditerranéennes)
+- 2 réservoirs 25L en vases communicants (50L)
+- Pompe péristaltique 12V via MOSFET GPIO 27
+- Capteur US#1 (GPIO 14/34)
+- Capteurs humidité MUX1 C0-C9
+- BME280 environnement
+- Goutteurs 4-8 L/h
+
+### Zone B — Intérieur
+- 10 pots (plantes vertes, tropicales)
+- 1 réservoir 25L dédié
+- Pompe péristaltique 12V via MOSFET GPIO 15
+- Capteur US#2 (GPIO 12/35)
+- Capteurs humidité MUX1 C10-C15 + MUX2 C0-C3
+- Goutteurs 2-4 L/h
+- Tube 4/6mm passe par porte/fenêtre balcon
+
+### Indépendance des zones
+- Chaque zone a sa moyenne d'humidité séparée
+- En mode AUTO, une zone peut arroser sans l'autre
+- Cooldown et max cycles par zone (pas global)
+- Tank failsafe par zone (US#1 → zone A, US#2 → zone B)
+- Le relay sécurité coupe les DEUX pompes (sécurité globale)
+- Telegram indique la zone dans chaque alerte
 
 ## Architecture de sécurité (défense en profondeur)
 

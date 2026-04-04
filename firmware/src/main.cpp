@@ -69,8 +69,12 @@ void taskSensorLoop(void* param) {
         sensorMgr.readAll();
         safetyMgr.update();
         
-        Serial.printf("[MAIN] Hum: %d%% | Rés: %d%% | T°: %.1f°C | Sécurité: %s\n",
-                      sensorMgr.avgMoisture(),
+        // Update zone-specific moisture averages
+        pumpCtrl.updateZoneMoisture();
+        
+        Serial.printf("[MAIN] Balcon: hum %d%% | Intérieur: hum %d%% | Rés: %d%% | T°: %.1f°C | Sécu: %s\n",
+                      pumpCtrl.zoneMoisture(0),
+                      pumpCtrl.zoneMoisture(1),
                       sensorMgr.tankLevel(),
                       sensorMgr.temperature(),
                       safetyMgr.isLockout() ? "LOCKOUT" : 
@@ -106,14 +110,17 @@ void taskSensorLoop(void* param) {
             telegramBot.sendAlert("⚠ Niveaux US divergents — raccord obstrué?");
         }
         
-        // AUTO MODE: moisture-driven watering (checked every sensor cycle)
-        if (pumpCtrl.shouldAutoWater() && !safetyMgr.isLockout()) {
-            if (safetyMgr.armPump()) {
-                Serial.println("[MAIN] AUTO: humidité basse → arrosage déclenché");
-                pumpCtrl.start();
-                statusLed.setState(LedState::WATERING);
-                telegramBot.sendAlert("🌱 AUTO: humidité " + String(sensorMgr.avgMoisture()) + 
-                                      "% < seuil → arrosage");
+        // AUTO MODE: per-zone moisture-driven watering
+        for (uint8_t z = 0; z < NUM_ZONES; z++) {
+            if (pumpCtrl.shouldAutoWater(z) && !safetyMgr.isLockout()) {
+                if (safetyMgr.armPump()) {
+                    const char* zNames[] = {"Balcon", "Intérieur"};
+                    Serial.printf("[MAIN] AUTO %s: hum %d%% → arrosage\n", zNames[z], pumpCtrl.zoneMoisture(z));
+                    pumpCtrl.start(z);
+                    statusLed.setState(LedState::WATERING);
+                    telegramBot.sendAlert("🌱 AUTO " + String(zNames[z]) + ": hum " + 
+                                          String(pumpCtrl.zoneMoisture(z)) + "% → arrosage");
+                }
             }
         }
         
@@ -170,54 +177,60 @@ void taskPumpLoop(void* param) {
         if (millis() - lastMinuteCheck > 60000) {
             lastMinuteCheck = millis();
             
-            bool shouldWater = false;
-            struct tm timeinfo;
+            bool shouldWaterZ[NUM_ZONES] = {false, false};
             
             if (getLocalTime(&timeinfo, 1000)) {
-                // NTP disponible — scheduling normal par heure
-                shouldWater = pumpCtrl.shouldWater(timeinfo.tm_hour, timeinfo.tm_min);
+                for (uint8_t z = 0; z < NUM_ZONES; z++) {
+                    shouldWaterZ[z] = pumpCtrl.shouldWater(timeinfo.tm_hour, timeinfo.tm_min, z);
+                }
             } else {
-                // PAS DE NTP (WiFi jamais connecté) — mode dégradé
-                // Arroser toutes les sleepInterval×2 (par défaut toutes les 2h)
-                // uniquement en mode AUTO ou SCHEDULÉ
+                // NTP fallback — millis-based interval
                 if (configMgr.mode() != WateringMode::MANUAL) {
                     uint32_t fallbackInterval = configMgr.config().sleepIntervalS * 2000UL;
-                    if (fallbackInterval < 3600000) fallbackInterval = 3600000;  // Min 1h
+                    if (fallbackInterval < 3600000) fallbackInterval = 3600000;
                     if (millis() - lastFallbackWater > fallbackInterval) {
-                        if (configMgr.mode() == WateringMode::AUTOMATIC) {
-                            shouldWater = configMgr.needsWatering(sensorMgr.avgMoisture());
-                        } else {
-                            shouldWater = true;
+                        for (uint8_t z = 0; z < NUM_ZONES; z++) {
+                            if (configMgr.mode() == WateringMode::AUTOMATIC) {
+                                shouldWaterZ[z] = pumpCtrl.zoneMoisture(z) < configMgr.config().moisture.minThreshold;
+                            } else {
+                                shouldWaterZ[z] = true;
+                            }
                         }
-                        if (shouldWater) {
-                            lastFallbackWater = millis();
-                            Serial.println("[MAIN] Mode dégradé (pas NTP) — arrosage fallback");
-                        }
+                        lastFallbackWater = millis();
                     }
                 }
             }
             
-            if (shouldWater && !pumpCtrl.isRunning() && !pumpCtrl.isBlocked() && !safetyMgr.isLockout()) {
-                if (safetyMgr.armPump()) {
-                    Serial.println("[MAIN] Arrosage — relay armé → démarrage pompe");
-                    pumpCtrl.start();
-                    statusLed.setState(LedState::WATERING);
+            for (uint8_t z = 0; z < NUM_ZONES; z++) {
+                if (shouldWaterZ[z] && !pumpCtrl.isRunning(z) && !pumpCtrl.isBlocked(z) && !safetyMgr.isLockout()) {
+                    if (safetyMgr.armPump()) {
+                        const char* zNames[] = {"Balcon", "Intérieur"};
+                        Serial.printf("[MAIN] %s: arrosage programmé → pompe ON\n", zNames[z]);
+                        pumpCtrl.start(z);
+                        statusLed.setState(LedState::WATERING);
+                    }
+                }
+                
+                // Disarm relay when zone pump stops
+                if (!pumpCtrl.isRunning(z) && safetyMgr.isPumpArmed() && !pumpCtrl.isRunning()) {
+                    safetyMgr.disarmPump();
+                    statusLed.setState(LedState::OK);
                 }
             }
-            
-            // Disarm relay when pump stops
-            if (!pumpCtrl.isRunning() && safetyMgr.isPumpArmed()) {
-                safetyMgr.disarmPump();
-                statusLed.setState(LedState::OK);
-            }
-            
-            // Tank auto-recovery check
-            if (pumpCtrl.isBlocked() && 
-                pumpCtrl.status().lastStopReason == PumpStopReason::TANK_EMPTY &&
-                !configMgr.isTankCritical(sensorMgr.tankLevel())) {
-                Serial.println("[MAIN] Réservoir rempli — auto-reset failsafe pompe");
-                pumpCtrl.resetFailsafe();
-                safetyMgr.notifyTankRecovered();
+
+            // Tank auto-recovery per zone
+            for (uint8_t z = 0; z < NUM_ZONES; z++) {
+                if (pumpCtrl.isBlocked(z) && 
+                    pumpCtrl.zoneStatus(z).lastStopReason == PumpStopReason::TANK_EMPTY) {
+                    uint8_t tankIdx = (z == 0) ? 0 : 1;
+                    if (sensorMgr.data().tank[tankIdx].valid &&
+                        !configMgr.isTankCritical(sensorMgr.data().tank[tankIdx].levelPct)) {
+                        const char* zn[] = {"Balcon", "Intérieur"};
+                        Serial.printf("[MAIN] %s: réservoir rempli → auto-reset\n", zn[z]);
+                        pumpCtrl.resetFailsafe(z);
+                        safetyMgr.notifyTankRecovered();
+                    }
+                }
             }
         }
         

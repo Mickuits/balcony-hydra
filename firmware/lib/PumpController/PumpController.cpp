@@ -1,131 +1,202 @@
 // ============================================================
-// PumpController — Implementation
+// PumpController — Dual-zone Implementation
 // ============================================================
 
 #include "PumpController.h"
 #include "TimeManager.h"
 
+const ZoneConfig PumpController::_zoneConfig[NUM_ZONES] = {
+    { PIN_PUMP_A, ZONE_A_SENSORS_START, ZONE_A_SENSORS_END, "Balcon" },
+    { PIN_PUMP_B, ZONE_B_SENSORS_START, ZONE_B_SENSORS_END, "Intérieur" }
+};
+
 PumpController::PumpController(ConfigManager& configMgr, SensorManager& sensorMgr)
-    : _configMgr(configMgr), _sensorMgr(sensorMgr),
-      _startTime(0), _targetDuration(0) {
-    memset(&_status, 0, sizeof(PumpStatus));
-    _status.state = PumpState::IDLE;
-    _status.lastStopReason = PumpStopReason::NONE;
+    : _configMgr(configMgr), _sensorMgr(sensorMgr) {
+    memset(_zones, 0, sizeof(_zones));
+    memset(_startTime, 0, sizeof(_startTime));
+    memset(_targetDuration, 0, sizeof(_targetDuration));
+    for (uint8_t z = 0; z < NUM_ZONES; z++) {
+        _zones[z].state = PumpState::IDLE;
+    }
 }
 
 void PumpController::begin() {
-    pinMode(PIN_PUMP, OUTPUT);
-    _pumpOff();  // Ensure pump is OFF at boot
-    Serial.println("[PUMP] Initialisée. État: IDLE.");
+    for (uint8_t z = 0; z < NUM_ZONES; z++) {
+        pinMode(_zoneConfig[z].pin, OUTPUT);
+        _pumpOff(z);
+        Serial.printf("[PUMP] Zone %s (GPIO %d) initialisée.\n",
+                      _zoneConfig[z].name, _zoneConfig[z].pin);
+    }
 }
 
 void PumpController::update() {
-    if (_status.state != PumpState::RUNNING) return;
-    
-    // Check duration
-    uint32_t elapsed = runningForS();
-    if (elapsed >= _targetDuration) {
-        stop(PumpStopReason::DURATION_DONE);
-        return;
-    }
-    
-    // Check failsafes every second
-    if (!_checkFailsafes()) {
-        return;  // Failsafe triggered, pump stopped
+    for (uint8_t z = 0; z < NUM_ZONES; z++) {
+        if (_zones[z].state != PumpState::RUNNING) continue;
+        
+        uint32_t elapsed = runningForS(z);
+        if (elapsed >= _targetDuration[z]) {
+            stop(z, PumpStopReason::DURATION_DONE);
+            continue;
+        }
+        _checkFailsafes(z);
     }
 }
 
-bool PumpController::start(uint16_t durationS) {
-    // Block if failsafe active
-    if (_status.failsafeActive) {
-        Serial.println("[PUMP] BLOQUÉE — failsafe actif. Appeler resetFailsafe() d'abord.");
+void PumpController::updateZoneMoisture() {
+    const auto& data = _sensorMgr.data();
+    for (uint8_t z = 0; z < NUM_ZONES; z++) {
+        uint32_t total = 0;
+        uint8_t count = 0;
+        for (uint8_t i = _zoneConfig[z].sensorStart; i <= _zoneConfig[z].sensorEnd; i++) {
+            if (i < NUM_MOISTURE_SENSORS && data.moisture[i].valid) {
+                total += data.moisture[i].percent;
+                count++;
+            }
+        }
+        _zones[z].avgMoisture = count > 0 ? total / count : 0;
+    }
+}
+
+// ---- ZONE-SPECIFIC COMMANDS ----
+
+bool PumpController::start(uint8_t zone, uint16_t durationS) {
+    if (zone >= NUM_ZONES) return false;
+    if (_zones[zone].failsafeActive) {
+        Serial.printf("[PUMP] %s: BLOQUÉE — failsafe actif.\n", _zoneConfig[zone].name);
         return false;
     }
     
-    // Pre-flight checks
-    _sensorMgr.readTankLevels();
-    if (_configMgr.isTankCritical(_sensorMgr.tankLevel())) {
-        Serial.println("[PUMP] REFUSÉ — réservoir critique!");
-        _status.state = PumpState::BLOCKED;
-        _status.failsafeActive = true;
-        _status.lastStopReason = PumpStopReason::TANK_EMPTY;
+    // Tank check via sensor closest to this zone
+    uint8_t tankIdx = (zone == 0) ? 0 : 1;
+    if (_sensorMgr.data().tank[tankIdx].valid &&
+        _configMgr.isTankCritical(_sensorMgr.data().tank[tankIdx].levelPct)) {
+        Serial.printf("[PUMP] %s: REFUSÉ — réservoir critique!\n", _zoneConfig[zone].name);
+        _zones[zone].state = PumpState::BLOCKED;
+        _zones[zone].failsafeActive = true;
+        _zones[zone].lastStopReason = PumpStopReason::TANK_EMPTY;
         return false;
     }
     
-    _targetDuration = (durationS > 0) ? durationS : _configMgr.config().pumpDurationS;
-    
-    // Hard limit
-    if (_targetDuration > PUMP_MAX_RUNTIME_S) {
-        _targetDuration = PUMP_MAX_RUNTIME_S;
-        Serial.printf("[PUMP] Durée limitée à %ds (max runtime)\n", PUMP_MAX_RUNTIME_S);
+    _targetDuration[zone] = (durationS > 0) ? durationS : _configMgr.config().pumpDurationS;
+    if (_targetDuration[zone] > PUMP_MAX_RUNTIME_S) {
+        _targetDuration[zone] = PUMP_MAX_RUNTIME_S;
     }
     
-    _pumpOn();
-    _startTime = millis();
-    _status.state = PumpState::RUNNING;
-    _status.totalCycleCount++;
+    _pumpOn(zone);
+    _startTime[zone] = millis();
+    _zones[zone].state = PumpState::RUNNING;
+    _zones[zone].totalCycleCount++;
     
-    Serial.printf("[PUMP] DÉMARRAGE — durée cible: %ds, cycle #%d\n",
-                  _targetDuration, _status.totalCycleCount);
+    Serial.printf("[PUMP] %s: DÉMARRAGE — %ds, cycle #%d\n",
+                  _zoneConfig[zone].name, _targetDuration[zone], _zones[zone].totalCycleCount);
     return true;
 }
 
-void PumpController::stop(PumpStopReason reason) {
-    _pumpOff();
+void PumpController::stop(uint8_t zone, PumpStopReason reason) {
+    if (zone >= NUM_ZONES) return;
+    _pumpOff(zone);
     
-    uint32_t duration = runningForS();
-    _status.state = (reason == PumpStopReason::TANK_EMPTY || 
-                     reason == PumpStopReason::OVERCURRENT ||
-                     reason == PumpStopReason::DRY_RUN)
-                    ? PumpState::BLOCKED : PumpState::IDLE;
+    _zones[zone].lastRunDurationS = runningForS(zone);
+    _zones[zone].lastRunTimestamp = millis();
+    _zones[zone].lastStopReason = reason;
     
-    _status.lastStopReason    = reason;
-    _status.lastRunTimestamp  = millis();
-    _status.lastRunDurationS  = duration;
-    
-    if (_status.state == PumpState::BLOCKED) {
-        _status.failsafeActive = true;
+    if (reason == PumpStopReason::TANK_EMPTY || 
+        reason == PumpStopReason::OVERCURRENT ||
+        reason == PumpStopReason::DRY_RUN) {
+        _zones[zone].state = PumpState::BLOCKED;
+        _zones[zone].failsafeActive = true;
+    } else {
+        _zones[zone].state = PumpState::IDLE;
     }
     
-    const char* reasons[] = {
-        "NONE", "DURÉE OK", "STOP MANUEL", "RÉSERVOIR VIDE",
-        "MAX RUNTIME", "SURINTENSITÉ", "MARCHE À SEC"
-    };
-    Serial.printf("[PUMP] ARRÊT — raison: %s, durée: %ds\n",
-                  reasons[static_cast<uint8_t>(reason)], duration);
+    const char* reasons[] = {"NONE","DURÉE OK","STOP MANUEL","RÉSERVOIR VIDE",
+                              "MAX RUNTIME","SURINTENSITÉ","MARCHE À SEC"};
+    Serial.printf("[PUMP] %s: ARRÊT — %s, %ds\n",
+                  _zoneConfig[zone].name, reasons[static_cast<uint8_t>(reason)],
+                  _zones[zone].lastRunDurationS);
 }
 
-void PumpController::resetFailsafe() {
-    _status.failsafeActive = false;
-    _status.state = PumpState::IDLE;
-    Serial.println("[PUMP] Failsafe réinitialisé.");
+void PumpController::stopAll(PumpStopReason reason) {
+    for (uint8_t z = 0; z < NUM_ZONES; z++) stop(z, reason);
 }
 
-uint32_t PumpController::runningForS() const {
-    if (_status.state != PumpState::RUNNING) return 0;
-    return (millis() - _startTime) / 1000;
+void PumpController::resetFailsafe(uint8_t zone) {
+    if (zone >= NUM_ZONES) return;
+    _zones[zone].failsafeActive = false;
+    _zones[zone].state = PumpState::IDLE;
+    Serial.printf("[PUMP] %s: failsafe réinitialisé.\n", _zoneConfig[zone].name);
 }
 
-bool PumpController::shouldWater(uint8_t hour, uint8_t minute) const {
+void PumpController::resetAllFailsafes() {
+    for (uint8_t z = 0; z < NUM_ZONES; z++) resetFailsafe(z);
+}
+
+// ---- LEGACY SINGLE-PUMP API ----
+
+bool PumpController::start(uint16_t durationS) {
+    bool ok = false;
+    for (uint8_t z = 0; z < NUM_ZONES; z++) ok |= start(z, durationS);
+    return ok;
+}
+
+void PumpController::stop(PumpStopReason reason) { stopAll(reason); }
+void PumpController::resetFailsafe() { resetAllFailsafes(); }
+
+uint32_t PumpController::runningForS(uint8_t zone) const {
+    if (zone >= NUM_ZONES || _zones[zone].state != PumpState::RUNNING) return 0;
+    return (millis() - _startTime[zone]) / 1000;
+}
+
+// ---- AUTO MODE ----
+
+bool PumpController::shouldAutoWater(uint8_t zone) const {
+    if (zone >= NUM_ZONES) return false;
+    if (_configMgr.config().mode != WateringMode::AUTOMATIC) return false;
+    if (_zones[zone].state != PumpState::IDLE) return false;
+    if (_zones[zone].failsafeActive) return false;
+    
+    uint8_t moisture = _zones[zone].avgMoisture;
+    
+    if (moisture >= _configMgr.config().moisture.maxThreshold) return false;
+    if (moisture >= _configMgr.config().moisture.minThreshold) return false;
+    
+    if (!_isAutoCooldownOk(zone)) {
+        Serial.printf("[PUMP] %s AUTO: hum %d%% < seuil mais cooldown actif\n",
+                      _zoneConfig[zone].name, moisture);
+        return false;
+    }
+    if (!_isAutoMaxCyclesOk(zone)) {
+        Serial.printf("[PUMP] %s AUTO: hum %d%% < seuil mais max cycles (%d/%d)\n",
+                      _zoneConfig[zone].name, moisture,
+                      _zones[zone].autoCycleCount, _configMgr.config().autoMode.maxCyclesPerDay);
+        return false;
+    }
+    
+    Serial.printf("[PUMP] %s AUTO: hum %d%% < seuil %d%% → arrosage\n",
+                  _zoneConfig[zone].name, moisture, _configMgr.config().moisture.minThreshold);
+    
+    _zones[zone].lastAutoWaterTime = millis();
+    _zones[zone].autoCycleCount++;
+    return true;
+}
+
+bool PumpController::shouldWater(uint8_t hour, uint8_t minute, uint8_t zone) const {
+    if (zone >= NUM_ZONES) return false;
     const auto& cfg = _configMgr.config();
     
     switch (cfg.mode) {
         case WateringMode::AUTOMATIC:
-            // AUTO = piloté par humidité, pas par horaire
-            // shouldAutoWater() est appelé directement depuis la tâche capteurs
-            return false;  // Ne jamais déclencher via le check horaire
+            return false;  // AUTO = moisture-driven, not schedule
             
         case WateringMode::SCHEDULED:
             return _configMgr.isWateringTime(hour, minute);
             
         case WateringMode::SOLAR:
             if (!_timeMgr) return false;
-            if (cfg.solar.sunriseEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false)) {
+            if (cfg.solar.sunriseEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false))
                 return true;
-            }
-            if (cfg.solar.sunsetEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true)) {
+            if (cfg.solar.sunsetEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true))
                 return true;
-            }
             return false;
             
         case WateringMode::MANUAL:
@@ -134,129 +205,93 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute) const {
     return false;
 }
 
-bool PumpController::shouldAutoWater() const {
-    if (_configMgr.config().mode != WateringMode::AUTOMATIC) return false;
-    if (isRunning() || isBlocked()) return false;
-    
-    uint8_t moisture = _sensorMgr.avgMoisture();
-    
-    // Above max threshold → definitely no
-    if (moisture >= _configMgr.config().moisture.maxThreshold) return false;
-    
-    // Above min threshold → no need
-    if (moisture >= _configMgr.config().moisture.minThreshold) return false;
-    
-    // Below min threshold → check anti-spam protections
-    if (!_isAutoCooldownOk()) {
-        Serial.printf("[PUMP] AUTO: humidité %d%% < seuil mais cooldown actif (%ds restants)\n",
-                      moisture, 
-                      (int)(_configMgr.config().autoMode.cooldownS - (millis() - _lastAutoWaterTime) / 1000));
-        return false;
-    }
-    
-    if (!_isAutoMaxCyclesOk()) {
-        Serial.printf("[PUMP] AUTO: humidité %d%% < seuil mais max cycles atteint (%d/%d)\n",
-                      moisture, _autoCycleCount, _configMgr.config().autoMode.maxCyclesPerDay);
-        return false;
-    }
-    
-    Serial.printf("[PUMP] AUTO: humidité %d%% < seuil %d%% → arrosage déclenché\n",
-                  moisture, _configMgr.config().moisture.minThreshold);
-    
-    // Update anti-spam counters
-    _lastAutoWaterTime = millis();
-    _autoCycleCount++;
-    
-    return true;
-}
+// ---- ANTI-SPAM ----
 
-bool PumpController::_isAutoCooldownOk() const {
-    if (_lastAutoWaterTime == 0) return true;  // First time
-    uint32_t elapsed = (millis() - _lastAutoWaterTime) / 1000;
+bool PumpController::_isAutoCooldownOk(uint8_t zone) const {
+    if (_zones[zone].lastAutoWaterTime == 0) return true;
+    uint32_t elapsed = (millis() - _zones[zone].lastAutoWaterTime) / 1000;
     return elapsed >= _configMgr.config().autoMode.cooldownS;
 }
 
-bool PumpController::_isAutoMaxCyclesOk() const {
-    // Reset counter every 24h
-    if (millis() - _autoCycleResetTime > AUTO_CYCLE_RESET_INTERVAL * 1000UL) {
-        _autoCycleCount = 0;
-        _autoCycleResetTime = millis();
+bool PumpController::_isAutoMaxCyclesOk(uint8_t zone) const {
+    if (millis() - _zones[zone].autoCycleResetTime > AUTO_CYCLE_RESET_INTERVAL * 1000UL) {
+        _zones[zone].autoCycleCount = 0;
+        _zones[zone].autoCycleResetTime = millis();
     }
-    return _autoCycleCount < _configMgr.config().autoMode.maxCyclesPerDay;
+    return _zones[zone].autoCycleCount < _configMgr.config().autoMode.maxCyclesPerDay;
 }
 
-void PumpController::_pumpOn() {
-    digitalWrite(PIN_PUMP, HIGH);
+// ---- HARDWARE ----
+
+void PumpController::_pumpOn(uint8_t zone) {
+    digitalWrite(_zoneConfig[zone].pin, HIGH);
 }
 
-void PumpController::_pumpOff() {
-    digitalWrite(PIN_PUMP, LOW);
+void PumpController::_pumpOff(uint8_t zone) {
+    digitalWrite(_zoneConfig[zone].pin, LOW);
 }
 
-bool PumpController::_checkFailsafes() {
-    // 1. Hard runtime limit
-    if (runningForS() >= PUMP_MAX_RUNTIME_S) {
-        stop(PumpStopReason::MAX_RUNTIME);
-        Serial.println("[PUMP] ⚠ FAILSAFE: max runtime atteint!");
+bool PumpController::_checkFailsafes(uint8_t zone) {
+    // Max runtime
+    if (runningForS(zone) >= PUMP_MAX_RUNTIME_S) {
+        stop(zone, PumpStopReason::MAX_RUNTIME);
+        Serial.printf("[PUMP] %s: ⚠ FAILSAFE max runtime!\n", _zoneConfig[zone].name);
         return false;
     }
     
-    // 2. Tank level (read fresh)
+    // Tank level
+    uint8_t tankIdx = (zone == 0) ? 0 : 1;
     _sensorMgr.readTankLevels();
-    if (_configMgr.isTankCritical(_sensorMgr.tankLevel())) {
-        stop(PumpStopReason::TANK_EMPTY);
-        Serial.println("[PUMP] ⚠ FAILSAFE: réservoir critique!");
+    if (_sensorMgr.data().tank[tankIdx].valid &&
+        _configMgr.isTankCritical(_sensorMgr.data().tank[tankIdx].levelPct)) {
+        stop(zone, PumpStopReason::TANK_EMPTY);
+        Serial.printf("[PUMP] %s: ⚠ FAILSAFE réservoir critique!\n", _zoneConfig[zone].name);
         return false;
     }
     
-    // 3. Pump current anomaly (if INA219 available)
+    // Current anomaly (INA219 measures total, applicable mainly to active zone)
     _sensorMgr.readPumpMetrics();
     float current = _sensorMgr.pumpCurrent();
-    _status.lastCurrent_mA = current;
+    _zones[zone].lastCurrent_mA = current;
     
     if (_sensorMgr.data().pump.valid) {
-        // Dry run detection: current too low = no water flowing
-        if (current < 50.0 && runningForS() > 3) {
-            stop(PumpStopReason::DRY_RUN);
-            Serial.printf("[PUMP] ⚠ FAILSAFE: marche à sec (%.0fmA)\n", current);
+        if (current < 50.0 && runningForS(zone) > 3) {
+            stop(zone, PumpStopReason::DRY_RUN);
             if (_safetyCb) _safetyCb(PumpStopReason::DRY_RUN);
             return false;
         }
-        
-        // Overcurrent: pump blocked mechanically
         if (current > 3000.0) {
-            stop(PumpStopReason::OVERCURRENT);
-            Serial.printf("[PUMP] ⚠ FAILSAFE: surintensité (%.0fmA)\n", current);
+            stop(zone, PumpStopReason::OVERCURRENT);
             if (_safetyCb) _safetyCb(PumpStopReason::OVERCURRENT);
             return false;
         }
     }
     
-    // 4. Tank levels divergence (raccord obstrué)
-    if (!_sensorMgr.tankLevelsMatch()) {
-        Serial.println("[PUMP] ⚠ ALERTE: niveaux US divergents — raccord obstrué?");
-        // Don't stop pump, just alert (could be sensor noise)
-    }
-    
     return true;
 }
 
+// ---- JSON ----
+
 String PumpController::toJson() const {
     JsonDocument doc;
+    const char* zoneNames[] = { "balcon", "interieur" };
     
-    doc["state"]           = static_cast<uint8_t>(_status.state);
-    doc["stateLabel"]      = (_status.state == PumpState::IDLE) ? "Arrêt" :
-                             (_status.state == PumpState::RUNNING) ? "En marche" :
-                             (_status.state == PumpState::BLOCKED) ? "Bloquée" : "Erreur";
-    doc["running"]         = isRunning();
-    doc["runningForS"]     = runningForS();
-    doc["lastStopReason"]  = static_cast<uint8_t>(_status.lastStopReason);
-    doc["lastRunDuration"] = _status.lastRunDurationS;
-    doc["totalCycles"]     = _status.totalCycleCount;
-    doc["lastCurrent"]     = _status.lastCurrent_mA;
-    doc["failsafe"]        = _status.failsafeActive;
+    for (uint8_t z = 0; z < NUM_ZONES; z++) {
+        JsonObject zObj = doc[zoneNames[z]].to<JsonObject>();
+        zObj["state"] = static_cast<uint8_t>(_zones[z].state);
+        zObj["stateLabel"] = (_zones[z].state == PumpState::IDLE) ? "Arrêt" :
+                             (_zones[z].state == PumpState::RUNNING) ? "En marche" :
+                             (_zones[z].state == PumpState::BLOCKED) ? "Bloquée" : "Erreur";
+        zObj["running"] = isRunning(z);
+        zObj["runningForS"] = runningForS(z);
+        zObj["avgMoisture"] = _zones[z].avgMoisture;
+        zObj["totalCycles"] = _zones[z].totalCycleCount;
+        zObj["lastCurrent"] = _zones[z].lastCurrent_mA;
+        zObj["failsafe"] = _zones[z].failsafeActive;
+        zObj["lastStopReason"] = static_cast<uint8_t>(_zones[z].lastStopReason);
+    }
     
-    String output;
-    serializeJson(doc, output);
-    return output;
+    String out;
+    serializeJson(doc, out);
+    return out;
 }
