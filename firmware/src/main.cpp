@@ -10,22 +10,26 @@
 #include "SensorManager.h"
 #include "PumpController.h"
 #include "WifiManager.h"
-// TODO Phase 2:
-// #include "WebPortal.h"
-// #include "MqttClient.h"
-// #include "TelegramBot.h"
-// #include "SleepManager.h"
+#include "WebPortal.h"
+#include "MqttClient.h"
+#include "TelegramBot.h"
+#include "SleepManager.h"
 
 // ---- Global instances ----
 ConfigManager  configMgr;
 SensorManager  sensorMgr(configMgr);
 PumpController pumpCtrl(configMgr, sensorMgr);
 WifiManager    wifiMgr(configMgr);
+WebPortal      webPortal(configMgr, sensorMgr, pumpCtrl, wifiMgr);
+MqttClient     mqttClient(configMgr, sensorMgr, pumpCtrl);
+TelegramBot    telegramBot(configMgr, sensorMgr, pumpCtrl);
+SleepManager   sleepMgr(configMgr);
 
 // ---- FreeRTOS task handles ----
 TaskHandle_t taskSensorHandle = NULL;
 TaskHandle_t taskPumpHandle   = NULL;
 TaskHandle_t taskWifiHandle   = NULL;
+TaskHandle_t taskCommsHandle  = NULL;
 
 // ---- FreeRTOS Tasks ----
 
@@ -41,12 +45,15 @@ void taskSensorLoop(void* param) {
         
         if (configMgr.isTankCritical(sensorMgr.tankLevel())) {
             Serial.println("[MAIN] ⚠ RÉSERVOIR CRITIQUE");
+            telegramBot.sendAlert("🔴 Réservoir CRITIQUE — pompe bloquée!");
+            mqttClient.publishAlert("TANK_CRITICAL");
         } else if (configMgr.isTankWarning(sensorMgr.tankLevel())) {
             Serial.println("[MAIN] ⚠ Réservoir bas");
         }
         
         if (!sensorMgr.tankLevelsMatch()) {
             Serial.println("[MAIN] ⚠ Niveaux US divergents — vérifier raccords");
+            telegramBot.sendAlert("⚠ Niveaux US divergents — raccord obstrué?");
         }
         
         vTaskDelay(interval);
@@ -85,6 +92,15 @@ void taskWifiLoop(void* param) {
     }
 }
 
+void taskCommsLoop(void* param) {
+    const TickType_t interval = pdMS_TO_TICKS(1000);
+    for (;;) {
+        mqttClient.update();
+        telegramBot.update();
+        vTaskDelay(interval);
+    }
+}
+
 // ---- Setup ----
 
 void setup() {
@@ -102,17 +118,29 @@ void setup() {
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, HIGH);
 
-    Serial.println("[BOOT] 1/4 — Configuration...");
+    Serial.println("[BOOT] 1/8 — Configuration...");
     configMgr.begin();
     
-    Serial.println("[BOOT] 2/4 — Capteurs...");
+    Serial.println("[BOOT] 2/8 — Sleep manager...");
+    sleepMgr.begin();
+    
+    Serial.println("[BOOT] 3/8 — Capteurs...");
     sensorMgr.begin();
     
-    Serial.println("[BOOT] 3/4 — Pompe...");
+    Serial.println("[BOOT] 4/8 — Pompe...");
     pumpCtrl.begin();
     
-    Serial.println("[BOOT] 4/4 — WiFi...");
+    Serial.println("[BOOT] 5/8 — WiFi...");
     wifiMgr.begin();
+    
+    Serial.println("[BOOT] 6/8 — Portail web...");
+    webPortal.begin();
+    
+    Serial.println("[BOOT] 7/8 — MQTT...");
+    mqttClient.begin();
+    
+    Serial.println("[BOOT] 8/8 — Telegram...");
+    telegramBot.begin();
     
     Serial.println("[BOOT] Lecture initiale...");
     sensorMgr.readAll();
@@ -121,6 +149,7 @@ void setup() {
     xTaskCreatePinnedToCore(taskSensorLoop, "Sensors", 4096, NULL, 1, &taskSensorHandle, 1);
     xTaskCreatePinnedToCore(taskPumpLoop,   "Pump",    4096, NULL, 2, &taskPumpHandle,   1);
     xTaskCreatePinnedToCore(taskWifiLoop,   "WiFi",    4096, NULL, 1, &taskWifiHandle,   0);
+    xTaskCreatePinnedToCore(taskCommsLoop,  "Comms",   8192, NULL, 1, &taskCommsHandle,  0);
     
     // Hardware watchdog (30s)
     esp_task_wdt_init(30, true);
