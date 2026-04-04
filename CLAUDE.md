@@ -177,6 +177,14 @@ COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BM
 - Si WiFi routeur revient → reconnexion automatique depuis AP mode
 - Mode dégradé sans WiFi : arrosage local continue sur le schedule NVS, pas de monitoring
 - `WiFi.setAutoReconnect(true)` activé comme filet de sécurité supplémentaire
+- **Fallback sans NTP** : si `getLocalTime()` échoue (WiFi jamais connecté), arrosage toutes les `sleepInterval×2` (min 1h) basé sur `millis()`, en respectant le mode (AUTO vérifie humidité, SCHEDULÉ arrose systématiquement)
+
+### OTA (Over-The-Air updates)
+- ArduinoOTA, hostname `hydra`, découverte mDNS
+- Pompe forcée OFF + relay désarmé pendant la mise à jour
+- LED blanche fixe pendant l'update
+- Rollback automatique si update échoue
+- Upload: `pio run -t upload --upload-port hydra.local`
 
 ### Alimentation (3 rails)
 - **12V** (batterie directe) → pompe via MOSFET, entrée LM2596
@@ -376,7 +384,10 @@ help     — Liste des commandes
 ## TODO / Prochaines étapes
 
 ### Firmware
-- [ ] Implémenter OTA updates (ArduinoOTA ou AsyncElegantOTA)
+- [x] OTA updates (ArduinoOTA, hostname "hydra", pump forced OFF during update)
+- [x] PumpController → SafetyManager callback wired (overcurrent/dry-run → hard lockout)
+- [x] Fallback arrosage sans NTP (intervalle basé sur sleepInterval×2 si WiFi jamais connecté)
+- [x] Tank auto-recovery (niveau remonte → auto-reset failsafe pompe + notify SafetyManager)
 - [ ] Calibration individuelle par capteur (stockage NVS par index)
 - [ ] Historique local (buffer circulaire en RTC memory ou SPIFFS)
 - [ ] Watchdog par tâche FreeRTOS (pas seulement global)

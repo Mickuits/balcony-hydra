@@ -161,6 +161,7 @@ bool PumpController::_checkFailsafes() {
         if (current < 50.0 && runningForS() > 3) {
             stop(PumpStopReason::DRY_RUN);
             Serial.printf("[PUMP] ⚠ FAILSAFE: marche à sec (%.0fmA)\n", current);
+            if (_safetyCb) _safetyCb(PumpStopReason::DRY_RUN);
             return false;
         }
         
@@ -168,6 +169,7 @@ bool PumpController::_checkFailsafes() {
         if (current > 3000.0) {
             stop(PumpStopReason::OVERCURRENT);
             Serial.printf("[PUMP] ⚠ FAILSAFE: surintensité (%.0fmA)\n", current);
+            if (_safetyCb) _safetyCb(PumpStopReason::OVERCURRENT);
             return false;
         }
     }

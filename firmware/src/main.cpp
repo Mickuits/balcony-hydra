@@ -5,6 +5,7 @@
 
 #include <Arduino.h>
 #include <esp_task_wdt.h>
+#include <ArduinoOTA.h>
 #include "config.h"
 #include "ConfigManager.h"
 #include "SensorManager.h"
@@ -142,24 +143,58 @@ void taskPumpLoop(void* param) {
         
         // Watering check every minute
         static uint32_t lastMinuteCheck = 0;
+        static uint32_t lastFallbackWater = 0;
         if (millis() - lastMinuteCheck > 60000) {
             lastMinuteCheck = millis();
+            
+            bool shouldWater = false;
             struct tm timeinfo;
+            
             if (getLocalTime(&timeinfo, 1000)) {
-                if (pumpCtrl.shouldWater(timeinfo.tm_hour, timeinfo.tm_min)) {
-                    if (!pumpCtrl.isRunning() && !pumpCtrl.isBlocked() && !safetyMgr.isLockout()) {
-                        if (safetyMgr.armPump()) {
-                            Serial.println("[MAIN] Heure d'arrosage — relay armé → démarrage pompe");
-                            pumpCtrl.start();
-                            statusLed.setState(LedState::WATERING);
+                // NTP disponible — scheduling normal par heure
+                shouldWater = pumpCtrl.shouldWater(timeinfo.tm_hour, timeinfo.tm_min);
+            } else {
+                // PAS DE NTP (WiFi jamais connecté) — mode dégradé
+                // Arroser toutes les sleepInterval×2 (par défaut toutes les 2h)
+                // uniquement en mode AUTO ou SCHEDULÉ
+                if (configMgr.mode() != WateringMode::MANUAL) {
+                    uint32_t fallbackInterval = configMgr.config().sleepIntervalS * 2000UL;
+                    if (fallbackInterval < 3600000) fallbackInterval = 3600000;  // Min 1h
+                    if (millis() - lastFallbackWater > fallbackInterval) {
+                        if (configMgr.mode() == WateringMode::AUTOMATIC) {
+                            shouldWater = configMgr.needsWatering(sensorMgr.avgMoisture());
+                        } else {
+                            shouldWater = true;
+                        }
+                        if (shouldWater) {
+                            lastFallbackWater = millis();
+                            Serial.println("[MAIN] Mode dégradé (pas NTP) — arrosage fallback");
                         }
                     }
                 }
-                // Disarm relay when pump stops
-                if (!pumpCtrl.isRunning() && safetyMgr.isPumpArmed()) {
-                    safetyMgr.disarmPump();
-                    statusLed.setState(LedState::OK);
+            }
+            
+            if (shouldWater && !pumpCtrl.isRunning() && !pumpCtrl.isBlocked() && !safetyMgr.isLockout()) {
+                if (safetyMgr.armPump()) {
+                    Serial.println("[MAIN] Arrosage — relay armé → démarrage pompe");
+                    pumpCtrl.start();
+                    statusLed.setState(LedState::WATERING);
                 }
+            }
+            
+            // Disarm relay when pump stops
+            if (!pumpCtrl.isRunning() && safetyMgr.isPumpArmed()) {
+                safetyMgr.disarmPump();
+                statusLed.setState(LedState::OK);
+            }
+            
+            // Tank auto-recovery check
+            if (pumpCtrl.isBlocked() && 
+                pumpCtrl.status().lastStopReason == PumpStopReason::TANK_EMPTY &&
+                !configMgr.isTankCritical(sensorMgr.tankLevel())) {
+                Serial.println("[MAIN] Réservoir rempli — auto-reset failsafe pompe");
+                pumpCtrl.resetFailsafe();
+                safetyMgr.notifyTankRecovered();
             }
         }
         
@@ -171,6 +206,9 @@ void taskWifiLoop(void* param) {
     const TickType_t interval = pdMS_TO_TICKS(500);
     for (;;) {
         wifiMgr.update();
+        if (wifiMgr.isConnected()) {
+            ArduinoOTA.handle();
+        }
         vTaskDelay(interval);
     }
 }
@@ -224,6 +262,15 @@ void setup() {
     Serial.println("[BOOT] 6/10 — Pompe...");
     if (!safetyMgr.isSafeMode()) {
         pumpCtrl.begin();
+        // Wire pump overcurrent/dry-run → SafetyManager hard lockout
+        pumpCtrl.onSafetyEvent([](PumpStopReason reason) {
+            if (reason == PumpStopReason::OVERCURRENT) {
+                safetyMgr.notifyPumpOvercurrent();
+            } else if (reason == PumpStopReason::DRY_RUN) {
+                safetyMgr.notifyPumpDryRun();
+            }
+            safetyMgr.disarmPump();
+        });
     } else {
         Serial.println("[BOOT]       ⚠ SAFE MODE — pompe désactivée");
         pinMode(PIN_PUMP, OUTPUT);
@@ -248,7 +295,26 @@ void setup() {
     
     Serial.println("[BOOT] 10/10 — Telegram...");
     telegramBot.begin();
-    telegramBot.setSafetyManager(&safetyMgr);  // Wire /unlock command
+    telegramBot.setSafetyManager(&safetyMgr);
+    
+    // OTA firmware updates (only when WiFi connected)
+    ArduinoOTA.setHostname("hydra");
+    ArduinoOTA.onStart([]() {
+        Serial.println("[OTA] Début mise à jour firmware...");
+        statusLed.setState(LedState::BOOT);
+        // Force pump OFF during OTA
+        digitalWrite(PIN_PUMP, LOW);
+        safetyMgr.disarmPump();
+    });
+    ArduinoOTA.onEnd([]() {
+        Serial.println("[OTA] Mise à jour terminée. Redémarrage...");
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+        Serial.printf("[OTA] Erreur: %u\n", error);
+        statusLed.flashError();
+    });
+    ArduinoOTA.begin();
+    Serial.println("[BOOT]       OTA activé (hostname: hydra)");  // Wire /unlock command
     
     if (safetyMgr.isSafeMode()) {
         Serial.println();

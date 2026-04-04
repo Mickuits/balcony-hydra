@@ -41,30 +41,31 @@ public:
     PumpController(ConfigManager& configMgr, SensorManager& sensorMgr);
     
     void begin();
-    void update();  // Call in loop — handles timing and safety checks
+    void update();
     
-    // Commands
-    bool start(uint16_t durationS = 0);  // 0 = use config default
+    bool start(uint16_t durationS = 0);
     void stop(PumpStopReason reason = PumpStopReason::MANUAL_STOP);
     void resetFailsafe();
     
-    // Status
     PumpState      state() const { return _status.state; }
     const PumpStatus& status() const { return _status; }
     bool           isRunning() const { return _status.state == PumpState::RUNNING; }
     bool           isBlocked() const { return _status.state == PumpState::BLOCKED; }
     uint32_t       runningForS() const;
     
-    // Decision logic
     bool shouldWater(uint8_t hour, uint8_t minute) const;
     
-    // JSON for web portal
     String toJson() const;
+    
+    // Safety callback — called when overcurrent or dry-run detected
+    typedef void (*SafetyCallback)(PumpStopReason reason);
+    void onSafetyEvent(SafetyCallback cb) { _safetyCb = cb; }
 
 private:
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
     PumpStatus      _status;
+    SafetyCallback  _safetyCb = nullptr;
     
     uint32_t _startTime;
     uint16_t _targetDuration;
