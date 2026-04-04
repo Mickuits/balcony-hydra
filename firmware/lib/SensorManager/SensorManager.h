@@ -40,11 +40,17 @@ struct PumpMetrics {
 
 struct SensorData {
     MoistureReading    moisture[NUM_MOISTURE_SENSORS];
-    TankReading        tank[2];        // 2 US sensors
+    TankReading        tank[2];
     EnvironmentReading environment;
     PumpMetrics        pump;
-    uint8_t            avgMoisture;    // Average across all valid sensors
+    uint8_t            avgMoisture;
     unsigned long      timestamp;
+};
+
+// Per-pot chronic dryness tracking
+struct PotAlert {
+    uint8_t  consecutiveDryReadings;  // How many times in a row this pot was below threshold
+    bool     alertSent;               // Already sent Telegram alert for this pot
 };
 
 class SensorManager {
@@ -65,6 +71,23 @@ public:
     // Quick accessors
     uint8_t avgMoisture() const { return _data.avgMoisture; }
     uint8_t tankLevel() const { return _data.tank[0].valid ? _data.tank[0].levelPct : 0; }
+    bool    tankLevelsMatch() const;
+    float   temperature() const { return _data.environment.temperature; }
+    float   pumpCurrent() const { return _data.pump.current_mA; }
+    
+    // Per-pot alerts (chronic dryness despite watering)
+    void updatePotAlerts(uint8_t minThreshold);
+    bool hasPotAlerts() const;
+    String getPotAlertMessage() const;
+    void readTankLevels();
+    void readEnvironment();
+    void readPumpMetrics();
+    
+    const SensorData& data() const { return _data; }
+    
+    // Quick accessors
+    uint8_t avgMoisture() const { return _data.avgMoisture; }
+    uint8_t tankLevel() const { return _data.tank[0].valid ? _data.tank[0].levelPct : 0; }
     bool    tankLevelsMatch() const;  // Check if both US sensors agree
     float   temperature() const { return _data.environment.temperature; }
     float   pumpCurrent() const { return _data.pump.current_mA; }
@@ -76,6 +99,7 @@ public:
 private:
     const ConfigManager& _configMgr;
     SensorData _data;
+    PotAlert   _potAlerts[NUM_MOISTURE_SENSORS];
     
     Adafruit_BME280 _bme;
     Adafruit_INA219 _ina;

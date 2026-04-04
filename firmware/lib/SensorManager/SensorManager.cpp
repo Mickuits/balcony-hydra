@@ -10,6 +10,7 @@ static const uint8_t NUM_SAMPLES = 5;  // Oversampling for noise reduction
 SensorManager::SensorManager(const ConfigManager& configMgr)
     : _configMgr(configMgr), _bmeOk(false), _inaOk(false) {
     memset(&_data, 0, sizeof(SensorData));
+    memset(_potAlerts, 0, sizeof(_potAlerts));
 }
 
 void SensorManager::begin() {
@@ -288,4 +289,46 @@ void SensorManager::calibrateMoistureWet() {
     uint16_t val = _readAnalog(PIN_MUX1_SIG);
     _disableAllMux();
     Serial.printf("[CALIB] Immergé: ADC = %d\n", val);
+}
+
+// ---- PER-POT ALERTS ----
+
+static const uint8_t CHRONIC_DRY_THRESHOLD = 6;  // 6 lectures consécutives = ~3 min en actif, ou 6 cycles deep sleep
+
+void SensorManager::updatePotAlerts(uint8_t minThreshold) {
+    for (uint8_t i = 0; i < NUM_MOISTURE_SENSORS; i++) {
+        if (!_data.moisture[i].valid) continue;
+        
+        if (_data.moisture[i].percent < minThreshold) {
+            _potAlerts[i].consecutiveDryReadings++;
+        } else {
+            _potAlerts[i].consecutiveDryReadings = 0;
+            _potAlerts[i].alertSent = false;  // Reset alert when pot is OK
+        }
+    }
+}
+
+bool SensorManager::hasPotAlerts() const {
+    for (uint8_t i = 0; i < NUM_MOISTURE_SENSORS; i++) {
+        if (_potAlerts[i].consecutiveDryReadings >= CHRONIC_DRY_THRESHOLD && !_potAlerts[i].alertSent) {
+            return true;
+        }
+    }
+    return false;
+}
+
+String SensorManager::getPotAlertMessage() const {
+    String msg = "⚠🌱 Pots chroniquement secs:\n";
+    bool any = false;
+    for (uint8_t i = 0; i < NUM_MOISTURE_SENSORS; i++) {
+        if (_potAlerts[i].consecutiveDryReadings >= CHRONIC_DRY_THRESHOLD && !_potAlerts[i].alertSent) {
+            msg += "  Pot #" + String(i + 1) + ": " + String(_data.moisture[i].percent) + "% ";
+            msg += "(" + String(_potAlerts[i].consecutiveDryReadings) + " lectures)\n";
+            _potAlerts[i].alertSent = true;  // Mark as sent
+            any = true;
+        }
+    }
+    if (!any) return "";
+    msg += "→ Ajuster le goutteur ou vérifier le capteur";
+    return msg;
 }

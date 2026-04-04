@@ -117,6 +117,16 @@ void taskSensorLoop(void* param) {
             }
         }
         
+        // Per-pot chronic dryness alerts (adjust your dripper!)
+        sensorMgr.updatePotAlerts(configMgr.config().moisture.minThreshold);
+        if (sensorMgr.hasPotAlerts()) {
+            String alertMsg = sensorMgr.getPotAlertMessage();
+            if (alertMsg.length() > 0) {
+                Serial.println(alertMsg);
+                telegramBot.sendAlert(alertMsg);
+            }
+        }
+        
         vTaskDelay(interval);
     }
 }
