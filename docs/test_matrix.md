@@ -189,6 +189,21 @@
 | T11.09 | TFT écran autonomie | TFT actif | Naviguer écran autonomie | Barres visuelles conso vs stockage | 🔲 |
 | T11.10 | Stockage zone B correct | Zone B = 25L (1 bidon) | Calcul autonomie | storageCapacityML = 25000 (pas 50000) | 🔲 |
 
+## T12 — Géolocalisation WiFi
+> Source: WiFiGeolocation module
+
+| ID | Test | Préconditions | Étapes | Résultat attendu | Status |
+|----|------|---------------|--------|-------------------|--------|
+| T12.01 | Scan WiFi détecte ≥3 réseaux | ESP32 en zone urbaine | geoLoc.locate() | ≥3 BSSID scannés, payload JSON construit | 🔲 |
+| T12.02 | API Mozilla retourne position | WiFi STA connecté, Internet | geoLoc.locate() | lat/lon reçus, accuracy < 200m | 🔲 |
+| T12.03 | Position cohérente | À Mougins le Haut | Comparer résultat vs 43.61/6.99 | Écart < 0.01° (~1km) | 🔲 |
+| T12.04 | Sauvegarde NVS | Géoloc réussie | Vérifier NVS après locate() | lat/lon/accuracy en NVS | 🔲 |
+| T12.05 | Chargement NVS au reboot | NVS avec position | Power cycle → loadFromNVS() | Position restaurée, pas de re-scan | 🔲 |
+| T12.06 | Fallback si <3 réseaux | Zone sans WiFi (blindage) | geoLoc.locate() | Échec gracieux, defaults Mougins | 🔲 |
+| T12.07 | Fallback si pas Internet | WiFi AP sans Internet | geoLoc.locate() | Connexion échouée, defaults Mougins | 🔲 |
+| T12.08 | TimeManager reçoit coordonnées | Géoloc réussie | Vérifier timeMgr._lat/_lon | = coordonnées géoloc (pas defaults) | 🔲 |
+| T12.09 | clearNVS force re-géoloc | Position en NVS | clearNVS() → reboot | Re-scan WiFi au boot | 🔲 |
+
 ## Résumé
 
 | Catégorie | Tests | Criticité |
@@ -204,16 +219,18 @@
 | T9 Robustesse WiFi | 8 | 🟡 Haute |
 | T10 Profils hydriques & cycle | 16 | 🟡 Haute |
 | T11 Autonomie & prédiction | 10 | 🟢 Moyenne |
-| **TOTAL** | **119** | |
+| T12 Géolocalisation WiFi | 9 | 🟢 Moyenne |
+| **TOTAL** | **128** | |
 
 ### Ordre d'exécution recommandé
 1. **T6** Hardware (avant firmware — vérifier le câblage)
 2. **T8.01-T8.09** Capteurs (vérifier que les lectures sont bonnes)
 3. **T5.01, T5.14, T5.15** Sécurité de base (relay, double verrou)
-4. **T1.01-T1.05** Communication (pairing, cycle normal)
-5. **T3** Arrosage AUTO (le mode principal)
-6. **T10** Profils hydriques + durée cycle (calibration)
-7. **T2** Mode dégradé (couper le maître, vérifier l'esclave)
-8. **T5** Reste sécurité
-9. **T11** Autonomie (nécessite profils configurés T10)
-10. **T4, T7, T9** Interface, modes secondaires, robustesse
+4. **T12** Géolocalisation WiFi (nécessite WiFi, configure le reste)
+5. **T1.01-T1.05** Communication (pairing, cycle normal)
+6. **T3** Arrosage AUTO (le mode principal)
+7. **T10** Profils hydriques + durée cycle (calibration)
+8. **T2** Mode dégradé (couper le maître, vérifier l'esclave)
+9. **T5** Reste sécurité
+10. **T11** Autonomie (nécessite profils configurés T10)
+11. **T4, T7, T9** Interface, modes secondaires, robustesse

@@ -18,6 +18,7 @@
 #include "StatusLED.h"
 #include "SafetyManager.h"
 #include "TimeManager.h"
+#include "WiFiGeolocation.h"
 
 // ---- Global instances ----
 ConfigManager  configMgr;
@@ -31,6 +32,7 @@ SleepManager   sleepMgr(configMgr);
 StatusLED      statusLed;
 SafetyManager  safetyMgr(sensorMgr, statusLed);
 TimeManager    timeMgr;
+WiFiGeolocation geoLoc;
 
 // ---- Button ISR ----
 volatile bool buttonPressed = false;
@@ -240,10 +242,26 @@ void taskPumpLoop(void* param) {
 
 void taskWifiLoop(void* param) {
     const TickType_t interval = pdMS_TO_TICKS(500);
+    bool geolocDone = geoLoc.isValid();
+
     for (;;) {
         wifiMgr.update();
         if (wifiMgr.isConnected()) {
             ArduinoOTA.handle();
+
+            // One-time geolocation after WiFi connects (if not already done)
+            if (!geolocDone) {
+                Serial.println("[MAIN] WiFi connecté — tentative géolocalisation...");
+                if (geoLoc.locate()) {
+                    // Update TimeManager + PlantProfile with real coordinates
+                    timeMgr.setLocation(geoLoc.latitude(), geoLoc.longitude());
+                    configMgr.config().solar.latitude = geoLoc.latitude();
+                    configMgr.config().solar.longitude = geoLoc.longitude();
+                    Serial.printf("[MAIN] Coordonnées auto-détectées: %.4f, %.4f\n",
+                                  geoLoc.latitude(), geoLoc.longitude());
+                }
+                geolocDone = true;  // Don't retry even if failed
+            }
         }
         vTaskDelay(interval);
     }
@@ -281,8 +299,18 @@ void setup() {
     Serial.println("[BOOT] 2/10 — Configuration...");
     configMgr.begin();
     
-    Serial.println("[BOOT] 3/10 — Horloge (DS3231 + NTP + solaire)...");
-    timeMgr.setLocation(configMgr.config().solar.latitude, configMgr.config().solar.longitude);
+    Serial.println("[BOOT] 3/10 — Géolocalisation...");
+    // Try NVS first (instant), then WiFi scan if needed
+    if (geoLoc.loadFromNVS()) {
+        Serial.println("[BOOT]       Position depuis NVS (cached)");
+    } else {
+        Serial.println("[BOOT]       Première fois — scan WiFi pour géoloc...");
+        // Will be retried after WiFi connects if it fails here
+    }
+
+    Serial.println("[BOOT] 4/10 — Horloge (DS3231 + NTP + solaire)...");
+    // Use geoloc coordinates (NVS or defaults)
+    timeMgr.setLocation(geoLoc.latitude(), geoLoc.longitude());
     timeMgr.begin();
     
     Serial.println("[BOOT] 4/10 — Capteurs...");
