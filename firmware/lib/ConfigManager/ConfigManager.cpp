@@ -40,6 +40,14 @@ void ConfigManager::loadDefaults() {
     strncpy(_config.network.mqttHost, "broker.hivemq.com", sizeof(_config.network.mqttHost));
     _config.network.mqttPort = 1883;
 
+    // Solar
+    _config.solar.sunriseOffsetMin = DEFAULT_SUNRISE_OFFSET_MIN;
+    _config.solar.sunsetOffsetMin  = DEFAULT_SUNSET_OFFSET_MIN;
+    _config.solar.sunriseEnabled   = DEFAULT_SOLAR_SUNRISE_EN;
+    _config.solar.sunsetEnabled    = DEFAULT_SOLAR_SUNSET_EN;
+    _config.solar.latitude         = DEFAULT_LATITUDE;
+    _config.solar.longitude        = DEFAULT_LONGITUDE;
+
     // System
     _config.mode               = WateringMode::AUTOMATIC;
     _config.pumpDurationS      = DEFAULT_PUMP_DURATION;

@@ -70,6 +70,12 @@ constexpr uint8_t  DEFAULT_WATER_HOUR_2  = 20;   // Evening
 constexpr uint8_t  DEFAULT_WATER_MIN_2   = 0;
 constexpr uint16_t DEFAULT_PUMP_DURATION = 60;   // Seconds per cycle
 
+// ---- SOLAR SCHEDULE ----
+constexpr int8_t   DEFAULT_SUNRISE_OFFSET_MIN = 0;    // Arrosage au lever (+0 min)
+constexpr int8_t   DEFAULT_SUNSET_OFFSET_MIN  = 30;   // Arrosage 30 min après coucher
+constexpr bool     DEFAULT_SOLAR_SUNRISE_EN   = true;
+constexpr bool     DEFAULT_SOLAR_SUNSET_EN    = true;
+
 // ---- SLEEP CONFIG ----
 constexpr uint32_t DEFAULT_SLEEP_INTERVAL_S = 3600; // 1 hour
 constexpr uint32_t MIN_SLEEP_INTERVAL_S     = 600;  // 10 min

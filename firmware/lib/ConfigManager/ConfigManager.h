@@ -46,9 +46,19 @@ struct NetworkConfig {
 };
 
 enum class WateringMode : uint8_t {
-    AUTOMATIC = 0,  // Capteurs humidité décident
+    AUTOMATIC = 0,  // Capteurs humidité décident (schedule ou solaire)
     SCHEDULED = 1,  // Heures fixes
-    MANUAL    = 2   // Commande uniquement
+    SOLAR     = 2,  // Calé sur lever/coucher du soleil
+    MANUAL    = 3   // Commande uniquement
+};
+
+struct SolarConfig {
+    int8_t sunriseOffsetMin;   // Offset en minutes (ex: +30 = 30 min après lever)
+    int8_t sunsetOffsetMin;    // Offset en minutes (ex: +30 = 30 min après coucher)
+    bool   sunriseEnabled;
+    bool   sunsetEnabled;
+    float  latitude;
+    float  longitude;
 };
 
 struct SystemConfig {
@@ -56,6 +66,7 @@ struct SystemConfig {
     MoistureConfig   moisture;
     TankConfig       tank;
     NetworkConfig    network;
+    SolarConfig      solar;
     WateringMode     mode;
     uint16_t         pumpDurationS;
     uint32_t         sleepIntervalS;

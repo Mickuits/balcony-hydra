@@ -108,7 +108,7 @@ COUCHE 1 — CHIMIE & PHYSIQUE (LiFePO4, fusible thermique)
 - Position: au sol, DERRIÈRE les bidons 25L (écran thermique naturel — l'eau absorbe la chaleur)
 - Câble inter-boîtiers: silicone 18AWG 1.5m, Wago 221 chaque extrémité
 
-### Protection Thermique Passive (balcon plein sud, Cogolin, 0 ombre)
+### Protection Thermique Passive (balcon plein sud, Mougins le Haut, 0 ombre)
 ```
     ☀ SOLEIL DIRECT
          ↓

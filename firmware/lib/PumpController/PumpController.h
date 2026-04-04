@@ -9,6 +9,8 @@
 #include "ConfigManager.h"
 #include "SensorManager.h"
 
+class TimeManager;  // Forward declaration
+
 enum class PumpState : uint8_t {
     IDLE       = 0,
     RUNNING    = 1,
@@ -55,6 +57,8 @@ public:
     
     bool shouldWater(uint8_t hour, uint8_t minute) const;
     
+    void setTimeManager(TimeManager* tm) { _timeMgr = tm; }
+    
     String toJson() const;
     
     // Safety callback — called when overcurrent or dry-run detected
@@ -64,6 +68,7 @@ public:
 private:
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
+    TimeManager*    _timeMgr = nullptr;
     PumpStatus      _status;
     SafetyCallback  _safetyCb = nullptr;
     

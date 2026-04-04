@@ -4,7 +4,7 @@
 
 ## Résumé du projet
 
-Système d'arrosage automatique solaire pour 20 pots sur un balcon à Cogolin (Golfe de Saint-Tropez). Architecture ESP32 embarquée avec monitoring à distance. **Plug-and-play (zéro soudure).**
+Système d'arrosage automatique solaire pour 20 pots sur un balcon à Mougins le Haut (Golfe de Saint-Tropez). Architecture ESP32 embarquée avec monitoring à distance. **Plug-and-play (zéro soudure).**
 
 **Propriétaire:** Micka — ingénieur système, captain de yacht, basé Cogolin (semaine) / Mougins (weekends). Profil technique exigeant, approche ingénierie rigoureuse.
 
@@ -307,7 +307,7 @@ struct PumpStatus {
 - **Deep sleep** : seul RTC memory persiste, tout le reste est perdu
 
 ### Environnement physique
-- **Balcon plein sud, Cogolin** — températures été 40-50°C en surface, AUCUNE ombre
+- **Balcon plein sud, Mougins le Haut** — températures été 40-50°C en surface, AUCUNE ombre
 - **LiFePO4** choisie pour stabilité thermique (pas LiPo)
 - **Deux boîtiers séparés** (IP65, ABS BLANC obligatoire) :
   - **Boîtier 1 — Électronique** (200×150×85mm, au mur) : ESP32, MUX, MOSFET, relais, LED, bouton

@@ -17,6 +17,7 @@
 #include "SleepManager.h"
 #include "StatusLED.h"
 #include "SafetyManager.h"
+#include "TimeManager.h"
 
 // ---- Global instances ----
 ConfigManager  configMgr;
@@ -29,6 +30,7 @@ TelegramBot    telegramBot(configMgr, sensorMgr, pumpCtrl);
 SleepManager   sleepMgr(configMgr);
 StatusLED      statusLed;
 SafetyManager  safetyMgr(sensorMgr, statusLed);
+TimeManager    timeMgr;
 
 // ---- Button ISR ----
 volatile bool buttonPressed = false;
@@ -245,8 +247,9 @@ void setup() {
     Serial.println("[BOOT] 2/10 — Configuration...");
     configMgr.begin();
     
-    Serial.println("[BOOT] 3/10 — Sleep manager...");
-    sleepMgr.begin();
+    Serial.println("[BOOT] 3/10 — Horloge (DS3231 + NTP + solaire)...");
+    timeMgr.setLocation(configMgr.config().solar.latitude, configMgr.config().solar.longitude);
+    timeMgr.begin();
     
     Serial.println("[BOOT] 4/10 — Capteurs...");
     sensorMgr.begin();
@@ -262,6 +265,7 @@ void setup() {
     Serial.println("[BOOT] 6/10 — Pompe...");
     if (!safetyMgr.isSafeMode()) {
         pumpCtrl.begin();
+        pumpCtrl.setTimeManager(&timeMgr);
         // Wire pump overcurrent/dry-run → SafetyManager hard lockout
         pumpCtrl.onSafetyEvent([](PumpStopReason reason) {
             if (reason == PumpStopReason::OVERCURRENT) {

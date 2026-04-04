@@ -91,4 +91,4 @@ MIT — Usage libre.
 
 ## Auteur
 
-Micka — [Prime Yachting](https://primeyachting.com) — Cogolin, France
+Micka — [Prime Yachting](https://primeyachting.com) — Mougins le Haut, France

@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "PumpController.h"
+#include "TimeManager.h"
 
 PumpController::PumpController(ConfigManager& configMgr, SensorManager& sensorMgr)
     : _configMgr(configMgr), _sensorMgr(sensorMgr),
@@ -114,14 +115,36 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute) const {
             if (_configMgr.isWateringTime(hour, minute)) {
                 return _configMgr.needsWatering(_sensorMgr.avgMoisture());
             }
+            // Also check solar times if TimeManager available
+            if (_timeMgr) {
+                bool solarTrigger = false;
+                if (cfg.solar.sunriseEnabled) {
+                    solarTrigger |= _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false);
+                }
+                if (cfg.solar.sunsetEnabled) {
+                    solarTrigger |= _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true);
+                }
+                if (solarTrigger) {
+                    return _configMgr.needsWatering(_sensorMgr.avgMoisture());
+                }
+            }
             return false;
             
         case WateringMode::SCHEDULED:
-            // Just scheduled time, ignore moisture
             return _configMgr.isWateringTime(hour, minute);
             
+        case WateringMode::SOLAR:
+            // Solar-only: arrosage calé sur lever/coucher du soleil
+            if (!_timeMgr) return false;
+            if (cfg.solar.sunriseEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false)) {
+                return true;
+            }
+            if (cfg.solar.sunsetEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true)) {
+                return true;
+            }
+            return false;
+            
         case WateringMode::MANUAL:
-            // Never auto-water
             return false;
     }
     return false;
