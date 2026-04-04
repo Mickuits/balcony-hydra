@@ -122,6 +122,8 @@ void TelegramBot::_handleMessages(int numNew) {
             help += "🔄 /reset — Reset failsafe pompe\n";
             help += "🔓 /unlock — Déverrouiller lockout dur\n";
             help += "🛡 /safety — État sécurité détaillé\n";
+            help += "🌱 /profiles — Profils hydriques plantes\n";
+            help += "📊 /autonomy N — Calcul autonomie N jours\n";
             help += "🔄 /reboot — Redémarrer système\n";
             _bot->sendMessage(chatId, help, "Markdown");
         }

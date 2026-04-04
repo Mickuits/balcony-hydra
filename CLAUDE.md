@@ -82,6 +82,13 @@ Le code actuel dans `firmware/lib/` est le firmware monolithique v3. Il doit êt
 découpé en `firmware/master/lib/` et `firmware/slave/lib/` avec le code commun
 dans `firmware/common/`. Les modules existants sont fonctionnels et testés:
 
+### Modules de gestion hydrique
+- **PlantProfile** : profil hydrique par plante (espèce, catégorie, volume pot, débit goutteur, coefficient saisonnier × 12 mois, seuil humidité spécifique). 7 catégories prédéfinies (Agrume, Aromate, Succulente, Tropicale, Méditerranéenne, Fleurie, Custom). Apprentissage automatique du taux d'assèchement par régression linéaire sur l'historique d'humidité. Persistance NVS.
+- **AutonomyCalculator** : calcul de consommation sur N jours avec prise en compte du changement de mois/saisonnalité. Estime la consommation journalière par zone, le nombre de cycles/jour, l'autonomie max avec le stockage actuel, et signale le déficit si insuffisant. Commande Telegram `/autonomy 21` (21 jours d'absence).
+
+### Durée de cycle intelligente
+Le `PumpController` peut interroger `PlantProfile.computeZoneCycleDurationS(zone, month)` pour obtenir la durée de cycle optimale au lieu d'utiliser la durée fixe configurée. La durée est calculée à partir du profil le plus gourmand de la zone × coefficient saisonnier × débit goutteur. En été le cycle est long, en hiver il est court.
+
 ### Dépendances entre modules
 
 ```
@@ -331,10 +338,12 @@ struct PumpStatus {
 
 ## Telegram Bot
 
-**Commandes:** `/status` `/water` `/stop` `/reset` `/unlock` `/safety` `/reboot` `/help`
+**Commandes:** `/status` `/water` `/stop` `/reset` `/unlock` `/safety` `/profiles` `/autonomy N` `/reboot` `/help`
 
 - `/unlock` — déverrouille un hard lockout à distance (surintensité, dry-run, safe mode)
 - `/safety` — affiche l'état détaillé du SafetyManager (JSON)
+- `/profiles` — liste les profils hydriques de toutes les plantes
+- `/autonomy 21` — calcul d'autonomie pour 21 jours d'absence (mois courant)
 
 **Alertes push automatiques:**
 - Réservoir critique (<10%)
