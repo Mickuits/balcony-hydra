@@ -1,44 +1,86 @@
-# CLAUDE.md — Balcony Hydra v3
+# CLAUDE.md — Balcony Hydra v4
 
 > Ce fichier fournit tout le contexte nécessaire à Claude Code pour travailler efficacement sur ce projet.
 
 ## Résumé du projet
 
-Système d'arrosage automatique solaire pour 20 pots sur un balcon à Mougins le Haut (Golfe de Saint-Tropez). Architecture ESP32 embarquée avec monitoring à distance. **Plug-and-play (zéro soudure).**
+Système d'arrosage automatique **distribué maître/esclave** pour 20 pots répartis entre un balcon extérieur (Mougins le Haut) et l'intérieur de l'appartement. **2 ESP32** communiquant par **ESP-NOW + MQTT fallback**. Plug-and-play (zéro soudure).
 
 **Propriétaire:** Micka — ingénieur système, captain de yacht, basé Cogolin (semaine) / Mougins (weekends). Profil technique exigeant, approche ingénierie rigoureuse.
 
 ## Stack technique
 
-- **MCU:** ESP32 WROOM-32 DevKit (30 pins), dual-core 240MHz, 4MB flash
+- **MCU:** 2× ESP32 WROOM-32 DevKit (30 pins), dual-core 240MHz, 4MB flash
 - **Framework:** Arduino (via PlatformIO)
-- **Build:** PlatformIO (VS Code) — `platformio.ini` dans `firmware/`
+- **Build:** PlatformIO (VS Code) — 2 projets séparés (`firmware/master/` + `firmware/slave/`)
 - **Langage:** C++ (OOP, classes, headers séparés)
 - **RTOS:** FreeRTOS natif ESP32 (4 tâches, dual-core)
-- **Libs principales:** ArduinoJson 7, ESPAsyncWebServer, PubSubClient, Adafruit BME280, Adafruit INA219, UniversalTelegramBot
+- **Communication:** ESP-NOW (primaire, peer-to-peer) + MQTT (fallback, via routeur WiFi)
+- **Écran:** LCD TFT 2.4" ILI9341 + tactile XPT2046 (maître uniquement)
+- **Libs principales:** ArduinoJson 7, ESPAsyncWebServer, PubSubClient, Adafruit BME280, Adafruit INA219, UniversalTelegramBot, TFT_eSPI, XPT2046_Touchscreen
+
+## Architecture système distribuée
+
+```
+INTÉRIEUR (maître USB secteur)          BALCON (esclave solaire LiFePO4)
+┌──────────────────────┐               ┌──────────────────────┐
+│ ESP32 MAÎTRE         │   ESP-NOW     │ ESP32 ESCLAVE        │
+│ LCD TFT 2.4" tactile │◄────────────►│ Pompe A (10 pots)    │
+│ Pompe B (10 pots)    │   + MQTT     │ 10 capteurs humidité │
+│ 10 capteurs humidité │   fallback   │ BME280 + INA219      │
+│ DS3231 RTC           │               │ LED RGB              │
+│ Relay sécurité       │               │ Mode dégradé local   │
+│ Web + Telegram + MQTT│               │ LiFePO4 + solaire    │
+│ LED RGB              │               └──────────────────────┘
+└──────────────────────┘
+```
+
+Voir `docs/architecture_v4.md` pour l'architecture détaillée.
 
 ## Architecture firmware
 
 ```
 firmware/
-├── platformio.ini          # Config build + dépendances
-├── src/
-│   └── main.cpp            # Point d'entrée, boot 10 étapes, FreeRTOS tasks, CLI série
-├── include/
-│   ├── config.h            # Toutes les constantes (pins, seuils, defaults, topics MQTT)
-│   └── secrets.h.example   # Template credentials (copier en secrets.h)
-└── lib/
-    ├── ConfigManager/      # NVS persistence, JSON serialization, validation params
-    ├── SensorManager/      # MUX multiplexing, US médiane, BME280, INA219
-    ├── PumpController/     # Logique arrosage 3 modes, 6 failsafes
-    ├── SafetyManager/      # Couche sécurité HW: relais, thermal lockout, crash detection
-    ├── StatusLED/          # LED RGB (R=G17, G=G19, B=G23) — état visuel système
-    ├── WifiManager/        # AP captif + STA, auto-reconnexion, DNS redirect
-    ├── WebPortal/          # AsyncWebServer, HTML PROGMEM, REST API complète
-    ├── MqttClient/         # PubSubClient, auto-publish 60s, subscribe cmd
-    ├── TelegramBot/        # Alertes push, heartbeat 12h, commandes interactives
-    └── SleepManager/       # Deep sleep ESP32, RTC wakeup, force pump OFF
+├── common/                     # Code partagé maître+esclave
+│   ├── Protocol.h              # Messages ESP-NOW bidirectionnels (structs)
+│   └── config_common.h         # Constantes partagées (seuils, pins communs)
+├── master/                     # Firmware maître (intérieur, USB secteur)
+│   ├── platformio.ini
+│   ├── src/main.cpp
+│   ├── include/
+│   │   ├── config_master.h     # Pins maître, seuils spécifiques
+│   │   └── secrets.h.example
+│   └── lib/
+│       ├── ConfigManager/      # NVS, JSON, validation
+│       ├── SensorManager/      # MUX×1 (10 capteurs intérieur), US#2
+│       ├── PumpController/     # Pompe B intérieur (filaire GPIO 27)
+│       ├── SafetyManager/      # Relay, thermal, crash, remote unlock
+│       ├── StatusLED/          # LED RGB maître
+│       ├── WifiManager/        # AP+STA, config écran tactile
+│       ├── EspNowMaster/       # ESP-NOW comm + MQTT fallback vers esclave
+│       ├── TftDashboard/       # ILI9341 + XPT2046 tactile (5 écrans)
+│       ├── WebPortal/          # AsyncWebServer, dashboard web
+│       ├── MqttClient/         # MQTT cloud
+│       ├── TelegramBot/        # Alertes push + commandes
+│       ├── TimeManager/        # DS3231 + NTP + solaire NOAA
+│       └── SleepManager/       # Gestion veille
+└── slave/                      # Firmware esclave (balcon, solaire)
+    ├── platformio.ini
+    ├── src/main.cpp
+    ├── include/config_slave.h
+    └── lib/
+        ├── SensorManager/      # MUX×1 (10 capteurs balcon), US#1, BME280, INA219
+        ├── PumpController/     # Pompe A balcon (locale GPIO 27)
+        ├── EspNowSlave/        # Réception commandes + envoi données
+        ├── SafetyLocal/        # Failsafes locaux (sans relay, MOSFET + fusibles)
+        ├── StatusLED/          # LED RGB esclave
+        └── DegradedMode/       # Arrosage autonome si maître perdu (NVS schedule)
 ```
+
+### Modules existants (v3, à restructurer en master/ et slave/)
+Le code actuel dans `firmware/lib/` est le firmware monolithique v3. Il doit être
+découpé en `firmware/master/lib/` et `firmware/slave/lib/` avec le code commun
+dans `firmware/common/`. Les modules existants sont fonctionnels et testés:
 
 ### Dépendances entre modules
 
@@ -350,17 +392,30 @@ struct PumpStatus {
 - **GPIO 12** influence le flash voltage au boot — OK en digital output après boot
 - **Deep sleep** : seul RTC memory persiste, tout le reste est perdu
 
-### Environnement physique
-- **Balcon plein sud, Mougins le Haut** — températures été 40-50°C en surface, AUCUNE ombre
-- **LiFePO4** choisie pour stabilité thermique (pas LiPo)
-- **Deux boîtiers séparés** (IP65, ABS BLANC obligatoire) :
-  - **Boîtier 1 — Électronique** (200×150×85mm, au mur) : ESP32, MUX, MOSFET, relais, LED, bouton
-  - **Boîtier 2 — Énergie** (250×200×120mm, au sol derrière bidons) : batterie, MPPT, LM2596, fusibles
-  - Boîtier énergie ventilé (grilles inox convection) + isolant alu/bulle sur couvercle
-  - Bidons 25L font écran thermique devant le boîtier énergie
-  - Câble inter-boîtiers 18AWG silicone 1.5m + Wago
+### Environnement physique — Architecture v4 distribuée
+- **Maître (intérieur appartement)** : ESP32 + TFT 2.4" + pompe B + 10 capteurs. USB secteur.
+  - Boîtier ABS 200×150×85mm, pas besoin IP65 (intérieur)
+  - Réservoir intérieur 25L dédié
+- **Esclave (balcon plein sud, Mougins le Haut)** : ESP32 + pompe A + 10 capteurs. Solaire.
+  - Boîtier IP65 ABS BLANC, presse-étoupes
+  - 2 réservoirs 25L en vases communicants (50L)
+  - Derrière les bidons : boîtier énergie ventilé (LiFePO4 + MPPT + fusibles)
+  - Grilles inox convection + isolant alu/bulle sur couvercle
+- **Communication** : ESP-NOW (peer-to-peer, pas besoin routeur) + MQTT fallback (via WiFi routeur)
+- **Aucun câble entre intérieur et balcon** — tout est sans fil
 - **Wago 221** pour toutes les connexions (zéro soudure)
-- **3 bidons 25L** en vases communicants (passe-cloisons 1/2" + joints EPDM)
+
+### Prochaines étapes v4 (TODO)
+- [ ] Restructurer le repo en `firmware/master/` + `firmware/slave/` + `firmware/common/`
+- [ ] Implémenter `Protocol.h` (structs messages ESP-NOW bidirectionnels)
+- [ ] Firmware esclave: `EspNowSlave`, `DegradedMode`, `SafetyLocal`
+- [ ] Firmware maître: `EspNowMaster`, `TftDashboard` (ILI9341 + XPT2046)
+- [ ] Résoudre conflit SPI/LED (pins 18,19,23 partagés entre SPI TFT et LED RGB)
+- [ ] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot
+- [ ] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
+- [ ] BOM finale v4 avec quantités consolidées
+- [ ] Tests unitaires PlatformIO (par firmware)
+- [ ] CI/CD GitHub Actions (build master + slave)
 
 ### Calibration capteurs humidité
 - **Air sec** : ADC ~3200 → 0%

@@ -1,0 +1,278 @@
+# Architecture v4 — Système Distribué Maître/Esclave
+
+> Pivot architectural majeur: 2 ESP32, communication sans fil ESP-NOW + MQTT fallback
+
+## Vue d'ensemble
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    APPARTEMENT (intérieur)                │
+│                                                          │
+│  ┌──────────────────────────────────────────┐            │
+│  │     ESP32 MAÎTRE — Boîtier intérieur     │            │
+│  │                                          │            │
+│  │  LCD TFT 2.4" tactile (dashboard+config) │            │
+│  │  DS3231 RTC + NTP sync                   │            │
+│  │  LED RGB status                          │            │
+│  │  Bouton poussoir                         │            │
+│  │  Pompe B intérieur (filaire)             │            │
+│  │  10 capteurs humidité (filaire MUX)      │            │
+│  │  Capteur US réservoir intérieur          │            │
+│  │  Relay sécurité (coupe les 2 pompes)     │            │
+│  │  WiFi: réseau maison + ESP-NOW           │            │
+│  │  Web portal + Telegram + MQTT cloud      │            │
+│  │  Alimenté USB secteur 5V                 │            │
+│  └──────────────┬───────────────────────────┘            │
+│                 │ filaire                                 │
+│        ┌────────┴────────┐                               │
+│        │ Pompe B + tubes │ → 10 pots intérieur            │
+│        │ Réservoir 25L   │                               │
+│        │ Capteur US #2   │                               │
+│        └─────────────────┘                               │
+└───────────────────┬──────────────────────────────────────┘
+                    │ ESP-NOW (2.4GHz, peer-to-peer, pas besoin routeur)
+                    │ + MQTT fallback (via routeur WiFi)
+                    │ sans fil, à travers murs/vitres
+┌───────────────────┴──────────────────────────────────────┐
+│                      BALCON (extérieur)                    │
+│                                                          │
+│  ┌──────────────────────────────────────────┐            │
+│  │     ESP32 ESCLAVE — Boîtier IP65 blanc   │            │
+│  │                                          │            │
+│  │  Pompe A balcon (locale)                 │            │
+│  │  10 capteurs humidité (filaire MUX)      │            │
+│  │  Capteur US réservoir balcon             │            │
+│  │  BME280 environnement extérieur          │            │
+│  │  INA219 courant pompe                    │            │
+│  │  LED RGB status                          │            │
+│  │  MOSFET pompe + pull-down sécurité       │            │
+│  │  WiFi: ESP-NOW + MQTT fallback           │            │
+│  │  Alimenté solaire + LiFePO4 12V          │            │
+│  │  Mode dégradé si WiFi perdu              │            │
+│  └──────────────────────────────────────────┘            │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐                      │
+│  │ Réservoir 1  ├──┤ Réservoir 2  │ 50L vases comm.      │
+│  │    25L       │  │    25L       │                      │
+│  └──────────────┘  └──────────────┘                      │
+│                                                          │
+│  ┌──────────────────────┐                                │
+│  │ ☀ Panneau solaire 20W │ fixé balustrade                │
+│  └──────────────────────┘                                │
+│                                                          │
+│  ┌──────────────────────┐                                │
+│  │ Boîtier énergie      │ LiFePO4 + MPPT + fusibles      │
+│  │ (ventilé, derrière   │                                │
+│  │  bidons)              │                                │
+│  └──────────────────────┘                                │
+└──────────────────────────────────────────────────────────┘
+```
+
+## Communication ESP-NOW + MQTT fallback
+
+### ESP-NOW (primaire)
+- Protocole peer-to-peer Espressif, 2.4GHz
+- Pas besoin du routeur WiFi — fonctionne même si Internet est coupé
+- Latence <5ms, portée ~50m en intérieur (largement suffisant balcon↔appart)
+- Chiffré (PMK + LMK)
+- Bidirectionnel: maître envoie commandes, esclave remonte données
+- Pas de TCP/IP overhead — très léger, idéal pour deep sleep esclave
+
+### MQTT fallback (secondaire)
+- Si ESP-NOW échoue (interférences, distance), bascule sur MQTT via routeur WiFi
+- Le maître publie les commandes sur `hydra/cmd/slave/*`
+- L'esclave publie ses données sur `hydra/slave/sensors`
+- Fonctionne tant que le routeur WiFi est opérationnel
+
+### Messages ESP-NOW
+
+**Maître → Esclave:**
+```
+CMD_PUMP_START    { duration_s: uint16 }
+CMD_PUMP_STOP     { }
+CMD_READ_SENSORS  { }
+CMD_SET_CONFIG    { moisture_min, moisture_max, pump_duration }
+CMD_PING          { }
+CMD_REBOOT        { }
+```
+
+**Esclave → Maître:**
+```
+DATA_SENSORS      { moisture[10], tank_level, tank_cm, temperature, humidity, pressure, pump_current }
+DATA_PUMP_STATUS  { state, running_for_s, total_cycles, failsafe }
+DATA_ACK          { cmd_id, success }
+DATA_ALERT        { type, message }
+DATA_PONG         { uptime_s, battery_v, rssi }
+```
+
+### Intervalle communication
+- Esclave envoie DATA_SENSORS toutes les 30s (quand actif)
+- Maître envoie CMD_PING toutes les 60s (heartbeat)
+- Si 3 PONG manqués → maître alerte "Esclave balcon non-responsive"
+
+## Mode dégradé esclave (WiFi perdu)
+
+Si l'esclave perd la communication avec le maître :
+1. Continue d'arroser selon le dernier schedule/config reçu (stocké en NVS)
+2. LED jaune clignotant
+3. Tente de reconnecter ESP-NOW toutes les 30s
+4. Si reconnexion → remonte toutes les données accumulées
+5. Les failsafes restent actifs localement (tank, max runtime, overcurrent)
+
+## Sécurité distribuée
+
+### Maître (intérieur)
+- Relay sécurité GPIO 18 — coupe sa propre pompe intérieur
+- SafetyManager: thermal lockout, crash detection, remote unlock
+- Peut envoyer CMD_PUMP_STOP à l'esclave à tout moment
+- Si esclave non-responsive → alerte Telegram
+
+### Esclave (balcon)
+- MOSFET pull-down 10kΩ — pompe OFF si crash/reset
+- Fusible 3A ligne pompe
+- Failsafes locaux: tank empty, max runtime, overcurrent, dry-run
+- Si maître non-responsive → mode dégradé (pas d'arrêt total)
+- Fusible thermique 72°C sur batterie (irréversible)
+
+### Indépendance critique
+- L'esclave peut fonctionner sans le maître (mode dégradé)
+- Le maître peut fonctionner sans l'esclave (zone intérieur indépendante)
+- La perte de WiFi routeur n'affecte PAS ESP-NOW (peer-to-peer)
+- La perte d'ESP-NOW déclenche le fallback MQTT
+- La perte des DEUX déclenche le mode dégradé esclave
+
+## Écran TFT 2.4" tactile (maître)
+
+### Modèle recommandé
+- ILI9341 2.4" 320×240 SPI + XPT2046 touch controller
+- Connexion SPI (6 pins: MOSI, MISO, CLK, CS_TFT, CS_TOUCH, DC)
+- Librairies: TFT_eSPI + XPT2046_Touchscreen
+
+### Écrans du dashboard
+
+1. **Écran principal** — Vue d'ensemble
+   - Humidité zone A (balcon) + zone B (intérieur)
+   - Niveaux réservoirs (barres)
+   - État pompes (ON/OFF/bloquée)
+   - T° extérieur + intérieur
+   - Heure + lever/coucher soleil
+   - État communication esclave (OK/perdu)
+
+2. **Écran config WiFi** (premier boot ou bouton)
+   - Scan réseaux disponibles (liste tactile)
+   - Clavier virtuel pour SSID + mot de passe
+   - Bouton "Connecter"
+
+3. **Écran config arrosage**
+   - Mode (AUTO/SCHEDULED/SOLAR/MANUAL)
+   - Seuils humidité min/max (slider tactile)
+   - Durée pompe
+   - Horaires schedule
+
+4. **Écran sécurité**
+   - État SafetyManager
+   - Bouton unlock (si hard lockout)
+   - T° batterie esclave
+   - Compteur boot crashes
+
+5. **Écran capteurs détail**
+   - Liste des 20 capteurs avec valeur individuelle
+   - Alertes pots chroniquement secs
+
+## Structure repo
+
+```
+balcony-hydra/
+├── CLAUDE.md
+├── README.md
+├── LICENSE
+├── docs/
+│   ├── BOM_v4_distributed.xlsx
+│   ├── architecture_v4.md          (ce fichier)
+│   ├── safety_analysis.md
+│   ├── schema_hydraulique.svg
+│   ├── wiring_master.svg
+│   ├── wiring_slave.svg
+│   └── system_architecture_v4.svg
+├── hardware/
+│   ├── pin_assignment_master.md
+│   └── pin_assignment_slave.md
+├── firmware/
+│   ├── common/                     # Code partagé maître+esclave
+│   │   ├── Protocol.h              # Messages ESP-NOW, structs
+│   │   ├── Protocol.cpp
+│   │   ├── config_common.h         # Constantes partagées
+│   │   └── SafetyCommon.h          # Failsafes communs
+│   ├── master/                     # Firmware maître (intérieur)
+│   │   ├── platformio.ini
+│   │   ├── src/main.cpp
+│   │   ├── include/config_master.h
+│   │   └── lib/
+│   │       ├── ConfigManager/
+│   │       ├── SensorManager/
+│   │       ├── PumpController/     # Zone B uniquement (filaire)
+│   │       ├── SafetyManager/
+│   │       ├── WifiManager/
+│   │       ├── EspNowMaster/       # ESP-NOW maître + MQTT fallback
+│   │       ├── WebPortal/
+│   │       ├── TftDashboard/       # Écran TFT tactile ILI9341
+│   │       ├── MqttClient/
+│   │       ├── TelegramBot/
+│   │       ├── TimeManager/
+│   │       ├── StatusLED/
+│   │       └── SleepManager/
+│   └── slave/                      # Firmware esclave (balcon)
+│       ├── platformio.ini
+│       ├── src/main.cpp
+│       ├── include/config_slave.h
+│       └── lib/
+│           ├── SensorManager/      # Zone A uniquement
+│           ├── PumpController/     # Zone A uniquement (locale)
+│           ├── EspNowSlave/        # ESP-NOW esclave + MQTT fallback
+│           ├── SafetyLocal/        # Failsafes locaux (pas de relay)
+│           ├── StatusLED/
+│           └── DegradedMode/       # Arrosage autonome si maître perdu
+└── tools/
+```
+
+## Pin assignments
+
+### ESP32 Maître (intérieur)
+
+| GPIO | Fonction | Notes |
+|------|----------|-------|
+| 36 | MUX SIG (10 capteurs intérieur) | ADC1_CH0 |
+| 34 | US#2 ECHO (réservoir intérieur) | Input only |
+| 32,33,25,26 | MUX S0-S3 | Shared address |
+| 4 | MUX EN | Active LOW |
+| 27 | Pompe B MOSFET | Pull-down 10kΩ |
+| 18 | Relay sécurité | Coupe pompe B |
+| 21,22 | I2C (DS3231 0x68) | Pull-up 4.7kΩ |
+| 5 | Bouton poussoir | INPUT_PULLUP, ISR |
+| 17 | LED R | PWM |
+| 19 | LED G | PWM |
+| 23 | LED B | PWM |
+| 13 | TFT CS | SPI |
+| 14 | TFT DC | SPI |
+| 15 | TOUCH CS | SPI |
+| VSPI | TFT MOSI/MISO/CLK | SPI default (18,19,23 — CONFLIT LED!) |
+
+**⚠ CONFLIT SPI/LED:** Les pins SPI par défaut (18,19,23) entrent en conflit avec la LED RGB. Solutions:
+- Option A: LED RGB sur GPIO 16, 17, 2 (libérer 19,23 pour SPI)
+- Option B: Utiliser HSPI au lieu de VSPI pour le TFT
+
+### ESP32 Esclave (balcon)
+
+| GPIO | Fonction | Notes |
+|------|----------|-------|
+| 36 | MUX SIG (10 capteurs balcon) | ADC1_CH0 |
+| 34 | US#1 ECHO (réservoir balcon) | Input only |
+| 32,33,25,26 | MUX S0-S3 | |
+| 4 | MUX EN | |
+| 27 | Pompe A MOSFET | Pull-down 10kΩ |
+| 14 | US#1 TRIGGER | |
+| 21,22 | I2C (BME280 + INA219) | |
+| 17 | LED R | PWM |
+| 19 | LED G | PWM |
+| 23 | LED B | PWM |
+| 2 | LED onboard (heartbeat) | |
