@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "StatusLED.h"
+#include "config_master.h"
 
 void StatusLED::begin() {
     // Setup LEDC PWM channels

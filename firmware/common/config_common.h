@@ -56,3 +56,14 @@ constexpr uint32_t SAFETY_STABLE_BOOT_MS   = 60000;   // 60s
 constexpr int8_t  DEFAULT_SUNRISE_OFFSET_MIN = 0;
 constexpr int8_t  DEFAULT_SUNSET_OFFSET_MIN  = 30;
 constexpr uint16_t DEFAULT_PUMP_DURATION = 60;
+constexpr float   TANK_MIN_LEVEL_CM    = 3.0;
+constexpr uint32_t HEARTBEAT_INTERVAL_MS = 43200000;
+#define NVS_NAMESPACE "hydra"
+constexpr uint8_t MUX1_CHANNELS = 10;
+constexpr uint8_t MUX2_CHANNELS = 10;
+constexpr uint32_t MIN_SLEEP_INTERVAL_S = 60;
+constexpr uint32_t MAX_SLEEP_INTERVAL_S = 86400;
+constexpr uint8_t  DEFAULT_WATERING_HOUR_1 = 7;
+constexpr uint8_t  DEFAULT_WATERING_MIN_1 = 0;
+constexpr uint8_t  DEFAULT_WATERING_HOUR_2 = 20;
+constexpr uint8_t  DEFAULT_WATERING_MIN_2 = 0;

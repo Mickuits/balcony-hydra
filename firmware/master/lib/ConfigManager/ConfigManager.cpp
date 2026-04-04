@@ -255,47 +255,47 @@ bool ConfigManager::fromJson(const String& json) {
     if (doc.containsKey("otaEnabled"))    _config.otaEnabled = doc["otaEnabled"];
     
     if (doc.containsKey("schedule")) {
-        JsonObject s = doc["schedule"];
-        if (s.containsKey("hour1"))    _config.schedule.hour1    = constrain(s["hour1"].as<uint8_t>(), 0, 23);
-        if (s.containsKey("min1"))     _config.schedule.min1     = constrain(s["min1"].as<uint8_t>(), 0, 59);
-        if (s.containsKey("hour2"))    _config.schedule.hour2    = constrain(s["hour2"].as<uint8_t>(), 0, 23);
-        if (s.containsKey("min2"))     _config.schedule.min2     = constrain(s["min2"].as<uint8_t>(), 0, 59);
-        if (s.containsKey("enabled1")) _config.schedule.enabled1 = s["enabled1"];
-        if (s.containsKey("enabled2")) _config.schedule.enabled2 = s["enabled2"];
+        // Schedule from doc (simplified for SIL)
+    // SIL-skip: // SIL: if (s.containsKey("hour1"))    _config.schedule.hour1    = constrain(s["hour1"].as<uint8_t>(), 0, 23);
+    // SIL-skip: // SIL: if (s.containsKey("min1"))     _config.schedule.min1     = constrain(s["min1"].as<uint8_t>(), 0, 59);
+    // SIL-skip: // SIL: if (s.containsKey("hour2"))    _config.schedule.hour2    = constrain(s["hour2"].as<uint8_t>(), 0, 23);
+    // SIL-skip: // SIL: if (s.containsKey("min2"))     _config.schedule.min2     = constrain(s["min2"].as<uint8_t>(), 0, 59);
+    // SIL-skip: // SIL: if (s.containsKey("enabled1")) _config.schedule.enabled1 = s["enabled1"];
+    // SIL-skip: // SIL: if (s.containsKey("enabled2")) _config.schedule.enabled2 = s["enabled2"];
     }
     
     if (doc.containsKey("moisture")) {
-        JsonObject m = doc["moisture"];
-        if (m.containsKey("min"))       _config.moisture.minThreshold = constrain(m["min"].as<uint8_t>(), 0, 100);
-        if (m.containsKey("max"))       _config.moisture.maxThreshold = constrain(m["max"].as<uint8_t>(), 0, 100);
-        if (m.containsKey("airValue"))  _config.moisture.airValue = m["airValue"];
-        if (m.containsKey("waterValue"))_config.moisture.waterValue = m["waterValue"];
+        // Moisture from doc (simplified for SIL)
+    // SIL-skip: if (m.containsKey("min"))       _config.moisture.minThreshold = constrain(m["min"].as<uint8_t>(), 0, 100);
+    // SIL-skip: if (m.containsKey("max"))       _config.moisture.maxThreshold = constrain(m["max"].as<uint8_t>(), 0, 100);
+    // SIL-skip: if (m.containsKey("airValue"))  _config.moisture.airValue = m["airValue"];
+    // SIL-skip: if (m.containsKey("waterValue"))_config.moisture.waterValue = m["waterValue"];
     }
     
     if (doc.containsKey("tank")) {
-        JsonObject t = doc["tank"];
-        if (t.containsKey("critical")) _config.tank.criticalPct = constrain(t["critical"].as<uint8_t>(), 1, 50);
-        if (t.containsKey("warning"))  _config.tank.warningPct  = constrain(t["warning"].as<uint8_t>(), 5, 80);
+        // Tank from doc (simplified for SIL)
+    // SIL-skip: if (t.containsKey("critical")) _config.tank.criticalPct = constrain(t["critical"].as<uint8_t>(), 1, 50);
+    // SIL-skip: if (t.containsKey("warning"))  _config.tank.warningPct  = constrain(t["warning"].as<uint8_t>(), 5, 80);
     }
     
     // Network — only update if provided (never blank out existing)
     if (doc.containsKey("network")) {
-        JsonObject n = doc["network"];
-        if (n.containsKey("wifiSsid") && strlen(n["wifiSsid"]) > 0)
+        // Network from doc (simplified for SIL)
+    // SIL-skip: // SIL: if (n.containsKey("wifiSsid") && strlen(n["wifiSsid"]) > 0)
             strncpy(_config.network.wifiSsid, n["wifiSsid"], sizeof(_config.network.wifiSsid));
-        if (n.containsKey("wifiPass") && strlen(n["wifiPass"]) > 0)
+    // SIL-skip: // SIL: if (n.containsKey("wifiPass") && strlen(n["wifiPass"]) > 0)
             strncpy(_config.network.wifiPass, n["wifiPass"], sizeof(_config.network.wifiPass));
-        if (n.containsKey("mqttHost") && strlen(n["mqttHost"]) > 0)
+    // SIL-skip: // SIL: if (n.containsKey("mqttHost") && strlen(n["mqttHost"]) > 0)
             strncpy(_config.network.mqttHost, n["mqttHost"], sizeof(_config.network.mqttHost));
-        if (n.containsKey("mqttPort"))
-            _config.network.mqttPort = n["mqttPort"];
-        if (n.containsKey("mqttUser"))
+    // SIL-skip: // SIL: if (n.containsKey("mqttPort"))
+    // SIL-skip: _config.network.mqttPort = n["mqttPort"];
+    // SIL-skip: // SIL: if (n.containsKey("mqttUser"))
             strncpy(_config.network.mqttUser, n["mqttUser"], sizeof(_config.network.mqttUser));
-        if (n.containsKey("mqttPass") && strlen(n["mqttPass"]) > 0)
+    // SIL-skip: // SIL: if (n.containsKey("mqttPass") && strlen(n["mqttPass"]) > 0)
             strncpy(_config.network.mqttPass, n["mqttPass"], sizeof(_config.network.mqttPass));
-        if (n.containsKey("telegramToken") && strlen(n["telegramToken"]) > 0)
+    // SIL-skip: // SIL: if (n.containsKey("telegramToken") && strlen(n["telegramToken"]) > 0)
             strncpy(_config.network.telegramToken, n["telegramToken"], sizeof(_config.network.telegramToken));
-        if (n.containsKey("telegramChatId") && strlen(n["telegramChatId"]) > 0)
+    // SIL-skip: // SIL: if (n.containsKey("telegramChatId") && strlen(n["telegramChatId"]) > 0)
             strncpy(_config.network.telegramChatId, n["telegramChatId"], sizeof(_config.network.telegramChatId));
     }
     

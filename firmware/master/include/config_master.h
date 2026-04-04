@@ -69,10 +69,8 @@ constexpr uint8_t  DEFAULT_WATER_HOUR_1  = 7;
 constexpr uint8_t  DEFAULT_WATER_MIN_1   = 0;
 constexpr uint8_t  DEFAULT_WATER_HOUR_2  = 20;
 constexpr uint8_t  DEFAULT_WATER_MIN_2   = 0;
-constexpr uint16_t DEFAULT_PUMP_DURATION = 60;
 constexpr bool     DEFAULT_SOLAR_SUNRISE_EN   = true;
 constexpr bool     DEFAULT_SOLAR_SUNSET_EN    = true;
-constexpr int8_t   DEFAULT_SUNSET_OFFSET_MIN  = 30;
 
 // ---- NETWORK / MQTT ----
 constexpr uint16_t DEFAULT_MQTT_PORT = 1883;
@@ -91,3 +89,8 @@ constexpr bool DEFAULT_OTA_ENABLED = true;
 
 // ---- ESP-NOW SLAVE MAC ----
 constexpr uint8_t DEFAULT_SLAVE_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+constexpr uint8_t PIN_MUX2_SIG = 0xFF;
+constexpr uint8_t PIN_PUMP_A = 0xFF;  // Zone A remote
+constexpr uint8_t ZONE_A_SENSORS_START = 0;
+constexpr uint8_t ZONE_A_SENSORS_END = 9;
+constexpr uint8_t PIN_MUX1_SIG = PIN_MUX_SIG;

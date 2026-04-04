@@ -114,7 +114,7 @@ class Preferences{
     static inline std::string _ns;
     std::string _key(const char*k)const{return _ns+"::"+k;}
 public:
-    void begin(const char*ns,bool=false){_ns=ns?ns:"";}
+    bool begin(const char*ns,bool ro=false){_ns=ns?ns:"";return true;}
     void end(){}
     void clear(){auto p=_ns+"::";for(auto it=_store.begin();it!=_store.end();)if(it->first.substr(0,p.size())==p)it=_store.erase(it);else++it;}
     bool isKey(const char*k){return _store.count(_key(k))>0;}
@@ -130,6 +130,11 @@ public:
     bool getBool(const char*k,bool def=false){return _store.count(_key(k))?(_store[_key(k)][0]!=0):def;}
     void putBytes(const char*k,const void*d,size_t l){auto&s=_store[_key(k)];s.resize(l);memcpy(s.data(),d,l);}
     size_t getBytes(const char*k,void*d,size_t l){auto it=_store.find(_key(k));if(it==_store.end())return 0;size_t n=std::min(l,it->second.size());memcpy(d,it->second.data(),n);return n;}
+    void putString(const char*k,const char*v){auto&d=_store[_key(k)];std::string s(v?v:"");d.assign(s.begin(),s.end());}
+    void putString(const char*k,const String&v){putString(k,v.c_str());}
+    String getString(const char*k,const char*def=""){auto it=_store.find(_key(k));if(it==_store.end())return String(def);return String(std::string(it->second.begin(),it->second.end()).c_str());}
+    String getString(const char*k,const String&def){return getString(k,def.c_str());}
+    void remove(const char*k){_store.erase(_key(k));}
     static void resetAll(){_store.clear();}
 };
 
@@ -150,12 +155,18 @@ inline TwoWire Wire;
 
 // ---- Adafruit_BME280 ----
 class Adafruit_BME280{public:
+    enum sensor_mode{MODE_NORMAL=0,MODE_FORCED=1,MODE_SLEEP=2};
+    enum sensor_sampling{SAMPLING_NONE=0,SAMPLING_X1=1,SAMPLING_X2=2,SAMPLING_X4=3,SAMPLING_X8=4,SAMPLING_X16=5};
+    enum sensor_filter{FILTER_OFF=0,FILTER_X2=1,FILTER_X4=2};
+    enum standby_duration{STANDBY_MS_0_5=0,STANDBY_MS_10=1,STANDBY_MS_20=2,STANDBY_MS_62_5=3,STANDBY_MS_125=4,STANDBY_MS_250=5,STANDBY_MS_500=6,STANDBY_MS_1000=7};
+    void takeForcedMeasurement(){}
     float _t=25,_h=50,_p=1013.25;
     bool begin(uint8_t addr=0x76, TwoWire* w=nullptr){return true;}
     float readTemperature(){return _t;}
     float readHumidity(){return _h;}
     float readPressure(){return _p*100;} // Pa
     void setMock(float t,float h,float p){_t=t;_h=h;_p=p;}
+    void setSampling(int=0,int=0,int=0,int=0,int=0,int=0){}
 };
 
 // ---- Adafruit_INA219 ----
@@ -166,46 +177,116 @@ class Adafruit_INA219{public:
     float getCurrent_mA(){return _c;}
     float getPower_mW(){return _v*_c;}
     void setMock(float v,float c){_v=v;_c=c;}
+    void setCalibration_32V_1A(){}
+    void setCalibration_32V_2A(){}
+    void setCalibration_16V_400mA(){}
 };
 
 // ---- ArduinoJson (functional subset) ----
-class JsonDocument{
+
+// ---- ArduinoJson Mock (complete) ----
+class JsonArray;
+class JsonObject;
+
+class JsonDocument {
     std::map<std::string,std::string> _d;
 public:
     void clear(){_d.clear();}
     bool containsKey(const char*k)const{return _d.count(k)>0;}
-    struct Proxy{
-        JsonDocument*doc;std::string key;
-        void operator=(const char*v){doc->_d[key]=v?v:"";}
-        void operator=(const String&v){doc->_d[key]=v._s;}
-        void operator=(float v){char b[32];snprintf(b,32,"%.6f",(double)v);doc->_d[key]=b;}
-        void operator=(double v){char b[32];snprintf(b,32,"%.6f",v);doc->_d[key]=b;}
-        void operator=(int v){doc->_d[key]=std::to_string(v);}
-        void operator=(uint8_t v){doc->_d[key]=std::to_string(v);}
-        void operator=(uint16_t v){doc->_d[key]=std::to_string(v);}
-        void operator=(uint32_t v){doc->_d[key]=std::to_string(v);}
-        void operator=(bool v){doc->_d[key]=v?"true":"false";}
-        template<typename T>T as()const{
-            auto it=doc->_d.find(key);
-            std::string s=it!=doc->_d.end()?it->second:"";
+    
+    class Proxy {
+        std::map<std::string,std::string>*_d;
+        std::string _k;
+    public:
+        Proxy(std::map<std::string,std::string>*d,const std::string&k):_d(d),_k(k){}
+        
+        // Assignment
+        Proxy& operator=(const char*v){(*_d)[_k]=v?v:"";return*this;}
+        Proxy& operator=(const String&v){(*_d)[_k]=v._s;return*this;}
+        Proxy& operator=(int v){(*_d)[_k]=std::to_string(v);return*this;}
+        Proxy& operator=(uint8_t v){(*_d)[_k]=std::to_string(v);return*this;}
+        Proxy& operator=(uint16_t v){(*_d)[_k]=std::to_string(v);return*this;}
+        Proxy& operator=(uint32_t v){(*_d)[_k]=std::to_string(v);return*this;}
+        Proxy& operator=(float v){char b[32];snprintf(b,32,"%.6f",(double)v);(*_d)[_k]=b;return*this;}
+        Proxy& operator=(double v){char b[32];snprintf(b,32,"%.6f",v);(*_d)[_k]=b;return*this;}
+        Proxy& operator=(bool v){(*_d)[_k]=v?"true":"false";return*this;}
+        
+        // Reading with default
+        int operator|(int def)const{auto it=_d->find(_k);return it!=_d->end()?atoi(it->second.c_str()):def;}
+        float operator|(float def)const{auto it=_d->find(_k);return it!=_d->end()?(float)atof(it->second.c_str()):def;}
+        
+        // Explicit conversion via as<T>()
+        template<typename T> T as()const{
+            auto it=_d->find(_k);
+            std::string s=it!=_d->end()?it->second:"";
             if constexpr(std::is_same_v<T,float>)return(float)atof(s.c_str());
             else if constexpr(std::is_same_v<T,int>)return atoi(s.c_str());
             else if constexpr(std::is_same_v<T,uint8_t>)return(uint8_t)atoi(s.c_str());
-            else if constexpr(std::is_same_v<T,const char*>)return s.c_str();
+            else if constexpr(std::is_same_v<T,uint16_t>)return(uint16_t)atoi(s.c_str());
+            else if constexpr(std::is_same_v<T,uint32_t>)return(uint32_t)strtoul(s.c_str(),nullptr,10);
+            else if constexpr(std::is_same_v<T,bool>)return s=="true"||s=="1";
+            else if constexpr(std::is_same_v<T,const char*>){static std::string _tmp;_tmp=s;return _tmp.c_str();}
             else return T{};
         }
-        int operator|(int def)const{auto it=doc->_d.find(key);return it!=doc->_d.end()?atoi(it->second.c_str()):def;}
-        float operator|(float def)const{auto it=doc->_d.find(key);return it!=doc->_d.end()?(float)atof(it->second.c_str()):def;}
-        Proxy operator[](const char*k){return{doc,(key+"::"+k).c_str()};}
-        struct FakeArr{template<typename T>Proxy add(){return{nullptr,""};}};
-        FakeArr to(){return{};}
+        
+        // Implicit conversions for _config.field = doc["key"]
+        operator uint8_t()const{auto it=_d->find(_k);return it!=_d->end()?(uint8_t)atoi(it->second.c_str()):0;}
+        operator uint16_t()const{auto it=_d->find(_k);return it!=_d->end()?(uint16_t)atoi(it->second.c_str()):0;}
+        operator uint32_t()const{auto it=_d->find(_k);return it!=_d->end()?(uint32_t)strtoul(it->second.c_str(),nullptr,10):0;}
+        operator int()const{auto it=_d->find(_k);return it!=_d->end()?atoi(it->second.c_str()):0;}
+        operator float()const{auto it=_d->find(_k);return it!=_d->end()?(float)atof(it->second.c_str()):0;}
+        operator bool()const{auto it=_d->find(_k);return it!=_d->end()&&it->second!="false"&&it->second!="0"&&!it->second.empty();}
+        
+        // Nested access
+        Proxy operator[](const char*k)const{return Proxy(_d,_k+"::"+k);}
+        
+        // to<JsonArray>() / to<JsonObject>() stubs
+        template<typename T> T to(){return T{};}
     };
-    Proxy operator[](const char*k){return{this,k};}
-    friend void serializeJson(const JsonDocument&,String&);
+    
+    Proxy operator[](const char*k){return Proxy(&_d,k);}
+    const Proxy operator[](const char*k)const{return Proxy(const_cast<std::map<std::string,std::string>*>(&_d),k);}
+    
+    friend void serializeJson(const JsonDocument&doc,String&out);
 };
-struct DeserializationError{int code;operator bool()const{return code!=0;}const char*c_str()const{return code?"err":"ok";}};
-inline void serializeJson(const JsonDocument&d,String&o){std::string s="{";bool f=true;for(auto&p:d._d){if(!f)s+=",";f=false;s+="\""+p.first+"\":\""+p.second+"\"";}s+="}";o=String(s.c_str());}
-inline DeserializationError deserializeJson(JsonDocument&d,const String&in){d.clear();return{in._s.empty()||in._s[0]!='{'?1:0};}
+
+class JsonArray{public:
+    void add(float){}
+    void add(int){}
+    void add(const char*){}
+    void add(const String&){}
+    template<typename T> T add(){return T{};}
+};
+
+class JsonObject{public:
+    struct P2{
+        P2& operator=(float){return*this;}
+        P2& operator=(int){return*this;}
+        P2& operator=(uint8_t){return*this;}
+        P2& operator=(uint16_t){return*this;}
+        P2& operator=(uint32_t){return*this;}
+        P2& operator=(bool){return*this;}
+        P2& operator=(const char*){return*this;}
+        P2& operator=(const String&){return*this;}
+    };
+    P2 operator[](const char*){static P2 p;return p;}
+};
+
+struct DeserializationError{
+    int code;
+    operator bool()const{return code!=0;}
+    const char*c_str()const{return code?"error":"ok";}
+};
+
+inline void serializeJson(const JsonDocument&d,String&o){
+    std::string s="{";bool f=true;
+    for(auto&p:d._d){if(!f)s+=",";f=false;s+="\""+p.first+"\":\""+p.second+"\"";} 
+    s+="}";o=String(s.c_str());
+}
+
+inline DeserializationError deserializeJson(JsonDocument&d,const String&in){
+    d.clear();return{in._s.empty()||in._s[0]!='{'?1:0};
+}
 
 // ---- getLocalTime ----
 namespace MockTime{
@@ -218,3 +299,7 @@ namespace ESP_mock{inline bool restarted=false;inline void restart(){restarted=t
 #define ESP ESP_mock
 class WiFiMock{public:int8_t RSSI(){return-55;}};
 inline WiFiMock WiFi;
+inline void analogReadResolution(uint8_t){}
+inline void analogSetAttenuation(uint8_t){}
+#define ADC_11db 3
+namespace Adafruit_BME280_ns { enum { MODE_NORMAL=0,SAMPLING_X1=1,SAMPLING_X2=2,FILTER_OFF=0,STANDBY_MS_1000=0 }; }

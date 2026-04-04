@@ -43,9 +43,9 @@ struct ZoneStatus {
     uint8_t        avgMoisture;      // Zone-specific average
     
     // Auto mode anti-spam
-    uint32_t       lastAutoWaterTime;
-    uint8_t        autoCycleCount;
-    uint32_t       autoCycleResetTime;
+    mutable uint32_t       lastAutoWaterTime;
+    mutable uint8_t        autoCycleCount;
+    mutable uint32_t       autoCycleResetTime;
 };
 
 struct ZoneConfig {
