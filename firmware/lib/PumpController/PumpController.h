@@ -13,6 +13,7 @@
 #include "SensorManager.h"
 
 class TimeManager;
+class PlantProfile;
 
 enum class PumpState : uint8_t {
     IDLE    = 0,
@@ -92,6 +93,7 @@ public:
     const ZoneStatus& status() const { return _zones[0]; }
     
     void setTimeManager(TimeManager* tm) { _timeMgr = tm; }
+    void setPlantProfile(PlantProfile* pp) { _plantProfile = pp; }
     
     String toJson() const;
     
@@ -105,6 +107,7 @@ private:
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
     TimeManager*    _timeMgr = nullptr;
+    PlantProfile*   _plantProfile = nullptr;
     SafetyCallback  _safetyCb = nullptr;
     
     ZoneStatus _zones[NUM_ZONES];

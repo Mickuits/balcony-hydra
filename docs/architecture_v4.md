@@ -219,6 +219,7 @@ Calcul jour par jour avec changement de mois pour précision saisonnière:
 - Durée = MAX des durées individuelles de la zone (pompe partagée)
 - Durée individuelle = volume_eau_nécessaire / débit_goutteur
 - Volume = base_catégorie × √(pot/10L) × coeff_saisonnier
+- Le mois courant est fourni par TimeManager (DS3231 + NTP, calcul solaire algorithme NOAA)
 - Exemples Mougins: citronnier 30L avec goutteur 8 L/h:
   - Août: 500mL → 225s (3m45)
   - Janvier: 50mL → 22s

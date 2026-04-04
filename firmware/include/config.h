@@ -82,6 +82,8 @@ constexpr uint8_t  DEFAULT_WATER_MIN_2   = 0;
 constexpr uint16_t DEFAULT_PUMP_DURATION = 60;   // Seconds per cycle
 
 // ---- SOLAR SCHEDULE ----
+constexpr float    DEFAULT_LATITUDE           = 43.61;  // Mougins le Haut
+constexpr float    DEFAULT_LONGITUDE          = 6.99;   // Mougins le Haut
 constexpr int8_t   DEFAULT_SUNRISE_OFFSET_MIN = 0;    // Arrosage au lever (+0 min)
 constexpr int8_t   DEFAULT_SUNSET_OFFSET_MIN  = 30;   // Arrosage 30 min après coucher
 constexpr bool     DEFAULT_SOLAR_SUNRISE_EN   = true;

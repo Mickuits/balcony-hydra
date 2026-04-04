@@ -21,9 +21,7 @@
 // DS3231 I2C address
 constexpr uint8_t DS3231_ADDR = 0x68;
 
-// Default location: Mougins le Haut
-constexpr float DEFAULT_LATITUDE  = 43.61;
-constexpr float DEFAULT_LONGITUDE = 6.99;
+// Location: imported from config.h (DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
 constexpr int8_t DEFAULT_TIMEZONE = 1;   // CET (UTC+1), CEST auto-handled by NTP
 
 struct SolarTimes {
