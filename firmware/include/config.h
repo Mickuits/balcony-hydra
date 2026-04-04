@@ -85,6 +85,11 @@ constexpr uint32_t MAX_SLEEP_INTERVAL_S     = 21600; // 6 hours
 constexpr uint8_t  DEFAULT_MOISTURE_MIN  = 30;   // Below → needs water (%)
 constexpr uint8_t  DEFAULT_MOISTURE_MAX  = 70;   // Above → skip watering (%)
 
+// ---- AUTO MODE PROTECTION ----
+constexpr uint32_t DEFAULT_AUTO_COOLDOWN_S   = 7200;   // 2h minimum entre deux cycles auto
+constexpr uint8_t  DEFAULT_AUTO_MAX_CYCLES   = 4;      // Max 4 arrosages auto par 24h
+constexpr uint32_t AUTO_CYCLE_RESET_INTERVAL = 86400;  // Reset compteur toutes les 24h
+
 // ---- TANK LEVEL THRESHOLDS ----
 constexpr uint8_t  TANK_LEVEL_CRITICAL   = 10;   // % → pump failsafe
 constexpr uint8_t  TANK_LEVEL_WARNING    = 25;   // % → Telegram alert

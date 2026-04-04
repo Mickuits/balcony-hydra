@@ -48,6 +48,10 @@ void ConfigManager::loadDefaults() {
     _config.solar.latitude         = DEFAULT_LATITUDE;
     _config.solar.longitude        = DEFAULT_LONGITUDE;
 
+    // Auto mode protection
+    _config.autoMode.cooldownS       = DEFAULT_AUTO_COOLDOWN_S;
+    _config.autoMode.maxCyclesPerDay = DEFAULT_AUTO_MAX_CYCLES;
+
     // System
     _config.mode               = WateringMode::AUTOMATIC;
     _config.pumpDurationS      = DEFAULT_PUMP_DURATION;

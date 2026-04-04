@@ -111,30 +111,14 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute) const {
     
     switch (cfg.mode) {
         case WateringMode::AUTOMATIC:
-            // Scheduled time AND moisture below threshold
-            if (_configMgr.isWateringTime(hour, minute)) {
-                return _configMgr.needsWatering(_sensorMgr.avgMoisture());
-            }
-            // Also check solar times if TimeManager available
-            if (_timeMgr) {
-                bool solarTrigger = false;
-                if (cfg.solar.sunriseEnabled) {
-                    solarTrigger |= _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false);
-                }
-                if (cfg.solar.sunsetEnabled) {
-                    solarTrigger |= _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true);
-                }
-                if (solarTrigger) {
-                    return _configMgr.needsWatering(_sensorMgr.avgMoisture());
-                }
-            }
-            return false;
+            // AUTO = piloté par humidité, pas par horaire
+            // shouldAutoWater() est appelé directement depuis la tâche capteurs
+            return false;  // Ne jamais déclencher via le check horaire
             
         case WateringMode::SCHEDULED:
             return _configMgr.isWateringTime(hour, minute);
             
         case WateringMode::SOLAR:
-            // Solar-only: arrosage calé sur lever/coucher du soleil
             if (!_timeMgr) return false;
             if (cfg.solar.sunriseEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false)) {
                 return true;
@@ -148,6 +132,57 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute) const {
             return false;
     }
     return false;
+}
+
+bool PumpController::shouldAutoWater() const {
+    if (_configMgr.config().mode != WateringMode::AUTOMATIC) return false;
+    if (isRunning() || isBlocked()) return false;
+    
+    uint8_t moisture = _sensorMgr.avgMoisture();
+    
+    // Above max threshold → definitely no
+    if (moisture >= _configMgr.config().moisture.maxThreshold) return false;
+    
+    // Above min threshold → no need
+    if (moisture >= _configMgr.config().moisture.minThreshold) return false;
+    
+    // Below min threshold → check anti-spam protections
+    if (!_isAutoCooldownOk()) {
+        Serial.printf("[PUMP] AUTO: humidité %d%% < seuil mais cooldown actif (%ds restants)\n",
+                      moisture, 
+                      (int)(_configMgr.config().autoMode.cooldownS - (millis() - _lastAutoWaterTime) / 1000));
+        return false;
+    }
+    
+    if (!_isAutoMaxCyclesOk()) {
+        Serial.printf("[PUMP] AUTO: humidité %d%% < seuil mais max cycles atteint (%d/%d)\n",
+                      moisture, _autoCycleCount, _configMgr.config().autoMode.maxCyclesPerDay);
+        return false;
+    }
+    
+    Serial.printf("[PUMP] AUTO: humidité %d%% < seuil %d%% → arrosage déclenché\n",
+                  moisture, _configMgr.config().moisture.minThreshold);
+    
+    // Update anti-spam counters
+    _lastAutoWaterTime = millis();
+    _autoCycleCount++;
+    
+    return true;
+}
+
+bool PumpController::_isAutoCooldownOk() const {
+    if (_lastAutoWaterTime == 0) return true;  // First time
+    uint32_t elapsed = (millis() - _lastAutoWaterTime) / 1000;
+    return elapsed >= _configMgr.config().autoMode.cooldownS;
+}
+
+bool PumpController::_isAutoMaxCyclesOk() const {
+    // Reset counter every 24h
+    if (millis() - _autoCycleResetTime > AUTO_CYCLE_RESET_INTERVAL * 1000UL) {
+        _autoCycleCount = 0;
+        _autoCycleResetTime = millis();
+    }
+    return _autoCycleCount < _configMgr.config().autoMode.maxCyclesPerDay;
 }
 
 void PumpController::_pumpOn() {

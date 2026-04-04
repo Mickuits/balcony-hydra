@@ -61,12 +61,18 @@ struct SolarConfig {
     float  longitude;
 };
 
+struct AutoConfig {
+    uint32_t cooldownS;       // Min time between two auto cycles
+    uint8_t  maxCyclesPerDay; // Max auto watering per 24h
+};
+
 struct SystemConfig {
     WateringSchedule schedule;
     MoistureConfig   moisture;
     TankConfig       tank;
     NetworkConfig    network;
     SolarConfig      solar;
+    AutoConfig       autoMode;
     WateringMode     mode;
     uint16_t         pumpDurationS;
     uint32_t         sleepIntervalS;

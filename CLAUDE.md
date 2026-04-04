@@ -275,20 +275,37 @@ struct PumpStatus {
 
 ## Logique d'arrosage
 
-### Mode AUTOMATIQUE
-1. Réveil timer RTC (toutes les N heures)
-2. Lecture capteurs humidité (20 pots via MUX)
-3. SI heure = schedule configuré ET humidité moyenne < seuil_min → START pompe
-4. Pompe tourne pendant `pumpDurationS` secondes
-5. Failsafes actifs en permanence pendant le fonctionnement
-6. Retour deep sleep
+### Mode AUTOMATIQUE (thermostat d'humidité)
+- **L'humidité pilote, pas l'horaire**
+- Chaque cycle capteurs (30s), on lit l'humidité moyenne des 20 pots
+- Si humidité < seuil_min → arrosage immédiat (quelle que soit l'heure)
+- Si humidité > seuil_min → rien
+- **Protection anti-spam** :
+  - Cooldown minimum entre 2 cycles auto (défaut 2h, configurable)
+  - Max cycles par 24h (défaut 4, configurable)
+  - Compteur reset toutes les 24h
+- Pas de schedule horaire en mode AUTO — le sol décide
 
 ### Mode SCHEDULÉ
-- Arrosage aux heures fixes configurées, ignore les capteurs humidité
-- Capteurs utilisés uniquement pour monitoring/alertes
+- Arrosage aux heures fixes configurées (HH:MM × 2 créneaux)
+- Ignore les capteurs humidité (monitoring seul)
+
+### Mode SOLAIRE
+- Arrosage calé sur lever/coucher du soleil (algorithme NOAA embarqué)
+- Offset configurable par événement (ex: coucher +30 min)
+- Ignore les capteurs humidité (monitoring seul)
 
 ### Mode MANUEL
-- Arrosage uniquement sur commande (web, Telegram, MQTT, série)
+- Arrosage uniquement sur commande (web, Telegram, MQTT, bouton, série)
+
+### Résumé des 4 modes
+
+| Mode | Déclencheur | Humidité décide | Horaire |
+|------|------------|-----------------|---------|
+| AUTO | Humidité < seuil | OUI | NON |
+| SCHEDULED | Heures fixes | NON (monitoring) | OUI |
+| SOLAR | Lever/coucher soleil | NON (monitoring) | Solaire |
+| MANUAL | Commande | NON (monitoring) | NON |
 
 ### Failsafes (toujours actifs, quel que soit le mode)
 1. **Tank <10%** → STOP pompe + BLOCK + alerte Telegram

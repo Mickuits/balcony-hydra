@@ -106,6 +106,17 @@ void taskSensorLoop(void* param) {
             telegramBot.sendAlert("⚠ Niveaux US divergents — raccord obstrué?");
         }
         
+        // AUTO MODE: moisture-driven watering (checked every sensor cycle)
+        if (pumpCtrl.shouldAutoWater() && !safetyMgr.isLockout()) {
+            if (safetyMgr.armPump()) {
+                Serial.println("[MAIN] AUTO: humidité basse → arrosage déclenché");
+                pumpCtrl.start();
+                statusLed.setState(LedState::WATERING);
+                telegramBot.sendAlert("🌱 AUTO: humidité " + String(sensorMgr.avgMoisture()) + 
+                                      "% < seuil → arrosage");
+            }
+        }
+        
         vTaskDelay(interval);
     }
 }
