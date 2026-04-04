@@ -166,7 +166,7 @@ Si l'esclave perd la communication avec le maître :
 3. **Écran config arrosage**
    - Mode (AUTO/SCHEDULED/SOLAR/MANUAL)
    - Seuils humidité min/max (slider tactile)
-   - Durée pompe
+   - Durée pompe (ou AUTO si profils configurés)
    - Horaires schedule
 
 4. **Écran sécurité**
@@ -178,6 +178,51 @@ Si l'esclave perd la communication avec le maître :
 5. **Écran capteurs détail**
    - Liste des 20 capteurs avec valeur individuelle
    - Alertes pots chroniquement secs
+   - Taux d'assèchement appris par pot
+
+6. **Écran profils hydriques**
+   - Liste des plantes par zone avec catégorie, volume pot, goutteur
+   - Coefficient saisonnier mois courant (barre visuelle)
+   - Volume eau calculé pour le cycle en cours
+   - Durée de cycle par zone
+
+7. **Écran autonomie**
+   - Sélection durée absence (jours, slider tactile)
+   - Consommation estimée par zone (barre vs stockage)
+   - Indicateur ✅/❌ suffisant + marge %
+   - Autonomie max avec stockage actuel
+
+## Gestion hydrique intelligente
+
+### PlantProfile — Profil par plante
+Chaque pot (0-19) possède un profil hydrique stocké en NVS:
+- **Catégorie** (7 prédéfinies): CITRUS, AROMATIC, SUCCULENT, TROPICAL, MEDITERRANEAN, FLOWERING, CUSTOM
+- **Coefficients saisonniers** (12 mois, calibrés Mougins 43.61°N):
+  - Citrus: Jan=0.10, Avr=0.40, Jul=0.95, Aoû=1.00, Nov=0.20
+  - Succulent: Jan=0.05, Jul=0.40, Aoû=0.40 (×10 moins qu'un citrus)
+  - Tropical (intérieur): Jan=0.50, Aoû=1.00 (plus constant, T° stable)
+- **Volume pot** (litres): scaling non-linéaire (√ ratio vs 10L référence)
+- **Débit goutteur** (L/h): 2, 4, ou 8 L/h selon installation
+- **Seuil humidité override**: certaines plantes ont besoin d'un seuil différent
+- **Taux d'assèchement appris** (%/h): régression linéaire sur 24 échantillons
+
+### AutonomyCalculator — Prédiction consommation
+Calcul jour par jour avec changement de mois pour précision saisonnière:
+- Entrée: durée absence (jours), mois de départ, volume stockage par zone
+- Sortie par zone: consommation totale, conso/jour, cycles/jour, autonomie max
+- Si taux d'assèchement appris disponible → estimation précise basée terrain
+- Sinon → estimation saisonnière basée sur les coefficients catégoriels
+- Commande Telegram: `/autonomy 21` → rapport complet texte
+
+### Durée de cycle adaptative
+`PumpController` interroge `PlantProfile.computeZoneCycleDurationS(zone, mois)`:
+- Durée = MAX des durées individuelles de la zone (pompe partagée)
+- Durée individuelle = volume_eau_nécessaire / débit_goutteur
+- Volume = base_catégorie × √(pot/10L) × coeff_saisonnier
+- Exemples Mougins: citronnier 30L avec goutteur 8 L/h:
+  - Août: 500mL → 225s (3m45)
+  - Janvier: 50mL → 22s
+  - Succulente 3L avec goutteur 2 L/h: Août: 25mL → 45s, Janvier: 3mL → 5s (plancher)
 
 ## Structure repo
 
@@ -215,10 +260,12 @@ balcony-hydra/
 │   │       ├── WifiManager/
 │   │       ├── EspNowMaster/       # ESP-NOW maître + MQTT fallback
 │   │       ├── WebPortal/
-│   │       ├── TftDashboard/       # Écran TFT tactile ILI9341
+│   │       ├── TftDashboard/       # Écran TFT tactile ILI9341 (7 écrans)
 │   │       ├── MqttClient/
 │   │       ├── TelegramBot/
 │   │       ├── TimeManager/
+│   │       ├── PlantProfile/       # Profil hydrique par plante (NVS)
+│   │       ├── AutonomyCalculator/ # Prédiction consommation / autonomie
 │   │       ├── StatusLED/
 │   │       └── SleepManager/
 │   └── slave/                      # Firmware esclave (balcon)

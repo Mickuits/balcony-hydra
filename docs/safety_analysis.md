@@ -63,13 +63,28 @@
 | NVS corrompue | MODÉRÉ | Très faible | **L1** Defaults safe si lecture NVS échoue |
 | | | | **L2** Factory reset via bouton (appui long 10s) |
 
+### R6 — SOUS-ARROSAGE / PERTE DE PLANTES (absence prolongée)
+| Cause | Gravité | Probabilité | Mitigation |
+|-------|---------|-------------|------------|
+| Stockage eau insuffisant | MODÉRÉ | Moyenne | **L1** AutonomyCalculator: `/autonomy N` avant départ |
+| | | | **L2** Alerte Telegram si déficit détecté |
+| | | | **L3** Durée cycle adaptative (optimise la consommation) |
+| Profil hydrique incorrect | MODÉRÉ | Moyenne | **L1** 7 catégories prédéfinies calibrées Mougins |
+| | | | **L2** Apprentissage taux assèchement (auto-correction) |
+| Goutteur bouché | MODÉRÉ | Moyenne | **L1** Alerte pot chroniquement sec (6 lectures) |
+| | | | **L2** Telegram nomme le pot exact à vérifier |
+| Capteur HS (valeur fixe) | FAIBLE | Faible | **L1** Capteur marqué invalid si hors range |
+| | | | **L2** Exclu de la moyenne zone |
+
 ## Architecture de Sécurité en Couches
 
 ```
-COUCHE 5 — MONITORING (Telegram alertes, dashboard)
+COUCHE 6 — PRÉDICTION (AutonomyCalculator, PlantProfile)
+    ↑ anticipe les problèmes avant qu'ils arrivent
+COUCHE 5 — MONITORING (Telegram alertes, dashboard TFT 7 écrans)
     ↑ détecte anomalies, notifie l'humain
-COUCHE 4 — FIRMWARE (failsafes logiciels, watchdog)
-    ↑ 6 failsafes actifs, max runtime, seuils
+COUCHE 4 — FIRMWARE (failsafes logiciels, watchdog, durée adaptative)
+    ↑ 6 failsafes actifs, max runtime, seuils par pot
 COUCHE 3 — RELAIS SÉCURITÉ (coupure HW indépendante)
     ↑ coupe 12V pompe si MCU non-responsive
 COUCHE 2 — PROTECTION PASSIVE (fusibles, pull-down)

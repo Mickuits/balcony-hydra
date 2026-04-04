@@ -151,6 +151,44 @@
 | T9.07 | mDNS hydra.local | WiFi STA connecté | ping hydra.local | Résolution OK | 🔲 |
 | T9.08 | WiFi + ESP-NOW coexistence | Les deux actifs | WiFi STA + ESP-NOW simultanés | Pas de conflit, les deux fonctionnent | 🔲 |
 
+## T10 — Profils Hydriques & Durée Cycle Adaptative
+> Source: diagramme BDD (bdd) + Activité (act)
+
+| ID | Test | Préconditions | Étapes | Résultat attendu | Status |
+|----|------|---------------|--------|-------------------|--------|
+| T10.01 | Création profil citronnier | Portail web ou API | Créer profil: CITRUS, pot 30L, goutteur 8L/h | Profil sauvé NVS, visible /profiles | 🔲 |
+| T10.02 | Création profil succulente | Portail web ou API | Créer profil: SUCCULENT, pot 3L, goutteur 2L/h | Profil sauvé NVS | 🔲 |
+| T10.03 | Coefficient saisonnier correct | Profil CITRUS créé | Interroger coeff pour janvier vs août | Jan≈0.10, Aoû≈1.00 | 🔲 |
+| T10.04 | Volume eau calculé été | Profil CITRUS 30L, mois=août | computeWaterVolumeML() | ≈500mL (base 500 × √3 × 1.0) | 🔲 |
+| T10.05 | Volume eau calculé hiver | Profil CITRUS 30L, mois=janvier | computeWaterVolumeML() | ≈50mL (base 500 × √3 × 0.10) | 🔲 |
+| T10.06 | Durée cycle été citronnier | Profil CITRUS 30L goutteur 8L/h, août | computeCycleDurationS() | ≈225s (500mL ÷ 2.22mL/s) | 🔲 |
+| T10.07 | Durée cycle hiver citronnier | Même profil, janvier | computeCycleDurationS() | ≈22s (50mL ÷ 2.22mL/s) | 🔲 |
+| T10.08 | Durée zone = MAX des pots | 10 profils variés zone A | computeZoneCycleDurationS() | = durée du pot le plus long | 🔲 |
+| T10.09 | Plancher durée 5s | Succulente hiver, très peu d'eau | computeCycleDurationS() | ≥ 5s (plancher) | 🔲 |
+| T10.10 | Plafond durée 300s | Gros pot, gros besoin | computeCycleDurationS() | ≤ 300s (PUMP_MAX_RUNTIME_S) | 🔲 |
+| T10.11 | Seuil override par pot | Profil citronnier moistureMin=40 | effectiveMinThreshold(zone, pot, 30) | Retourne 40 (pas 30 global) | 🔲 |
+| T10.12 | NVS persistence profils | Profils créés | Power cycle ESP32 | Profils rechargés identiques | 🔲 |
+| T10.13 | Factory reset profils | Profils existants | factoryReset() | NVS vidée, 0 profils | 🔲 |
+| T10.14 | Apprentissage taux assèchement | 24 mesures humidité (12h) | updateDryingRate() | dryingRatePctPerHour calculé [0.1-20] | 🔲 |
+| T10.15 | Taux assèchement réaliste | Pot citronnier été, plein soleil | Observer taux après 24h | ~2-5 %/h (cohérent avec évaporation) | 🔲 |
+| T10.16 | PumpController utilise durée profil | Mode AUTO, profils configurés | Arrosage AUTO zone A | Durée = computeZoneCycleDurationS(), pas fixe | 🔲 |
+
+## T11 — Autonomie & Prédiction Consommation
+> Source: diagramme Activité (act) + Use Cases (uc)
+
+| ID | Test | Préconditions | Étapes | Résultat attendu | Status |
+|----|------|---------------|--------|-------------------|--------|
+| T11.01 | Calcul autonomie été | Profils configurés | /autonomy 21 (en août) | Report: conso estimée, ✅/❌, marge % | 🔲 |
+| T11.02 | Calcul autonomie hiver | Profils configurés | /autonomy 21 (en janvier) | Conso << été, grande marge | 🔲 |
+| T11.03 | Détection déficit | 2 profils gros buveurs | /autonomy 60 (été) | ❌ INSUFFISANT + déficit en litres | 🔲 |
+| T11.04 | Transition multi-mois | Profils configurés | /autonomy 45 depuis août | Calcul août (×1.0) puis sept (×0.75) | 🔲 |
+| T11.05 | Conso journalière avec taux appris | Taux assèchement appris | dailyConsumptionML(zone, août) | Estimation basée terrain (pas théorique) | 🔲 |
+| T11.06 | Conso journalière sans taux appris | Pas de taux appris | dailyConsumptionML(zone, août) | Estimation saisonnière par défaut | 🔲 |
+| T11.07 | Autonomie max jours | Stockage 50L, zone A été | maxAutonomyDays() | Nombre de jours réaliste (15-25j été) | 🔲 |
+| T11.08 | Telegram /autonomy format | Bot actif | /autonomy 14 | Résumé FR lisible avec ✅/❌ par zone | 🔲 |
+| T11.09 | TFT écran autonomie | TFT actif | Naviguer écran autonomie | Barres visuelles conso vs stockage | 🔲 |
+| T11.10 | Stockage zone B correct | Zone B = 25L (1 bidon) | Calcul autonomie | storageCapacityML = 25000 (pas 50000) | 🔲 |
+
 ## Résumé
 
 | Catégorie | Tests | Criticité |
@@ -164,7 +202,9 @@
 | T7 Interface utilisateur | 15 | 🟢 Moyenne |
 | T8 Capteurs & alertes | 10 | 🟡 Haute |
 | T9 Robustesse WiFi | 8 | 🟡 Haute |
-| **TOTAL** | **93** | |
+| T10 Profils hydriques & cycle | 16 | 🟡 Haute |
+| T11 Autonomie & prédiction | 10 | 🟢 Moyenne |
+| **TOTAL** | **119** | |
 
 ### Ordre d'exécution recommandé
 1. **T6** Hardware (avant firmware — vérifier le câblage)
@@ -172,6 +212,8 @@
 3. **T5.01, T5.14, T5.15** Sécurité de base (relay, double verrou)
 4. **T1.01-T1.05** Communication (pairing, cycle normal)
 5. **T3** Arrosage AUTO (le mode principal)
-6. **T2** Mode dégradé (couper le maître, vérifier l'esclave)
-7. **T5** Reste sécurité
-8. **T4, T7, T9** Interface, modes secondaires, robustesse
+6. **T10** Profils hydriques + durée cycle (calibration)
+7. **T2** Mode dégradé (couper le maître, vérifier l'esclave)
+8. **T5** Reste sécurité
+9. **T11** Autonomie (nécessite profils configurés T10)
+10. **T4, T7, T9** Interface, modes secondaires, robustesse
