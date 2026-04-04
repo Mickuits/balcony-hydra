@@ -1,0 +1,97 @@
+// ============================================================
+// SensorManager — Lecture capteurs via MUX, US, I2C
+// ============================================================
+
+#pragma once
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
+#include <Adafruit_INA219.h>
+#include "config.h"
+#include "ConfigManager.h"
+
+struct MoistureReading {
+    uint16_t raw;       // ADC value
+    uint8_t  percent;   // 0-100%
+    bool     valid;
+};
+
+struct TankReading {
+    float    distanceCm;
+    float    levelCm;
+    uint8_t  levelPct;
+    bool     valid;
+};
+
+struct EnvironmentReading {
+    float temperature;  // °C
+    float humidity;     // %RH
+    float pressure;     // hPa
+    bool  valid;
+};
+
+struct PumpMetrics {
+    float voltage;      // V
+    float current_mA;   // mA
+    float power_mW;     // mW
+    bool  valid;
+};
+
+struct SensorData {
+    MoistureReading    moisture[NUM_MOISTURE_SENSORS];
+    TankReading        tank[2];        // 2 US sensors
+    EnvironmentReading environment;
+    PumpMetrics        pump;
+    uint8_t            avgMoisture;    // Average across all valid sensors
+    unsigned long      timestamp;
+};
+
+class SensorManager {
+public:
+    SensorManager(const ConfigManager& configMgr);
+    
+    void begin();
+    void readAll();
+    
+    // Individual read functions
+    void readMoisture();
+    void readTankLevels();
+    void readEnvironment();
+    void readPumpMetrics();
+    
+    const SensorData& data() const { return _data; }
+    
+    // Quick accessors
+    uint8_t avgMoisture() const { return _data.avgMoisture; }
+    uint8_t tankLevel() const { return _data.tank[0].valid ? _data.tank[0].levelPct : 0; }
+    bool    tankLevelsMatch() const;  // Check if both US sensors agree
+    float   temperature() const { return _data.environment.temperature; }
+    float   pumpCurrent() const { return _data.pump.current_mA; }
+    
+    // Calibration
+    void calibrateMoistureDry();
+    void calibrateMoistureWet();
+
+private:
+    const ConfigManager& _configMgr;
+    SensorData _data;
+    
+    Adafruit_BME280 _bme;
+    Adafruit_INA219 _ina;
+    bool _bmeOk;
+    bool _inaOk;
+    
+    // MUX operations
+    void     _selectMuxChannel(uint8_t channel);
+    void     _enableMux1();
+    void     _enableMux2();
+    void     _disableAllMux();
+    uint16_t _readAnalog(uint8_t adcPin);
+    
+    // Ultrasonic
+    float _readUltrasonicCm(uint8_t trigPin, uint8_t echoPin);
+    
+    // Conversion
+    uint8_t _rawToPercent(uint16_t raw) const;
+};
