@@ -299,9 +299,14 @@ struct PumpStatus {
 - **Deep sleep** : seul RTC memory persiste, tout le reste est perdu
 
 ### Environnement physique
-- **Balcon plein sud, Cogolin** — températures été 40-50°C en surface
+- **Balcon plein sud, Cogolin** — températures été 40-50°C en surface, AUCUNE ombre
 - **LiFePO4** choisie pour stabilité thermique (pas LiPo)
-- **Boîtier IP65** avec presse-étoupes PG7/PG9/PG11
+- **Deux boîtiers séparés** (IP65, ABS BLANC obligatoire) :
+  - **Boîtier 1 — Électronique** (200×150×85mm, au mur) : ESP32, MUX, MOSFET, relais, LED, bouton
+  - **Boîtier 2 — Énergie** (250×200×120mm, au sol derrière bidons) : batterie, MPPT, LM2596, fusibles
+  - Boîtier énergie ventilé (grilles inox convection) + isolant alu/bulle sur couvercle
+  - Bidons 25L font écran thermique devant le boîtier énergie
+  - Câble inter-boîtiers 18AWG silicone 1.5m + Wago
 - **Wago 221** pour toutes les connexions (zéro soudure)
 - **3 bidons 25L** en vases communicants (passe-cloisons 1/2" + joints EPDM)
 

@@ -80,16 +80,53 @@ COUCHE 1 — CHIMIE & PHYSIQUE (LiFePO4, fusible thermique)
 
 ## Composants de Sécurité Ajoutés
 
-| Composant | Fonction | Indépendant du firmware |
-|-----------|----------|------------------------|
-| Fusible 5A (sortie batterie) | Protection court-circuit global | ✅ OUI |
-| Fusible 3A (ligne pompe) | Protection pompe bloquée | ✅ OUI |
-| Fusible thermique 72°C | Auto-coupure si surchauffe batterie | ✅ OUI |
-| Relais sécurité (GPIO 18) | Coupe 12V pompe, normalement fermé | ⚠ Piloté par firmware mais fail-safe |
-| Pull-down 10kΩ MOSFET | Pompe OFF si MCU reset/crash | ✅ OUI |
-| LED RGB (GPIO 19) | État visuel du système | Non (informatif) |
-| BMS intégré LiFePO4 | Surcharge/décharge/court-circuit | ✅ OUI |
-| MPPT avec protections | Surcharge/inversion polarité | ✅ OUI |
+| Composant | Fonction | Indépendant du firmware | Boîtier |
+|-----------|----------|------------------------|---------|
+| Fusible 5A (sortie batterie) | Protection court-circuit global | ✅ OUI | Énergie |
+| Fusible 3A (ligne pompe) | Protection pompe bloquée | ✅ OUI | Électronique |
+| Fusible thermique 72°C | Auto-coupure si surchauffe batterie | ✅ OUI | Énergie |
+| Relais sécurité (GPIO 18) | Coupe 12V pompe, double verrou | ⚠ Piloté firmware | Électronique |
+| Pull-down 10kΩ MOSFET | Pompe OFF si MCU crash/reset | ✅ OUI | Électronique |
+| LED RGB (GPIO 17/19/23) | État visuel du système | Non (informatif) | Électronique |
+| BMS intégré LiFePO4 | Surcharge/décharge/court-circuit | ✅ OUI | Énergie |
+| MPPT avec protections | Surcharge/inversion polarité | ✅ OUI | Énergie |
+
+## Disposition Physique — Deux Boîtiers
+
+### Boîtier 1 — Électronique (IP65, blanc, fixé au mur)
+- Dimensions: 200×150×85mm, ABS blanc
+- Contenu: ESP32 + breakout, MUX ×2, module MOSFET D4184, module relais sécurité, fusible 3A inline, LED RGB, bouton poussoir
+- Presse-étoupes: PG7 (capteurs), PG9 (signal), PG11 (alimentation 12V inter-boîtiers)
+- Dissipation thermique faible (~0.5W max)
+- BLANC obligatoire (réflexion solaire)
+
+### Boîtier 2 — Énergie (IP65, blanc, ventilé, au sol derrière les bidons)
+- Dimensions: 250×200×120mm, ABS blanc
+- Contenu: Batterie LiFePO4 12V 6Ah, MPPT 10A, LM2596 DC-DC, fusible 5A inline, fusible thermique 72°C
+- Ventilation: 4 grilles inox (2 bas + 2 haut) avec moustiquaire anti-insectes → convection naturelle
+- Isolation: feuille alu/bulle sur couvercle (réflexion rayonnement direct)
+- Position: au sol, DERRIÈRE les bidons 25L (écran thermique naturel — l'eau absorbe la chaleur)
+- Câble inter-boîtiers: silicone 18AWG 1.5m, Wago 221 chaque extrémité
+
+### Protection Thermique Passive (balcon plein sud, Cogolin, 0 ombre)
+```
+    ☀ SOLEIL DIRECT
+         ↓
+    ┌─────────────────┐ ← Feuille alu/bulle (réfléchit IR)
+    │  BOÎTIER BLANC  │ ← ABS blanc (absorbe 30% vs 90% noir)
+    │  ┌───────────┐  │
+    │  │ BATTERIE  │  │ ← LiFePO4 safe jusqu'à 60°C
+    │  │ LiFePO4   │  │ ← Fusible thermique 72°C en série
+    │  └───────────┘  │
+    │  MPPT + LM2596  │
+    ├─ grille inox ───┤ ← Convection naturelle (air chaud sort en haut)
+    └─────────────────┘
+          ↑
+    ┌─────────────────┐
+    │  BIDONS 25L ×3  │ ← Écran thermique (masse d'eau)
+    └─────────────────┘
+         SOL BALCON
+```
 
 ## Code Couleur LED RGB
 
