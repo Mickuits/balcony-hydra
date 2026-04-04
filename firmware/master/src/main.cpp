@@ -424,6 +424,8 @@ void setup() {
     // 11/12 — Web + MQTT + Telegram
     Serial.println("[BOOT] 11/12 — WebPortal + MQTT + Telegram...");
     webPortal.begin();
+    webPortal.setPlantProfile(&plantProfile);
+    webPortal.setAutonomyCalc(&autonomyCalc);
     mqttClient.begin();
     telegramBot.begin();
     telegramBot.setSafetyManager(&safetyMgr);

@@ -3,6 +3,8 @@
 // ============================================================
 
 #include "WebPortal.h"
+#include "PlantProfile.h"
+#include "AutonomyCalculator.h"
 #include <ArduinoJson.h>
 
 // ---- Embedded HTML/CSS/JS (PROGMEM) ----
@@ -312,6 +314,19 @@ void WebPortal::_setupRoutes() {
     _server.on("/api/factory-reset", HTTP_POST, [this](AsyncWebServerRequest* req) { _handleApiFactoryReset(req); });
 
     // 404 → redirect to main page (captive portal)
+
+    // Profiles API
+    _server.on("/api/profiles", HTTP_GET, [this](AsyncWebServerRequest* req) { _handleApiProfiles(req); });
+    _server.on("/api/profiles", HTTP_POST,
+        [](AsyncWebServerRequest* req) {},
+        NULL,
+        [this](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t idx, size_t total) {
+            _handleApiProfileUpdate(req, data, len, idx, total);
+        });
+
+    // Autonomy API
+    _server.on("/api/autonomy", HTTP_GET, [this](AsyncWebServerRequest* req) { _handleApiAutonomy(req); });
+
     _server.onNotFound([this](AsyncWebServerRequest* req) { _handleCaptivePortal(req); });
 }
 

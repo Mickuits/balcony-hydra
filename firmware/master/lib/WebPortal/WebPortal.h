@@ -18,6 +18,8 @@ public:
               PumpController& pumpCtrl, WifiManager& wifiMgr);
 
     void begin();
+    void setPlantProfile(PlantProfile* pp) { _plantProfile = pp; }
+    void setAutonomyCalc(AutonomyCalculator* ac) { _autonomyCalc = ac; }
     void stop();
 
 private:
@@ -38,7 +40,12 @@ private:
     void _handleApiResetFailsafe(AsyncWebServerRequest* req);
     void _handleApiReboot(AsyncWebServerRequest* req);
     void _handleApiFactoryReset(AsyncWebServerRequest* req);
+    void _handleApiProfiles(AsyncWebServerRequest* req);
+    void _handleApiProfileUpdate(AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total);
+    void _handleApiAutonomy(AsyncWebServerRequest* req);
     void _handleCaptivePortal(AsyncWebServerRequest* req);
 
+    PlantProfile* _plantProfile = nullptr;
+    AutonomyCalculator* _autonomyCalc = nullptr;
     static const char _html[] PROGMEM;
 };

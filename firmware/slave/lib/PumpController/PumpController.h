@@ -12,8 +12,8 @@
 #include "ConfigManager.h"
 #include "SensorManager.h"
 
-class TimeManager;
-class PlantProfile;
+// TimeManager not available on slave
+// PlantProfile not available on slave
 
 enum class PumpState : uint8_t {
     IDLE    = 0,
@@ -92,8 +92,8 @@ public:
     bool shouldAutoWater() const { return shouldAutoWater(0) || shouldAutoWater(1); }
     const ZoneStatus& status() const { return _zones[0]; }
     
-    void setTimeManager(TimeManager* tm) { _timeMgr = tm; }
-    void setPlantProfile(PlantProfile* pp) { _plantProfile = pp; }
+    // setTimeManager not used on slave
+    // setPlantProfile not used on slave
     
     String toJson() const;
     
@@ -106,8 +106,8 @@ public:
 private:
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
-    TimeManager*    _timeMgr = nullptr;
-    PlantProfile*   _plantProfile = nullptr;
+    // TimeManager not on slave
+    // PlantProfile not on slave
     SafetyCallback  _safetyCb = nullptr;
     
     ZoneStatus _zones[NUM_ZONES];

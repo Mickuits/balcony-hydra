@@ -34,3 +34,45 @@ constexpr uint8_t PIN_LED_ONBOARD  = 2;
 // ---- ALIMENTATION ----
 // USB 5V secteur via prise balcon — pas de batterie/solaire
 // Fusible 3A inline sur ligne pompe 12V (si pompe 12V)
+
+// ---- SLAVE FLAG ----
+#define HYDRA_SLAVE 1
+
+// ---- LEGACY ALIASES (for v3 module compatibility) ----
+constexpr uint8_t PIN_PUMP         = PIN_PUMP_A;
+constexpr uint8_t PIN_LED          = PIN_LED_ONBOARD;
+constexpr uint8_t PIN_MUX1_EN      = PIN_MUX_EN;
+constexpr uint8_t PIN_MUX2_EN      = 0xFF;  // No 2nd MUX
+constexpr uint8_t PIN_MUX2_SIG     = 0xFF;
+constexpr uint8_t PIN_US1_TRIG     = PIN_US_TRIG;
+constexpr uint8_t PIN_US1_ECHO     = PIN_US_ECHO;
+constexpr uint8_t PIN_US2_TRIG     = 0xFF;  // No 2nd US (vases communicants)
+constexpr uint8_t PIN_US2_ECHO     = 0xFF;
+constexpr uint8_t PIN_BUTTON       = 0xFF;  // No button on slave
+
+// ---- SENSOR COUNTS (Zone A only) ----
+constexpr uint8_t  NUM_MOISTURE_SENSORS  = 10;
+constexpr uint8_t  NUM_TANKS             = 1;
+constexpr float    TANK_VOLUME_L         = 50.0;  // 2x25L vases communicants
+constexpr uint8_t  MUX1_CHANNELS         = 10;
+constexpr uint8_t  MUX2_CHANNELS         = 0;
+
+// ---- ZONE MAPPING (single zone) ----
+// Slave only manages Zone A locally
+constexpr uint8_t ZONE_A_SENSORS_START = 0;
+constexpr uint8_t ZONE_A_SENSORS_END   = 9;
+
+// ---- WATERING DEFAULTS ----
+constexpr uint16_t DEFAULT_PUMP_DURATION = 60;
+constexpr uint32_t DEFAULT_SLEEP_INTERVAL_S = 3600;
+constexpr uint32_t DEFAULT_HEARTBEAT_MS = 43200000;
+constexpr uint16_t DEFAULT_MQTT_PORT = 1883;
+
+// ---- LEDC (for StatusLED compatibility) ----
+constexpr uint8_t LEDC_CH_R        = 4;
+constexpr uint8_t LEDC_CH_G        = 5;
+constexpr uint8_t LEDC_CH_B        = 6;
+constexpr uint32_t LEDC_FREQ       = 5000;
+
+// ---- OTA ----
+#define OTA_HOSTNAME "hydra-slave"

@@ -42,8 +42,32 @@ Voir `docs/architecture_v4.md` pour l'architecture détaillée.
 ```
 firmware/
 ├── common/                     # Code partagé maître+esclave
-│   ├── Protocol.h              # Messages ESP-NOW bidirectionnels (structs)
-│   └── config_common.h         # Constantes partagées (seuils, pins communs)
+│   ├── Protocol.h              # Messages ESP-NOW (CmdType/DataType, packed structs)
+│   └── config_common.h         # Constantes partagées (coords, seuils, timing)
+├── master/                     # Firmware maître (intérieur, USB secteur)
+│   ├── platformio.ini          # ESP32, TFT_eSPI, ArduinoJson, Telegram, etc.
+│   ├── src/main.cpp            # 4 tâches FreeRTOS, 12-step boot
+│   ├── include/config_master.h # Pins GPIO, MQTT topics, aliases v3
+│   ├── test/test_main.cpp      # 26 unit tests (Protocol, config, packing)
+│   └── lib/                    # 16 modules C++ complets
+│       ├── ConfigManager/      ├── SensorManager/
+│       ├── PumpController/     ├── SafetyManager/
+│       ├── StatusLED/          ├── WifiManager/
+│       ├── WebPortal/          ├── MqttClient/
+│       ├── TelegramBot/        ├── SleepManager/
+│       ├── TimeManager/        ├── PlantProfile/
+│       ├── AutonomyCalculator/ ├── WiFiGeolocation/
+│       ├── EspNowMaster/       └── TftDashboard/  (7 écrans)
+├── slave/                      # Firmware esclave (balcon, USB secteur)
+│   ├── platformio.ini          # ESP32 léger (pas de TFT/Telegram/Web)
+│   ├── src/main.cpp            # Boucle 10Hz, callbacks ESP-NOW
+│   ├── include/config_slave.h  # Pins + aliases + single MUX/tank
+│   ├── test/test_main.cpp      # 16 unit tests
+│   └── lib/                    # 6 modules adaptés
+│       ├── SensorManager/      # Single MUX, single tank (vases comm.)
+│       ├── PumpController/     # Zone A only, no PlantProfile
+│       ├── EspNowSlave/        ├── DegradedMode/
+│       ├── SafetyLocal/        └── StatusLED/
 ├── master/                     # Firmware maître (intérieur, USB secteur)
 │   ├── platformio.ini
 │   ├── src/main.cpp

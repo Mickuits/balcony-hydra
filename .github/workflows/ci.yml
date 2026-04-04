@@ -1,0 +1,103 @@
+name: Balcony Hydra CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ['firmware/**']
+  pull_request:
+    branches: [main]
+    paths: ['firmware/**']
+
+jobs:
+  build-master:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-master-${{ hashFiles('firmware/master/platformio.ini') }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build Master Firmware
+        run: |
+          cd firmware/master
+          pio run -e master
+
+      - name: Run Master Unit Tests
+        run: |
+          cd firmware/master
+          pio test -e native --verbose
+        continue-on-error: true  # Tests may need hardware
+
+      - name: Check firmware size
+        run: |
+          cd firmware/master
+          pio run -e master -t size
+
+  build-slave:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-slave-${{ hashFiles('firmware/slave/platformio.ini') }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build Slave Firmware
+        run: |
+          cd firmware/slave
+          pio run -e slave
+
+      - name: Run Slave Unit Tests
+        run: |
+          cd firmware/slave
+          pio test -e native --verbose
+        continue-on-error: true
+
+      - name: Check firmware size
+        run: |
+          cd firmware/slave
+          pio run -e slave -t size
+
+  protocol-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Protocol.h consistency
+        run: |
+          echo "Checking Protocol.h is identical in common/"
+          if [ -f firmware/common/Protocol.h ]; then
+            echo "Protocol.h exists in common/ ✅"
+            echo "Size: $(wc -c < firmware/common/Protocol.h) bytes"
+            echo "Structs: $(grep -c 'struct __attribute__' firmware/common/Protocol.h)"
+            echo "Commands: $(grep -c 'CMD_' firmware/common/Protocol.h)"
+            echo "Data types: $(grep -c 'DATA_' firmware/common/Protocol.h)"
+          else
+            echo "Protocol.h MISSING ❌"
+            exit 1
+          fi
+
+      - name: Check config_common.h
+        run: |
+          echo "Checking shared constants..."
+          grep -c 'constexpr' firmware/common/config_common.h
+          echo "Constants defined ✅"

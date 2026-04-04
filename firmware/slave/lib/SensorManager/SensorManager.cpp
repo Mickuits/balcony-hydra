@@ -22,7 +22,7 @@ void SensorManager::begin() {
     
     // MUX enable pins (active LOW — start disabled)
     pinMode(PIN_MUX1_EN, OUTPUT);
-    pinMode(PIN_MUX2_EN, OUTPUT);
+    // PIN_MUX2_EN not used on slave (single MUX)
     _disableAllMux();
     
     // Ultrasonic pins
@@ -145,13 +145,9 @@ void SensorManager::readTankLevels() {
     
     // Sensor 2 (redondance — Bidon 1)
     float dist2 = _readUltrasonicCm(PIN_US2_TRIG, PIN_US2_ECHO);
-    _data.tank[1].distanceCm = dist2;
-    _data.tank[1].valid = (dist2 > 1.0 && dist2 < tCfg.heightCm + 10.0);
-    if (_data.tank[1].valid) {
-        _data.tank[1].levelCm  = tCfg.heightCm - dist2;
-        if (_data.tank[1].levelCm < 0) _data.tank[1].levelCm = 0;
-        _data.tank[1].levelPct = (uint8_t)constrain(
-            (_data.tank[1].levelCm / tCfg.heightCm) * 100.0, 0, 100);
+    // Slave: single US sensor for 2x25L vases communicants
+    // tank[1] mirrors tank[0] (same level)
+    _data.tank[1] = _data.tank[0];
     }
     
     Serial.printf("[SENSOR] Réservoir: %d%% (US1: %.1fcm, US2: %.1fcm)\n",
@@ -207,7 +203,7 @@ void SensorManager::_selectMuxChannel(uint8_t channel) {
 
 void SensorManager::_enableMux1() {
     digitalWrite(PIN_MUX1_EN, LOW);   // Active LOW
-    digitalWrite(PIN_MUX2_EN, HIGH);  // Disable MUX2
+    // MUX2 not present on slave
 }
 
 void SensorManager::_enableMux2() {
@@ -217,7 +213,7 @@ void SensorManager::_enableMux2() {
 
 void SensorManager::_disableAllMux() {
     digitalWrite(PIN_MUX1_EN, HIGH);
-    digitalWrite(PIN_MUX2_EN, HIGH);
+    // PIN_MUX2_EN not present on slave
 }
 
 uint16_t SensorManager::_readAnalog(uint8_t adcPin) {

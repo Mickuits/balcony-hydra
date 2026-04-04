@@ -4,11 +4,11 @@
 
 #include "PumpController.h"
 #include "TimeManager.h"
-#include "PlantProfile.h"
+// PlantProfile not available on slave
 
 const ZoneConfig PumpController::_zoneConfig[NUM_ZONES] = {
     { PIN_PUMP_A, ZONE_A_SENSORS_START, ZONE_A_SENSORS_END, "Balcon" },
-    { PIN_PUMP_B, ZONE_B_SENSORS_START, ZONE_B_SENSORS_END, "Intérieur" }
+    { 0xFF, 0, 0, "N/A" }  // Zone B not on slave
 };
 
 PumpController::PumpController(ConfigManager& configMgr, SensorManager& sensorMgr)
@@ -78,19 +78,9 @@ bool PumpController::start(uint8_t zone, uint16_t durationS) {
         return false;
     }
     
-    // Duration: adaptive from PlantProfile if available, else config default
+    // Duration: from master command or config default (no PlantProfile on slave)
     if (durationS > 0) {
         _targetDuration[zone] = durationS;
-    } else if (_plantProfile && _timeMgr && _timeMgr->hasValidTime()) {
-        // Adaptive: use PlantProfile seasonal calculation
-        struct tm t;
-        if (_timeMgr->getTime(t)) {
-            _targetDuration[zone] = _plantProfile->computeZoneCycleDurationS(zone, t.tm_mon);
-            Serial.printf("[PUMP] %s: durée adaptative %ds (mois %d, profil hydrique)\n",
-                          _zoneConfig[zone].name, _targetDuration[zone], t.tm_mon + 1);
-        } else {
-            _targetDuration[zone] = _configMgr.config().pumpDurationS;
-        }
     } else {
         _targetDuration[zone] = _configMgr.config().pumpDurationS;
     }
