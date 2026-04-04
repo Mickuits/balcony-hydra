@@ -1,0 +1,120 @@
+<svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" font-family="monospace" font-size="11">
+  <style>
+    .title { font-size: 16px; font-weight: bold; fill: #27AE60; }
+    .subtitle { font-size: 10px; fill: #7F8C8D; }
+    .comp { fill: #ECF0F1; stroke: #27AE60; stroke-width: 1.5; rx: 4; }
+    .esp { fill: #27AE60; stroke: #1E8449; stroke-width: 2; rx: 6; }
+    .energy { fill: #F9E79F; stroke: #F39C12; stroke-width: 1.5; rx: 4; }
+    .safety { fill: #FADBD8; stroke: #E74C3C; stroke-width: 1.5; rx: 4; }
+    .pin { font-size: 9px; fill: #E74C3C; font-weight: bold; }
+    .label { font-size: 10px; fill: #2C3E50; }
+    .wire { stroke: #E74C3C; stroke-width: 1.5; fill: none; }
+    .wire-i2c { stroke: #8E44AD; stroke-width: 1.5; fill: none; }
+    .wire-pwr { stroke: #F39C12; stroke-width: 2; fill: none; }
+    .note { font-size: 8px; fill: #95A5A6; }
+  </style>
+
+  <text x="450" y="25" text-anchor="middle" class="title">WIRING — ESP32 ESCLAVE (Balcon)</text>
+  <text x="450" y="40" text-anchor="middle" class="subtitle">Solaire · LiFePO4 · Pompe A · 10 capteurs · BME280 · INA219 · IP65</text>
+
+  <!-- ESP32 -->
+  <rect x="340" y="80" width="220" height="280" class="esp"/>
+  <text x="450" y="100" text-anchor="middle" fill="white" font-size="13" font-weight="bold">ESP32 WROOM-32</text>
+  <text x="450" y="115" text-anchor="middle" fill="#ABEBC6" font-size="9">ESCLAVE — Breakout borniers</text>
+
+  <!-- Left pins -->
+  <text x="348" y="145" class="pin">G36</text><text x="390" y="145" class="label">← MUX SIG (ADC1)</text>
+  <text x="348" y="165" class="pin">G34</text><text x="390" y="165" class="label">← US ECHO</text>
+  <text x="348" y="185" class="pin">G32</text><text x="390" y="185" class="label">→ MUX S0</text>
+  <text x="348" y="205" class="pin">G33</text><text x="390" y="205" class="label">→ MUX S1</text>
+  <text x="348" y="225" class="pin">G25</text><text x="390" y="225" class="label">→ MUX S2</text>
+  <text x="348" y="245" class="pin">G26</text><text x="390" y="245" class="label">→ MUX S3</text>
+  <text x="348" y="265" class="pin">G27</text><text x="390" y="265" class="label">→ MOSFET Pompe A</text>
+  <text x="348" y="285" class="pin">G14</text><text x="390" y="285" class="label">→ US TRIGGER</text>
+  <text x="348" y="305" class="pin">G4</text><text x="390" y="305" class="label">→ MUX EN</text>
+  <text x="348" y="325" class="pin">G35</text><text x="390" y="325" class="label">← BATT ADC (div)</text>
+
+  <!-- Right pins -->
+  <text x="540" y="145" class="pin">G21</text><text x="498" y="145" class="label" text-anchor="end">SDA I2C →</text>
+  <text x="540" y="165" class="pin">G22</text><text x="498" y="165" class="label" text-anchor="end">SCL I2C →</text>
+  <text x="540" y="205" class="pin">G17</text><text x="498" y="205" class="label" text-anchor="end">LED R →</text>
+  <text x="540" y="225" class="pin">G19</text><text x="498" y="225" class="label" text-anchor="end">LED G →</text>
+  <text x="540" y="245" class="pin">G23</text><text x="498" y="245" class="label" text-anchor="end">LED B →</text>
+  <text x="540" y="265" class="pin">G2</text><text x="498" y="265" class="label" text-anchor="end">LED onboard →</text>
+
+  <!-- MUX -->
+  <rect x="30" y="130" width="160" height="80" class="comp"/>
+  <text x="110" y="155" text-anchor="middle" class="label" font-weight="bold">MUX CD74HC4067</text>
+  <text x="110" y="170" text-anchor="middle" class="note">10 capteurs humidité</text>
+  <text x="110" y="185" text-anchor="middle" class="note">Zone A (balcon)</text>
+  <line x1="190" y1="145" x2="340" y2="145" class="wire"/>
+
+  <!-- US Sensor -->
+  <rect x="30" y="240" width="160" height="60" class="comp"/>
+  <text x="110" y="262" text-anchor="middle" class="label" font-weight="bold">JSN-SR04T US</text>
+  <text x="110" y="278" text-anchor="middle" class="note">Réservoirs balcon 2×25L</text>
+
+  <!-- Pompe A -->
+  <rect x="30" y="330" width="160" height="70" class="comp"/>
+  <text x="110" y="350" text-anchor="middle" class="label" font-weight="bold">MOSFET D4184</text>
+  <text x="110" y="365" text-anchor="middle" class="note">Pompe A péristaltique 12V</text>
+  <text x="110" y="378" text-anchor="middle" class="note">+ pull-down 10kΩ</text>
+  <text x="110" y="391" text-anchor="middle" class="note" style="fill:#E74C3C">+ fusible 3A inline</text>
+
+  <!-- BME280 -->
+  <rect x="640" y="120" width="130" height="50" class="comp"/>
+  <text x="705" y="142" text-anchor="middle" class="label" font-weight="bold">BME280</text>
+  <text x="705" y="157" text-anchor="middle" class="note">I2C 0x76 · T° HR P</text>
+  <line x1="560" y1="145" x2="640" y2="140" class="wire-i2c"/>
+
+  <!-- INA219 -->
+  <rect x="640" y="180" width="130" height="50" class="comp"/>
+  <text x="705" y="202" text-anchor="middle" class="label" font-weight="bold">INA219</text>
+  <text x="705" y="217" text-anchor="middle" class="note">I2C 0x40 · Courant pompe</text>
+  <line x1="560" y1="165" x2="640" y2="200" class="wire-i2c"/>
+
+  <!-- LED RGB -->
+  <rect x="640" y="250" width="130" height="50" class="comp"/>
+  <text x="705" y="272" text-anchor="middle" class="label" font-weight="bold">LED RGB</text>
+  <text x="705" y="287" text-anchor="middle" class="note">R=G17 G=G19 B=G23</text>
+
+  <!-- Energy chain -->
+  <rect x="30" y="440" width="120" height="50" class="energy"/>
+  <text x="90" y="462" text-anchor="middle" class="label" font-weight="bold">☀ Panneau 20W</text>
+  <text x="90" y="477" text-anchor="middle" class="note">Mono · MC4</text>
+
+  <rect x="180" y="440" width="120" height="50" class="energy"/>
+  <text x="240" y="462" text-anchor="middle" class="label" font-weight="bold">MPPT 10A</text>
+  <text x="240" y="477" text-anchor="middle" class="note">Mode LiFePO4</text>
+  <line x1="150" y1="465" x2="180" y2="465" class="wire-pwr"/>
+
+  <rect x="330" y="440" width="120" height="50" class="energy"/>
+  <text x="390" y="462" text-anchor="middle" class="label" font-weight="bold">LiFePO4</text>
+  <text x="390" y="477" text-anchor="middle" class="note">12V 6Ah · BMS</text>
+  <line x1="300" y1="465" x2="330" y2="465" class="wire-pwr"/>
+
+  <rect x="480" y="440" width="120" height="50" class="energy"/>
+  <text x="540" y="462" text-anchor="middle" class="label" font-weight="bold">LM2596</text>
+  <text x="540" y="477" text-anchor="middle" class="note">12V → 5V ESP32</text>
+  <line x1="450" y1="465" x2="480" y2="465" class="wire-pwr"/>
+
+  <!-- Safety components -->
+  <rect x="330" y="510" width="270" height="60" class="safety"/>
+  <text x="465" y="530" text-anchor="middle" class="label" font-weight="bold">🔴 SÉCURITÉ PASSIVE</text>
+  <text x="465" y="545" text-anchor="middle" class="note">Fusible 5A sortie batterie · Fusible 3A pompe</text>
+  <text x="465" y="558" text-anchor="middle" class="note">Fusible thermique 72°C · Pull-down 10kΩ MOSFET</text>
+
+  <!-- Boitier label -->
+  <rect x="620" y="340" width="230" height="80" fill="#E8F8F5" stroke="#27AE60" stroke-width="1" rx="4" stroke-dasharray="4,2"/>
+  <text x="735" y="365" text-anchor="middle" class="label" font-weight="bold">📦 BOÎTIER IP65 BLANC</text>
+  <text x="735" y="380" text-anchor="middle" class="note">Presse-étoupes PG7/PG9/PG11</text>
+  <text x="735" y="395" text-anchor="middle" class="note">ESP32 + MUX + MOSFET + capteurs</text>
+  <text x="735" y="410" text-anchor="middle" class="note">Derrière bidons (écran thermique)</text>
+
+  <!-- Legend -->
+  <rect x="640" y="450" width="220" height="80" fill="#F8F9FA" stroke="#BDC3C7" rx="4"/>
+  <text x="650" y="470" class="label" font-weight="bold">Légende:</text>
+  <line x1="650" y1="485" x2="690" y2="485" class="wire"/><text x="695" y="489" class="note">Signal / GPIO</text>
+  <line x1="650" y1="500" x2="690" y2="500" class="wire-i2c"/><text x="695" y="504" class="note">I2C (BME280 + INA219)</text>
+  <line x1="650" y1="515" x2="690" y2="515" class="wire-pwr"/><text x="695" y="519" class="note">Alimentation (12V/5V)</text>
+</svg>
