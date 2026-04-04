@@ -1,0 +1,524 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1400" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#475569"/></marker>
+    <marker id="ab" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3b82f6"/></marker>
+    <marker id="ag" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#22c55e"/></marker>
+    <marker id="ar" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#ef4444"/></marker>
+    <marker id="at" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#14b8a6"/></marker>
+    <marker id="ao" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f97316"/></marker>
+    <marker id="ap" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#a855f7"/></marker>
+    <marker id="ac" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#06b6d4"/></marker>
+    <marker id="ay" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#eab308"/></marker>
+    <filter id="s"><feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.15"/></filter>
+    <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="1400" fill="#0f172a" rx="0"/>
+
+  <!-- Title -->
+  <text x="800" y="32" text-anchor="middle" font-size="24" font-weight="bold" fill="#22d3ee">BALCONY HYDRA v3 — Architecture Système Complète</text>
+  <text x="800" y="52" text-anchor="middle" font-size="12" fill="#64748b">Hardware × Firmware × Cloud — Flux de données et interactions</text>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 1: PHYSICAL WORLD (bottom) -->
+  <!-- ================================================================ -->
+  <rect x="20" y="1060" width="1560" height="320" rx="10" fill="#1a1a2e" stroke="#334155" stroke-width="1"/>
+  <text x="40" y="1085" font-size="14" font-weight="bold" fill="#94a3b8">COUCHE PHYSIQUE — Capteurs, Actionneurs, Énergie</text>
+
+  <!-- 20 Moisture Sensors -->
+  <g filter="url(#s)">
+    <rect x="40" y="1100" width="280" height="120" rx="8" fill="#1e293b" stroke="#14b8a6" stroke-width="2"/>
+    <text x="180" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#14b8a6">🌱 20× Capteurs Humidité</text>
+    <text x="180" y="1140" text-anchor="middle" font-size="9" fill="#94a3b8">Capacitif v2.0 · Analogique 3.3V</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="55" y="1160">IN : VCC (3.3V), GND</text>
+      <text x="55" y="1175">OUT: Signal analogique 1.2-3.0V</text>
+      <text x="55" y="1190">     → MUX1 C0-C15 (16 capteurs)</text>
+      <text x="55" y="1205">     → MUX2 C0-C3 (4 capteurs)</text>
+    </g>
+  </g>
+
+  <!-- Ultrasonic Sensors -->
+  <g filter="url(#s)">
+    <rect x="340" y="1100" width="220" height="120" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+    <text x="450" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#06b6d4">📏 2× Capteurs Niveau</text>
+    <text x="450" y="1140" text-anchor="middle" font-size="9" fill="#94a3b8">JSN-SR04T · Étanche IP67</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="355" y="1160">IN : VCC (5V), TRIGGER (GPIO pulse)</text>
+      <text x="355" y="1175">OUT: ECHO (durée → distance cm)</text>
+      <text x="355" y="1190">US#1: TRIG=G14 ECHO=G34 (Bidon 3)</text>
+      <text x="355" y="1205">US#2: TRIG=G12 ECHO=G35 (Bidon 1)</text>
+    </g>
+  </g>
+
+  <!-- BME280 + INA219 -->
+  <g filter="url(#s)">
+    <rect x="580" y="1100" width="200" height="120" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="680" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#a855f7">🔬 I2C Sensors</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="595" y="1145" font-weight="bold" fill="#a855f7">BME280 (0x76)</text>
+      <text x="595" y="1160">OUT: T° / Humidité air / Pression</text>
+      <text x="595" y="1180" font-weight="bold" fill="#a855f7">INA219 (0x40)</text>
+      <text x="595" y="1195">IN : Shunt série 12V → pompe</text>
+      <text x="595" y="1210">OUT: Voltage / Courant / Puissance</text>
+    </g>
+  </g>
+
+  <!-- Pump + MOSFET -->
+  <g filter="url(#s)">
+    <rect x="800" y="1100" width="220" height="120" rx="8" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+    <text x="910" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#f97316">💧 Pompe + MOSFET</text>
+    <text x="910" y="1140" text-anchor="middle" font-size="9" fill="#94a3b8">Diaphragme 12V · IRLZ44N</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="815" y="1160">IN : Gate = GPIO 27 (HIGH=ON)</text>
+      <text x="815" y="1175">     12V direct batterie → Drain</text>
+      <text x="815" y="1190">OUT: Eau → manifold → 20 goutteurs</text>
+      <text x="815" y="1205">SAFE: Pull-down 10kΩ (OFF au boot)</text>
+    </g>
+  </g>
+
+  <!-- Energy chain -->
+  <g filter="url(#s)">
+    <rect x="1040" y="1100" width="260" height="120" rx="8" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+    <text x="1170" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#eab308">⚡ Chaîne Énergie</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="1055" y="1145" fill="#eab308" font-weight="bold">☀ Panneau 20W → MPPT 10A</text>
+      <text x="1055" y="1162">→ LiFePO4 12V 6Ah (76.8Wh)</text>
+      <text x="1055" y="1182" fill="#ef4444" font-weight="bold">12V rail → Pompe (via MOSFET)</text>
+      <text x="1055" y="1197" fill="#f59e0b" font-weight="bold">12V → LM2596 → 5V rail</text>
+      <text x="1055" y="1212" fill="#3b82f6" font-weight="bold">5V → ESP32 VIN → 3.3V (AMS1117)</text>
+    </g>
+  </g>
+
+  <!-- Hydraulic -->
+  <g filter="url(#s)">
+    <rect x="1320" y="1100" width="240" height="120" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="1440" y="1122" text-anchor="middle" font-size="11" font-weight="bold" fill="#22c55e">🏗 Hydraulique</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="1335" y="1145">3× Bidons 25L (75L total)</text>
+      <text x="1335" y="1160">Vases communicants (Pascal)</text>
+      <text x="1335" y="1175">Passe-cloisons 1/2" + EPDM</text>
+      <text x="1335" y="1195">Pompe → Manifold 4/6mm</text>
+      <text x="1335" y="1210">→ 20 goutteurs réglables</text>
+    </g>
+  </g>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 2: MULTIPLEXING & INTERFACE -->
+  <!-- ================================================================ -->
+  <rect x="20" y="920" width="760" height="125" rx="10" fill="#162032" stroke="#334155" stroke-width="1"/>
+  <text x="40" y="945" font-size="13" font-weight="bold" fill="#94a3b8">INTERFACE HARDWARE — Multiplexage &amp; Conversion</text>
+
+  <!-- MUX 1 -->
+  <g filter="url(#s)">
+    <rect x="40" y="955" width="220" height="75" rx="6" fill="#1e293b" stroke="#14b8a6" stroke-width="1.5"/>
+    <text x="150" y="975" text-anchor="middle" font-size="10" font-weight="bold" fill="#14b8a6">MUX 1 — CD74HC4067</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="55" y="995">IN : 16 analog (C0-C15 ← capteurs)</text>
+      <text x="55" y="1010">CTRL: S0-S3 (G32,33,25,26) EN=G4</text>
+      <text x="55" y="1025">OUT: SIG → GPIO 36 (ADC1_CH0)</text>
+    </g>
+  </g>
+
+  <!-- MUX 2 -->
+  <g filter="url(#s)">
+    <rect x="280" y="955" width="220" height="75" rx="6" fill="#1e293b" stroke="#14b8a6" stroke-width="1.5"/>
+    <text x="390" y="975" text-anchor="middle" font-size="10" font-weight="bold" fill="#14b8a6">MUX 2 — CD74HC4067</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="295" y="995">IN : 4 analog (C0-C3 ← capteurs)</text>
+      <text x="295" y="1010">CTRL: S0-S3 partagés, EN=G16</text>
+      <text x="295" y="1025">OUT: SIG → GPIO 39 (ADC1_CH3)</text>
+    </g>
+  </g>
+
+  <!-- I2C Bus -->
+  <g filter="url(#s)">
+    <rect x="520" y="955" width="240" height="75" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="640" y="975" text-anchor="middle" font-size="10" font-weight="bold" fill="#a855f7">Bus I2C (SDA=G21, SCL=G22)</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="535" y="995">Pull-up 4.7kΩ → 3.3V</text>
+      <text x="535" y="1010">BME280 (0x76) + INA219 (0x40)</text>
+      <text x="535" y="1025">Données: struct via Wire.h</text>
+    </g>
+  </g>
+
+  <!-- Arrows: Physical → Interface -->
+  <line x1="180" y1="1100" x2="150" y2="1030" stroke="#14b8a6" stroke-width="2" marker-end="url(#at)" stroke-dasharray="5,3"/>
+  <line x1="180" y1="1100" x2="390" y2="1030" stroke="#14b8a6" stroke-width="1.5" marker-end="url(#at)" stroke-dasharray="5,3"/>
+  <line x1="680" y1="1100" x2="640" y2="1030" stroke="#a855f7" stroke-width="2" marker-end="url(#ap)" stroke-dasharray="5,3"/>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 3: ESP32 MCU (center) -->
+  <!-- ================================================================ -->
+  <rect x="20" y="700" width="1560" height="205" rx="10" fill="#0f2030" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="40" y="725" font-size="14" font-weight="bold" fill="#22d3ee">ESP32 WROOM-32 — Firmware (8 modules C++ · FreeRTOS · 2481 lignes)</text>
+
+  <!-- ConfigManager -->
+  <g filter="url(#s)">
+    <rect x="40" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+    <text x="125" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#eab308">⚙ ConfigManager</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="50" y="778">NVS Flash (persistant)</text>
+      <text x="50" y="791">15+ paramètres</text>
+      <text x="50" y="804">JSON in/out + validation</text>
+      <text x="50" y="817" fill="#eab308">Fournit config à TOUS</text>
+    </g>
+  </g>
+
+  <!-- SensorManager -->
+  <g filter="url(#s)">
+    <rect x="230" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#14b8a6" stroke-width="2"/>
+    <text x="315" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#14b8a6">📡 SensorManager</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="240" y="778">Lit MUX → 20 humidités</text>
+      <text x="240" y="791">Lit US → 2 niveaux (médiane)</text>
+      <text x="240" y="804">Lit I2C → T°/HR/P + courant</text>
+      <text x="240" y="817" fill="#14b8a6">OUT: SensorData struct</text>
+    </g>
+  </g>
+
+  <!-- PumpController -->
+  <g filter="url(#s)">
+    <rect x="420" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+    <text x="505" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#f97316">💧 PumpController</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="430" y="778">IN: SensorData + Config</text>
+      <text x="430" y="791">Décision: arroser oui/non</text>
+      <text x="430" y="804">6 failsafes actifs</text>
+      <text x="430" y="817" fill="#f97316">OUT: GPIO 27 (MOSFET)</text>
+    </g>
+  </g>
+
+  <!-- SleepManager -->
+  <g filter="url(#s)">
+    <rect x="420" y="830" width="170" height="65" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+    <text x="505" y="850" text-anchor="middle" font-size="10" font-weight="bold" fill="#6366f1">😴 SleepManager</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="430" y="868">Deep sleep (10µA)</text>
+      <text x="430" y="881">Réveil RTC (1-6h)</text>
+      <text x="430" y="894" fill="#ef4444">Force pompe OFF avant sleep</text>
+    </g>
+  </g>
+
+  <!-- WifiManager -->
+  <g filter="url(#s)">
+    <rect x="610" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <text x="695" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#3b82f6">📶 WifiManager</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="620" y="778">Mode AP (portail captif)</text>
+      <text x="620" y="791">Mode STA (réseau maison)</text>
+      <text x="620" y="804">Auto-reconnexion (3 retries)</text>
+      <text x="620" y="817" fill="#3b82f6">OUT: WiFi.status + IP</text>
+    </g>
+  </g>
+
+  <!-- WebPortal -->
+  <g filter="url(#s)">
+    <rect x="800" y="740" width="185" height="80" rx="6" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
+    <text x="892" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#22d3ee">🌐 WebPortal</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="810" y="778">AsyncWebServer (port 80)</text>
+      <text x="810" y="791">HTML embarqué PROGMEM</text>
+      <text x="810" y="804">REST API (GET/POST)</text>
+      <text x="810" y="817" fill="#22d3ee">IN: HTTP ← OUT: JSON</text>
+    </g>
+  </g>
+
+  <!-- MqttClient -->
+  <g filter="url(#s)">
+    <rect x="1005" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="1090" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#a855f7">📊 MqttClient</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="1015" y="778">PubSubClient</text>
+      <text x="1015" y="791">PUB: sensors, pump, alerts</text>
+      <text x="1015" y="804">SUB: hydra/cmd/* (commandes)</text>
+      <text x="1015" y="817" fill="#a855f7">Auto-publish 60s</text>
+    </g>
+  </g>
+
+  <!-- TelegramBot -->
+  <g filter="url(#s)">
+    <rect x="1195" y="740" width="170" height="80" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+    <text x="1280" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#06b6d4">💬 TelegramBot</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="1205" y="778">Alertes push (critique)</text>
+      <text x="1205" y="791">Heartbeat 12h (rapport)</text>
+      <text x="1205" y="804">/status /water /stop</text>
+      <text x="1205" y="817" fill="#06b6d4">IN: commandes ← OUT: alertes</text>
+    </g>
+  </g>
+
+  <!-- main.cpp / FreeRTOS indicator -->
+  <g filter="url(#s)">
+    <rect x="1385" y="740" width="175" height="80" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+    <text x="1472" y="760" text-anchor="middle" font-size="10" font-weight="bold" fill="#94a3b8">🧠 main.cpp</text>
+    <g font-size="7" fill="#cbd5e1">
+      <text x="1395" y="778">FreeRTOS 4 tâches</text>
+      <text x="1395" y="791">Core 1: Sensors(30s) Pump(1s)</text>
+      <text x="1395" y="804">Core 0: WiFi(500ms) Comms(1s)</text>
+      <text x="1395" y="817" fill="#ef4444">Watchdog HW 30s</text>
+    </g>
+  </g>
+
+  <!-- ================================================================ -->
+  <!-- INTERNAL DATA FLOWS (within firmware) -->
+  <!-- ================================================================ -->
+
+  <!-- ConfigManager → ALL modules (yellow dotted lines) -->
+  <line x1="210" y1="780" x2="230" y2="780" stroke="#eab308" stroke-width="1.5" marker-end="url(#ay)"/>
+  <line x1="210" y1="780" x2="210" y2="860" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="210" y1="790" x2="210" y2="790" stroke="#eab308" stroke-width="1"/>
+  
+  <!-- Config feeds Pump -->
+  <path d="M210,780 L210,780 Q210,760 230,760" stroke="#eab308" stroke-width="0" fill="none"/>
+  <line x1="210" y1="770" x2="420" y2="770" stroke="#eab308" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- Config feeds WiFi, Web, MQTT, Telegram -->
+  <line x1="125" y1="740" x2="125" y2="730" stroke="#eab308" stroke-width="1.2"/>
+  <line x1="125" y1="730" x2="1280" y2="730" stroke="#eab308" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="695" y1="730" x2="695" y2="740" stroke="#eab308" stroke-width="1" marker-end="url(#ay)"/>
+  <line x1="892" y1="730" x2="892" y2="740" stroke="#eab308" stroke-width="1" marker-end="url(#ay)"/>
+  <line x1="1090" y1="730" x2="1090" y2="740" stroke="#eab308" stroke-width="1" marker-end="url(#ay)"/>
+  <line x1="1280" y1="730" x2="1280" y2="740" stroke="#eab308" stroke-width="1" marker-end="url(#ay)"/>
+  <text x="700" y="728" text-anchor="middle" font-size="7" fill="#eab308">← config distribué à tous les modules →</text>
+
+  <!-- SensorManager → PumpController (green) -->
+  <line x1="400" y1="780" x2="420" y2="780" stroke="#22c55e" stroke-width="2.5" marker-end="url(#ag)"/>
+  <text x="410" y="775" text-anchor="middle" font-size="7" fill="#22c55e" transform="rotate(-90,410,775)">data</text>
+
+  <!-- SensorManager + PumpController → WebPortal (teal) -->
+  <path d="M315,820 L315,835 L800,835 L800,810" stroke="#14b8a6" stroke-width="1.5" fill="none" marker-end="url(#at)"/>
+  <path d="M505,820 L505,840 L810,840 L810,815" stroke="#f97316" stroke-width="1.5" fill="none" marker-end="url(#ao)"/>
+  <text x="550" y="832" font-size="7" fill="#14b8a6">sensor data →</text>
+  <text x="660" y="848" font-size="7" fill="#f97316">pump status →</text>
+
+  <!-- SensorManager + PumpController → MQTT (purple) -->
+  <path d="M315,820 L315,850 L1005,850 L1005,810" stroke="#a855f7" stroke-width="1.2" fill="none" stroke-dasharray="4,3" marker-end="url(#ap)"/>
+
+  <!-- SensorManager + PumpController → Telegram (cyan) -->
+  <path d="M505,820 L505,858 L1195,858 L1195,810" stroke="#06b6d4" stroke-width="1.2" fill="none" stroke-dasharray="4,3" marker-end="url(#ac)"/>
+  <text x="850" y="856" font-size="7" fill="#a855f7">publish data →</text>
+  <text x="870" y="866" font-size="7" fill="#06b6d4">alertes →</text>
+
+  <!-- PumpController → GPIO 27 (down to hardware) -->
+  <line x1="505" y1="820" x2="505" y2="870" stroke="#f97316" stroke-width="2"/>
+
+  <!-- WiFi → WebPortal + MQTT + Telegram -->
+  <line x1="780" y1="780" x2="800" y2="780" stroke="#3b82f6" stroke-width="2" marker-end="url(#ab)"/>
+  <path d="M780,790 L790,790 L790,780" stroke="#3b82f6" stroke-width="1.5" fill="none"/>
+
+  <!-- WebPortal commands back to PumpController -->
+  <path d="M800,800 L780,800 L780,865 L590,865 L590,810" stroke="#22d3ee" stroke-width="1.2" fill="none" stroke-dasharray="4,3" marker-end="url(#ac)"/>
+  <text x="690" y="875" font-size="7" fill="#22d3ee">← commandes (start/stop/config)</text>
+
+  <!-- MQTT commands back to PumpController -->
+  <path d="M1005,800 L990,800 L990,870 L590,870" stroke="#a855f7" stroke-width="1" fill="none" stroke-dasharray="3,3" marker-end="url(#ap)"/>
+
+  <!-- Telegram commands back to PumpController -->
+  <path d="M1195,800 L1180,800 L1180,878 L590,878" stroke="#06b6d4" stroke-width="1" fill="none" stroke-dasharray="3,3" marker-end="url(#ac)"/>
+  <text x="890" y="880" font-size="7" fill="#64748b">← commandes distantes (water/stop/reset)</text>
+
+  <!-- ================================================================ -->
+  <!-- VERTICAL CONNECTIONS: Firmware ↔ Hardware -->
+  <!-- ================================================================ -->
+
+  <!-- SensorManager → MUX/I2C interface layer -->
+  <line x1="280" y1="820" x2="150" y2="955" stroke="#14b8a6" stroke-width="2" marker-end="url(#at)"/>
+  <line x1="340" y1="820" x2="390" y2="955" stroke="#14b8a6" stroke-width="2" marker-end="url(#at)"/>
+  <line x1="370" y1="820" x2="640" y2="955" stroke="#a855f7" stroke-width="1.5" marker-end="url(#ap)"/>
+  
+  <text x="190" y="890" font-size="8" fill="#14b8a6" transform="rotate(-50,190,890)">select + read ADC</text>
+  <text x="390" y="890" font-size="8" fill="#14b8a6" transform="rotate(-10,390,890)">select + read ADC</text>
+  <text x="520" y="880" font-size="8" fill="#a855f7" transform="rotate(25,520,880)">I2C read</text>
+
+  <!-- PumpController → Pump hardware -->
+  <path d="M505,900 L505,920 L910,920 L910,1100" stroke="#f97316" stroke-width="2.5" fill="none" marker-end="url(#ao)"/>
+  <text x="710" y="915" font-size="8" fill="#f97316" font-weight="bold">GPIO 27 → MOSFET Gate (HIGH=pompe ON)</text>
+
+  <!-- US sensors direct -->
+  <path d="M450,955 L450,1100" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#ac)"/>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 4: CLOUD / EXTERNAL SERVICES (top) -->
+  <!-- ================================================================ -->
+  <rect x="20" y="60" width="1560" height="200" rx="10" fill="#1a1a2e" stroke="#334155" stroke-width="1"/>
+  <text x="40" y="85" font-size="14" font-weight="bold" fill="#94a3b8">SERVICES EXTERNES — Cloud, Mobile, Dashboard</text>
+
+  <!-- Browser/Dashboard -->
+  <g filter="url(#s)">
+    <rect x="50" y="100" width="280" height="140" rx="8" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
+    <text x="190" y="122" text-anchor="middle" font-size="12" font-weight="bold" fill="#22d3ee">📱 Navigateur Web (local)</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="65" y="145">Dashboard HTML temps réel</text>
+      <text x="65" y="165" fill="#22d3ee" font-weight="bold">REÇOIT (GET /api/status, poll 5s):</text>
+      <text x="65" y="180">• État pompe (ON/OFF/bloquée)</text>
+      <text x="65" y="195">• Niveau réservoir + barres couleur</text>
+      <text x="65" y="210">• Humidité moy + T°/HR/P</text>
+      <text x="65" y="228" fill="#f97316" font-weight="bold">ENVOIE (POST):</text>
+      <text x="65" y="240">• Config (mode, horaires, seuils, WiFi)</text>
+    </g>
+  </g>
+
+  <!-- Grafana -->
+  <g filter="url(#s)">
+    <rect x="370" y="100" width="260" height="140" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="500" y="122" text-anchor="middle" font-size="12" font-weight="bold" fill="#a855f7">📊 Grafana + InfluxDB</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="385" y="145">Dashboard historique</text>
+      <text x="385" y="165" fill="#a855f7" font-weight="bold">REÇOIT (via MQTT → InfluxDB):</text>
+      <text x="385" y="180">• hydra/sensors (humidité, T°, niveau)</text>
+      <text x="385" y="195">• hydra/pump (cycles, courant, état)</text>
+      <text x="385" y="210">• hydra/alerts (événements critiques)</text>
+      <text x="385" y="228" fill="#a855f7">Graphiques: tendances, min/max,</text>
+      <text x="385" y="240">consommation eau, cycles pompe</text>
+    </g>
+  </g>
+
+  <!-- MQTT Broker -->
+  <g filter="url(#s)">
+    <rect x="670" y="100" width="240" height="140" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="790" y="122" text-anchor="middle" font-size="12" font-weight="bold" fill="#a855f7">☁ MQTT Broker</text>
+    <text x="790" y="138" text-anchor="middle" font-size="9" fill="#64748b">HiveMQ Cloud (free tier)</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="685" y="160" font-weight="bold" fill="#22c55e">PUBLISH (ESP32 →):</text>
+      <text x="685" y="175">hydra/sensors (JSON, 60s)</text>
+      <text x="685" y="190">hydra/pump (JSON, 60s)</text>
+      <text x="685" y="205">hydra/alerts (événement)</text>
+      <text x="685" y="223" font-weight="bold" fill="#ef4444">SUBSCRIBE (→ ESP32):</text>
+      <text x="685" y="238">hydra/cmd/water | stop | reset</text>
+    </g>
+  </g>
+
+  <!-- Telegram -->
+  <g filter="url(#s)">
+    <rect x="950" y="100" width="260" height="140" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+    <text x="1080" y="122" text-anchor="middle" font-size="12" font-weight="bold" fill="#06b6d4">💬 Telegram</text>
+    <text x="1080" y="138" text-anchor="middle" font-size="9" fill="#64748b">Bot API (HTTPS polling 3s)</text>
+    <g font-size="8" fill="#cbd5e1">
+      <text x="965" y="160" font-weight="bold" fill="#22c55e">PUSH (ESP32 → mobile):</text>
+      <text x="965" y="175">🔴 Alertes critiques (réservoir, pompe)</text>
+      <text x="965" y="190">💚 Heartbeat 12h (rapport complet)</text>
+      <text x="965" y="205">📊 Confirmation commandes</text>
+      <text x="965" y="223" font-weight="bold" fill="#ef4444">COMMANDES (mobile → ESP32):</text>
+      <text x="965" y="238">/status /water /stop /reset /reboot</text>
+    </g>
+  </g>
+
+  <!-- NTP -->
+  <g filter="url(#s)">
+    <rect x="1250" y="100" width="160" height="80" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="1330" y="122" text-anchor="middle" font-size="11" font-weight="bold" fill="#6366f1">🕐 NTP</text>
+    <text x="1330" y="140" text-anchor="middle" font-size="8" fill="#64748b">pool.ntp.org</text>
+    <text x="1330" y="160" text-anchor="middle" font-size="8" fill="#cbd5e1">Sync horloge au boot</text>
+    <text x="1330" y="175" text-anchor="middle" font-size="8" fill="#cbd5e1">→ scheduling arrosage</text>
+  </g>
+
+  <!-- OTA -->
+  <g filter="url(#s)">
+    <rect x="1430" y="100" width="130" height="80" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+    <text x="1495" y="122" text-anchor="middle" font-size="11" font-weight="bold" fill="#94a3b8">🔄 OTA</text>
+    <text x="1495" y="140" text-anchor="middle" font-size="8" fill="#64748b">Update firmware WiFi</text>
+    <text x="1495" y="160" text-anchor="middle" font-size="8" fill="#cbd5e1">Partition A/B</text>
+    <text x="1495" y="175" text-anchor="middle" font-size="8" fill="#cbd5e1">Rollback si échec</text>
+  </g>
+
+  <!-- ================================================================ -->
+  <!-- VERTICAL CONNECTIONS: Firmware ↔ Cloud -->
+  <!-- ================================================================ -->
+
+  <!-- ESP32 connections going UP to cloud -->
+
+  <!-- WebPortal ↔ Browser -->
+  <line x1="892" y1="740" x2="892" y2="660" stroke="#22d3ee" stroke-width="2"/>
+  <path d="M892,660 L892,350 L190,350 L190,240" stroke="#22d3ee" stroke-width="2.5" fill="none" marker-end="url(#ac)"/>
+  <rect x="450" y="340" width="180" height="18" rx="4" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="540" y="353" text-anchor="middle" font-size="8" fill="#22d3ee" font-weight="bold">HTTP (WiFi local port 80)</text>
+
+  <!-- MQTT ↔ Broker -->
+  <line x1="1090" y1="740" x2="1090" y2="660" stroke="#a855f7" stroke-width="2"/>
+  <path d="M1090,660 L1090,400 L790,400 L790,240" stroke="#a855f7" stroke-width="2.5" fill="none" marker-end="url(#ap)"/>
+  <rect x="860" y="390" width="180" height="18" rx="4" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+  <text x="950" y="403" text-anchor="middle" font-size="8" fill="#a855f7" font-weight="bold">TCP 1883 (MQTT QoS 1)</text>
+
+  <!-- Broker → Grafana -->
+  <line x1="670" y1="170" x2="630" y2="170" stroke="#a855f7" stroke-width="1.5" marker-end="url(#ap)"/>
+
+  <!-- Telegram ↔ Bot -->
+  <line x1="1280" y1="740" x2="1280" y2="660" stroke="#06b6d4" stroke-width="2"/>
+  <path d="M1280,660 L1280,430 L1080,430 L1080,240" stroke="#06b6d4" stroke-width="2.5" fill="none" marker-end="url(#ac)"/>
+  <rect x="1100" y="420" width="160" height="18" rx="4" fill="#0f172a" stroke="#06b6d4" stroke-width="1"/>
+  <text x="1180" y="433" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="bold">HTTPS (TLS, poll 3s)</text>
+
+  <!-- NTP sync -->
+  <path d="M695,740 L695,460 L1330,460 L1330,180" stroke="#6366f1" stroke-width="1.2" fill="none" stroke-dasharray="4,3" marker-end="url(#a)"/>
+  <text x="1010" y="455" font-size="7" fill="#6366f1">NTP sync au boot (UDP 123)</text>
+
+  <!-- ================================================================ -->
+  <!-- DECISION FLOW (center annotation) -->
+  <!-- ================================================================ -->
+  <g filter="url(#s)">
+    <rect x="40" y="475" width="380" height="195" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="230" y="497" text-anchor="middle" font-size="12" font-weight="bold" fill="#22c55e">🧠 Logique de Décision (PumpController)</text>
+    <g font-size="8">
+      <text x="55" y="520" fill="#f97316" font-weight="bold">MODE AUTOMATIQUE:</text>
+      <text x="55" y="535" fill="#cbd5e1">SI heure = schedule ET humidité &lt; seuil_min</text>
+      <text x="55" y="548" fill="#22c55e">   → START pompe (durée configurable)</text>
+
+      <text x="55" y="570" fill="#f97316" font-weight="bold">MODE SCHEDULÉ:</text>
+      <text x="55" y="583" fill="#cbd5e1">SI heure = schedule (ignore humidité)</text>
+      <text x="55" y="596" fill="#22c55e">   → START pompe</text>
+
+      <text x="55" y="618" fill="#ef4444" font-weight="bold">FAILSAFES (toujours actifs):</text>
+      <text x="55" y="631" fill="#cbd5e1">① Réservoir &lt;10% → STOP + BLOCK</text>
+      <text x="55" y="644" fill="#cbd5e1">② Runtime &gt;300s → STOP</text>
+      <text x="55" y="657" fill="#cbd5e1">③ Courant &gt;3A (bloquée) → STOP + ALERTE</text>
+      <text x="55" y="670" fill="#cbd5e1">④ Courant &lt;50mA (dry-run) → STOP + ALERTE</text>
+    </g>
+  </g>
+
+  <!-- Failsafe connection arrows -->
+  <line x1="420" y1="560" x2="505" y2="740" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#ag)"/>
+
+  <!-- ================================================================ -->
+  <!-- LEGEND -->
+  <!-- ================================================================ -->
+  <rect x="460" y="475" width="1100" height="195" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="480" y="497" font-size="12" font-weight="bold" fill="#94a3b8">FLUX DE DONNÉES — Résumé</text>
+
+  <g font-size="9">
+    <!-- Data flow descriptions -->
+    <line x1="480" y1="518" x2="530" y2="518" stroke="#14b8a6" stroke-width="2.5" marker-end="url(#at)"/>
+    <text x="540" y="522" fill="#cbd5e1">Données capteurs (analogique → digital → struct)</text>
+
+    <line x1="480" y1="540" x2="530" y2="540" stroke="#f97316" stroke-width="2.5" marker-end="url(#ao)"/>
+    <text x="540" y="544" fill="#cbd5e1">Commande pompe (décision → GPIO 27 → MOSFET → 12V)</text>
+
+    <line x1="480" y1="562" x2="530" y2="562" stroke="#eab308" stroke-width="1.5" stroke-dasharray="3,3"/>
+    <text x="540" y="566" fill="#cbd5e1">Distribution config (NVS → tous modules au boot + runtime)</text>
+
+    <line x1="480" y1="584" x2="530" y2="584" stroke="#22d3ee" stroke-width="2.5" marker-end="url(#ac)"/>
+    <text x="540" y="588" fill="#cbd5e1">Interface web locale (HTTP GET/POST ↔ JSON ↔ navigateur)</text>
+
+    <line x1="480" y1="606" x2="530" y2="606" stroke="#a855f7" stroke-width="2.5" marker-end="url(#ap)"/>
+    <text x="540" y="610" fill="#cbd5e1">Télémétrie cloud (MQTT publish 60s → broker → Grafana/InfluxDB)</text>
+
+    <line x1="480" y1="628" x2="530" y2="628" stroke="#06b6d4" stroke-width="2.5" marker-end="url(#ac)"/>
+    <text x="540" y="632" fill="#cbd5e1">Alertes &amp; commandes mobiles (HTTPS ↔ Telegram Bot API)</text>
+
+    <line x1="480" y1="650" x2="530" y2="650" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="540" y="654" fill="#cbd5e1">Failsafes &amp; alertes critiques (pompe bloquée, réservoir vide, surintensité)</text>
+
+    <!-- Protocol summary -->
+    <text x="950" y="522" fill="#94a3b8" font-weight="bold">PROTOCOLES:</text>
+    <text x="950" y="540" fill="#cbd5e1">• Analogique: ADC1 12-bit (0-4095) via MUX</text>
+    <text x="950" y="558" fill="#cbd5e1">• I2C: Wire.h (SDA/SCL, 100kHz)</text>
+    <text x="950" y="576" fill="#cbd5e1">• GPIO: Digital R/W (3.3V logic)</text>
+    <text x="950" y="594" fill="#cbd5e1">• WiFi: 802.11 b/g/n (2.4GHz)</text>
+    <text x="950" y="612" fill="#cbd5e1">• HTTP: AsyncWebServer (port 80)</text>
+    <text x="950" y="630" fill="#cbd5e1">• MQTT: PubSubClient (TCP 1883)</text>
+    <text x="950" y="648" fill="#cbd5e1">• Telegram: HTTPS polling (TLS)</text>
+    <text x="950" y="666" fill="#cbd5e1">• NTP: UDP 123 (sync horloge)</text>
+  </g>
+
+  <text x="1560" y="1390" text-anchor="end" font-size="8" fill="#334155">Balcony Hydra v3 — Architecture Système Complète — Rev 1.0 — Avril 2026</text>
+</svg>
