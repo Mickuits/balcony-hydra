@@ -93,11 +93,11 @@
 |----|------|---------------|--------|-------------------|--------|
 | T6.01 | Pull-down 10kΩ au boot | MOSFET wired avec pull-down | Power cycle ESP32 | Pompe reste OFF pendant boot (0V gate) | 🔲 |
 | T6.02 | Fusible 3A pompe | Pompe branchée | Court-circuiter sortie pompe | Fusible 3A grille, pompe coupée | 🔲 |
-| T6.03 | Fusible 5A batterie | Batterie branchée | Court-circuit contrôlé (précaution!) | Fusible 5A grille, tout coupé | 🔲 |
-| T6.04 | BMS LiFePO4 | Batterie en charge | Laisser MPPT charger à fond | BMS coupe charge à 14.6V | 🔲 |
+| T6.03 | ~~SUPPRIMÉ~~ (pas de batterie) | — | — | — | ⏭ |
+| T6.04 | ~~SUPPRIMÉ~~ (pas de batterie) | — | — | — | ⏭ |
 | T6.05 | Boîtier IP65 étanchéité | Boîtier esclave fermé | Arroser au jet (simulation pluie) | Pas d'infiltration d'eau | 🔲 |
-| T6.06 | Ventilation convection | Boîtier énergie au soleil | Mesurer T° interne vs externe | Delta < 10°C grâce aux grilles | 🔲 |
-| T6.07 | Isolant alu/bulle efficacité | Couvercle isolé | Mesurer T° avec/sans isolant au soleil | Réduction ≥ 5°C | 🔲 |
+| T6.06 | ~~SUPPRIMÉ~~ (pas de boîtier énergie) | — | — | — | ⏭ |
+| T6.07 | ~~SUPPRIMÉ~~ (pas de boîtier énergie) | — | — | — | ⏭ |
 | T6.08 | Wago 221 tenue mécanique | Câbles connectés | Tirer sur chaque fil | Aucun fil ne se déconnecte | 🔲 |
 
 ## T7 — Interface Utilisateur

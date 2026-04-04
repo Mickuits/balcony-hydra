@@ -1,5 +1,5 @@
 // ============================================================
-// config_slave.h — Pins et config spécifiques à l'ESCLAVE (balcon)
+// config_slave.h — Pins et config ESCLAVE (balcon, USB secteur)
 // ============================================================
 
 #pragma once
@@ -32,16 +32,5 @@ constexpr uint8_t PIN_LED_B        = 23;
 constexpr uint8_t PIN_LED_ONBOARD  = 2;
 
 // ---- ALIMENTATION ----
-// Solaire 20W + LiFePO4 12V 6Ah + MPPT + LM2596 (12V→5V)
-// Fusible 5A sortie batterie + fusible 3A ligne pompe
-// Fusible thermique 72°C sur câble batterie
-
-// ---- BATTERY MONITORING (optionnel, via ADC) ----
-// Diviseur de tension 100kΩ/100kΩ sur batterie → GPIO 35
-constexpr uint8_t PIN_BATT_ADC     = 35;  // ADC1_CH7, input only
-constexpr float   BATT_DIVIDER     = 2.0; // Ratio diviseur
-constexpr float   BATT_FULL_MV     = 13200; // 4× 3.3V LiFePO4
-constexpr float   BATT_EMPTY_MV    = 10000; // 4× 2.5V LiFePO4
-
-// ---- ESP-NOW ----
-// Master MAC address (à configurer après flash du maître)
+// USB 5V secteur via prise balcon — pas de batterie/solaire
+// Fusible 3A inline sur ligne pompe 12V (si pompe 12V)

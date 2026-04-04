@@ -44,6 +44,7 @@ constexpr uint8_t  ESPNOW_MAX_MISSED_PONGS = 3;       // → alert after 3 misse
 constexpr uint32_t ESPNOW_SENSOR_INTERVAL_MS = 30000;  // 30s sensor read cycle
 
 // ---- SAFETY ----
+// Thermal safety (BME280 ambiant, pas batterie)
 constexpr float    SAFETY_TEMP_WARNING     = 50.0;
 constexpr float    SAFETY_TEMP_CRITICAL    = 58.0;
 constexpr float    SAFETY_TEMP_RESUME      = 45.0;

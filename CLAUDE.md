@@ -22,7 +22,7 @@ Système d'arrosage automatique **distribué maître/esclave** pour 20 pots rép
 ## Architecture système distribuée
 
 ```
-INTÉRIEUR (maître USB secteur)          BALCON (esclave solaire LiFePO4)
+INTÉRIEUR (maître USB secteur)          BALCON (esclave USB secteur)
 ┌──────────────────────┐               ┌──────────────────────┐
 │ ESP32 MAÎTRE         │   ESP-NOW     │ ESP32 ESCLAVE        │
 │ LCD TFT 2.4" tactile │◄────────────►│ Pompe A (10 pots)    │
@@ -30,7 +30,7 @@ INTÉRIEUR (maître USB secteur)          BALCON (esclave solaire LiFePO4)
 │ 10 capteurs humidité │   fallback   │ BME280 + INA219      │
 │ DS3231 RTC           │               │ LED RGB              │
 │ Relay sécurité       │               │ Mode dégradé local   │
-│ Web + Telegram + MQTT│               │ LiFePO4 + solaire    │
+│ Web + Telegram + MQTT│               │ USB secteur (prise)  │
 │ LED RGB              │               └──────────────────────┘
 └──────────────────────┘
 ```
@@ -64,7 +64,7 @@ firmware/
 │       ├── TelegramBot/        # Alertes push + commandes
 │       ├── TimeManager/        # DS3231 + NTP + solaire NOAA
 │       └── SleepManager/       # Gestion veille
-└── slave/                      # Firmware esclave (balcon, solaire)
+└── slave/                      # Firmware esclave (balcon, USB secteur)
     ├── platformio.ini
     ├── src/main.cpp
     ├── include/config_slave.h
@@ -171,11 +171,8 @@ Code couleur :
 - La pompe ne tourne QUE si les deux sont actifs (relay ET MOSFET)
 
 ### Sécurité hardware (indépendant du firmware)
-- **Fusible 5A** sur sortie batterie (protection court-circuit global)
 - **Fusible 3A** sur ligne pompe 12V (protection pompe bloquée)
-- **Fusible thermique 72°C** sur câble batterie (auto-coupure irréversible si surchauffe)
 - **Pull-down 10kΩ** sur Gate MOSFET (pompe OFF si MCU crash/reset)
-- **BMS intégré** LiFePO4 (surcharge/décharge/court-circuit)
 
 ### I2C
 - `GPIO 21` → SDA (BME280 0x76 + INA219 0x40) — pull-up 4.7kΩ
@@ -220,8 +217,8 @@ Le système gère **2 zones indépendantes** avec chacune sa pompe, son réservo
 COUCHE 5 — MONITORING    Telegram (/status /unlock /safety) + dashboard web + MQTT
 COUCHE 4 — FIRMWARE      SafetyManager (auto-recovery + hard lockout) + PumpController (6 failsafes)
 COUCHE 3 — RELAIS HW     Relay sécurité GPIO 18 (coupe 12V si MCU non-responsive)
-COUCHE 2 — PROTECTION    Fusible 5A batterie + 3A pompe + pull-down MOSFET
-COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BMS intégré
+COUCHE 2 — PROTECTION    Fusible 3A pompe + pull-down MOSFET
+COUCHE 1 — ALIMENTATION  USB secteur (pas de batterie = pas de risque thermique)
 ```
 
 ### Politique de réarmement (CRITIQUE — système autonome sans surveillance)
@@ -238,8 +235,7 @@ COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BM
 - Dry-run pompe <50mA (problème hydraulique probable)
 
 **Irréversible (remplacement physique du composant) :**
-- Fusible thermique 72°C (soudé, auto-coupure définitive)
-- Fusibles 5A / 3A (à remplacer)
+- Fusible 3A pompe (à remplacer si grillé)
 
 ### SafetyManager — détails
 - **Thermal auto-recovery** : T° > 58°C → lockout auto → quand T° < 45°C stable 5 min → réarm. Si T° remonte pendant le cooling, le timer de 5 min se reset.
@@ -264,7 +260,7 @@ COUCHE 1 — PHYSIQUE      LiFePO4 (stable 60°C) + fusible thermique 72°C + BM
 - Upload: `pio run -t upload --upload-port hydra.local`
 
 ### Alimentation (3 rails)
-- **12V** (batterie directe) → pompe via MOSFET, entrée LM2596
+- **5V** (USB secteur) → ESP32, capteurs, pompe péristaltique 5V ou 12V via boost
 - **5V** (sortie LM2596) → ESP32 VIN, capteurs US JSN-SR04T
 - **3.3V** (pin 3V3 ESP32, AMS1117 onboard max 500mA) → MUX ×2, BME280, INA219, capteurs humidité
 
@@ -410,7 +406,6 @@ struct PumpStatus {
   - Boîtier IP65 ABS BLANC, presse-étoupes
   - 2 réservoirs 25L en vases communicants (50L)
   - Derrière les bidons : boîtier énergie ventilé (LiFePO4 + MPPT + fusibles)
-  - Grilles inox convection + isolant alu/bulle sur couvercle
 - **Communication** : ESP-NOW (peer-to-peer, pas besoin routeur) + MQTT fallback (via WiFi routeur)
 - **Aucun câble entre intérieur et balcon** — tout est sans fil
 - **Wago 221** pour toutes les connexions (zéro soudure)

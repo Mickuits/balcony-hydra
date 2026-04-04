@@ -47,7 +47,7 @@
 │  │  LED RGB status                          │            │
 │  │  MOSFET pompe + pull-down sécurité       │            │
 │  │  WiFi: ESP-NOW + MQTT fallback           │            │
-│  │  Alimenté solaire + LiFePO4 12V          │            │
+│  │  Alimenté USB 5V secteur (prise balcon)   │            │
 │  │  Mode dégradé si WiFi perdu              │            │
 │  └──────────────────────────────────────────┘            │
 │                                                          │
@@ -57,13 +57,7 @@
 │  └──────────────┘  └──────────────┘                      │
 │                                                          │
 │  ┌──────────────────────┐                                │
-│  │ ☀ Panneau solaire 20W │ fixé balustrade                │
-│  └──────────────────────┘                                │
-│                                                          │
-│  ┌──────────────────────┐                                │
-│  │ Boîtier énergie      │ LiFePO4 + MPPT + fusibles      │
-│  │ (ventilé, derrière   │                                │
-│  │  bidons)              │                                │
+│  │ 🔌 USB 5V Secteur    │ prise balcon                    │
 │  └──────────────────────┘                                │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -127,12 +121,12 @@ Si l'esclave perd la communication avec le maître :
 - Peut envoyer CMD_PUMP_STOP à l'esclave à tout moment
 - Si esclave non-responsive → alerte Telegram
 
-### Esclave (balcon)
+### Esclave (balcon, USB secteur)
 - MOSFET pull-down 10kΩ — pompe OFF si crash/reset
-- Fusible 3A ligne pompe
+- Fusible 3A inline ligne pompe
 - Failsafes locaux: tank empty, max runtime, overcurrent, dry-run
 - Si maître non-responsive → mode dégradé (pas d'arrêt total)
-- Fusible thermique 72°C sur batterie (irréversible)
+- USB secteur = pas de risque batterie/thermique
 
 ### Indépendance critique
 - L'esclave peut fonctionner sans le maître (mode dégradé)

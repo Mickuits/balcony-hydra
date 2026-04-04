@@ -17,19 +17,15 @@
 | MOSFET claqué passant | CRITIQUE | Très faible | **L1** Fusible 3A coupe le courant |
 | | | | **L2** Relais de sécurité en série avec MOSFET |
 
-### R2 — BATTERIE LITHIUM (emballement thermique)
+### R2 — ALIMENTATION (perte secteur)
 | Cause | Gravité | Probabilité | Mitigation |
 |-------|---------|-------------|------------|
-| Surcharge solaire | CATASTROPHIQUE | Faible | **L1** BMS intégré LiFePO4 (coupure charge 14.6V) |
-| | | | **L2** MPPT contrôleur avec protection surcharge |
-| | | | **L3** Fusible thermique 72°C sur câble batterie |
-| Surchauffe (soleil été >50°C) | GRAVE | Moyenne | **L1** LiFePO4 stable jusqu'à 60°C (vs 45°C LiPo) |
-| | | | **L2** Fusible thermique 72°C (auto-coupure irréversible) |
-| | | | **L3** Capteur BME280 monitore T° ambiante → alerte |
-| | | | **L4** Firmware coupe charge si T° > 55°C (via relais) |
-| Court-circuit | CATASTROPHIQUE | Très faible | **L1** BMS intégré (protection court-circuit) |
-| | | | **L2** Fusible 5A sur sortie batterie |
-| | | | **L3** LiFePO4 = chimie la plus stable (pas d'emballement) |
+| Coupure secteur | MODÉRÉ | Occasionnel | **L1** Esclave en mode dégradé NVS (reprend au retour courant) |
+| | | | **L2** DS3231 pile CR2032 conserve l'heure (maître) |
+| | | | **L3** NVS conserve toute la config (survit power cycle) |
+| | | | **L4** Pull-down 10kΩ MOSFET → pompe OFF au reboot |
+| Surtension secteur | FAIBLE | Très faible | **L1** Chargeur USB avec protection intégrée |
+| | | | **L2** Fusible 3A sur ligne pompe |
 
 ### R3 — DÉGÂT DES EAUX (fuite hydraulique)
 | Cause | Gravité | Probabilité | Mitigation |
@@ -85,12 +81,12 @@ COUCHE 5 — MONITORING (Telegram alertes, dashboard TFT 7 écrans)
     ↑ détecte anomalies, notifie l'humain
 COUCHE 4 — FIRMWARE (failsafes logiciels, watchdog, durée adaptative)
     ↑ 6 failsafes actifs, max runtime, seuils par pot
-COUCHE 3 — RELAIS SÉCURITÉ (coupure HW indépendante)
-    ↑ coupe 12V pompe si MCU non-responsive
-COUCHE 2 — PROTECTION PASSIVE (fusibles, pull-down)
-    ↑ fusible 5A batterie, 3A pompe, pull-down MOSFET
-COUCHE 1 — CHIMIE & PHYSIQUE (LiFePO4, fusible thermique)
-    ↑ batterie intrinsèquement safe, auto-coupure température
+COUCHE 3 — RELAIS SÉCURITÉ (coupure HW maître)
+    ↑ coupe pompe B si MCU non-responsive
+COUCHE 2 — PROTECTION PASSIVE (fusible 3A, pull-down 10kΩ)
+    ↑ pompe OFF au boot/crash, protection surintensité
+COUCHE 1 — ALIMENTATION (USB secteur, chargeur protégé)
+    ↑ pas de batterie = pas de risque thermique/emballement
 ```
 
 ## Composants de Sécurité Ajoutés
@@ -106,42 +102,25 @@ COUCHE 1 — CHIMIE & PHYSIQUE (LiFePO4, fusible thermique)
 | BMS intégré LiFePO4 | Surcharge/décharge/court-circuit | ✅ OUI | Énergie |
 | MPPT avec protections | Surcharge/inversion polarité | ✅ OUI | Énergie |
 
-## Disposition Physique — Deux Boîtiers
+## Disposition Physique — Deux Boîtiers USB Secteur
 
-### Boîtier 1 — Électronique (IP65, blanc, fixé au mur)
-- Dimensions: 200×150×85mm, ABS blanc
-- Contenu: ESP32 + breakout, MUX ×2, module MOSFET D4184, module relais sécurité, fusible 3A inline, LED RGB, bouton poussoir
-- Presse-étoupes: PG7 (capteurs), PG9 (signal), PG11 (alimentation 12V inter-boîtiers)
-- Dissipation thermique faible (~0.5W max)
-- BLANC obligatoire (réflexion solaire)
+### Boîtier 1 — Maître (intérieur appartement)
+- Dimensions: 200×150×85mm, ABS (pas IP65 — intérieur)
+- Contenu: ESP32 maître + breakout, MUX, MOSFET D4184, relais sécurité, LED RGB, bouton, LCD TFT 2.4"
+- Alimenté: USB 5V secteur (chargeur standard)
+- Réservoir intérieur 25L à proximité
 
-### Boîtier 2 — Énergie (IP65, blanc, ventilé, au sol derrière les bidons)
-- Dimensions: 250×200×120mm, ABS blanc
-- Contenu: Batterie LiFePO4 12V 6Ah, MPPT 10A, LM2596 DC-DC, fusible 5A inline, fusible thermique 72°C
-- Ventilation: 4 grilles inox (2 bas + 2 haut) avec moustiquaire anti-insectes → convection naturelle
-- Isolation: feuille alu/bulle sur couvercle (réflexion rayonnement direct)
-- Position: au sol, DERRIÈRE les bidons 25L (écran thermique naturel — l'eau absorbe la chaleur)
-- Câble inter-boîtiers: silicone 18AWG 1.5m, Wago 221 chaque extrémité
+### Boîtier 2 — Esclave (balcon IP65 blanc)
+- Dimensions: 200×150×85mm, ABS BLANC, IP65
+- Contenu: ESP32 esclave + breakout, MUX, MOSFET D4184, LED RGB, BME280, INA219
+- Presse-étoupes: PG7 (capteurs), PG9 (pompe), PG11 (USB)
+- Alimenté: USB 5V secteur via prise balcon
+- Fusible 3A inline sur ligne pompe
+- Réservoirs balcon 2×25L à proximité
 
-### Protection Thermique Passive (balcon plein sud, Mougins le Haut, 0 ombre)
-```
-    ☀ SOLEIL DIRECT
-         ↓
-    ┌─────────────────┐ ← Feuille alu/bulle (réfléchit IR)
-    │  BOÎTIER BLANC  │ ← ABS blanc (absorbe 30% vs 90% noir)
-    │  ┌───────────┐  │
-    │  │ BATTERIE  │  │ ← LiFePO4 safe jusqu'à 60°C
-    │  │ LiFePO4   │  │ ← Fusible thermique 72°C en série
-    │  └───────────┘  │
-    │  MPPT + LM2596  │
-    ├─ grille inox ───┤ ← Convection naturelle (air chaud sort en haut)
-    └─────────────────┘
-          ↑
-    ┌─────────────────┐
-    │  BIDONS 25L ×3  │ ← Écran thermique (masse d'eau)
-    └─────────────────┘
-         SOL BALCON
-```
+### ~~Boîtier énergie~~ SUPPRIMÉ
+Plus besoin de boîtier énergie séparé — pas de batterie, pas de solaire, pas de MPPT.
+**Risque thermique batterie ÉLIMINÉ** — c'était le risque principal du projet.
 
 ## Code Couleur LED RGB
 

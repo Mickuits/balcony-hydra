@@ -15,7 +15,7 @@
   </style>
 
   <text x="450" y="25" text-anchor="middle" class="title">WIRING — ESP32 ESCLAVE (Balcon)</text>
-  <text x="450" y="40" text-anchor="middle" class="subtitle">Solaire · LiFePO4 · Pompe A · 10 capteurs · BME280 · INA219 · IP65</text>
+  <text x="450" y="40" text-anchor="middle" class="subtitle">USB Secteur · Pompe A · 10 capteurs · BME280 · INA219 · IP65</text>
 
   <!-- ESP32 -->
   <rect x="340" y="80" width="220" height="280" class="esp"/>
@@ -78,31 +78,16 @@
   <text x="705" y="272" text-anchor="middle" class="label" font-weight="bold">LED RGB</text>
   <text x="705" y="287" text-anchor="middle" class="note">R=G17 G=G19 B=G23</text>
 
-  <!-- Energy chain -->
-  <rect x="30" y="440" width="120" height="50" class="energy"/>
-  <text x="90" y="462" text-anchor="middle" class="label" font-weight="bold">☀ Panneau 20W</text>
-  <text x="90" y="477" text-anchor="middle" class="note">Mono · MC4</text>
-
-  <rect x="180" y="440" width="120" height="50" class="energy"/>
-  <text x="240" y="462" text-anchor="middle" class="label" font-weight="bold">MPPT 10A</text>
-  <text x="240" y="477" text-anchor="middle" class="note">Mode LiFePO4</text>
-  <line x1="150" y1="465" x2="180" y2="465" class="wire-pwr"/>
-
-  <rect x="330" y="440" width="120" height="50" class="energy"/>
-  <text x="390" y="462" text-anchor="middle" class="label" font-weight="bold">LiFePO4</text>
-  <text x="390" y="477" text-anchor="middle" class="note">12V 6Ah · BMS</text>
-  <line x1="300" y1="465" x2="330" y2="465" class="wire-pwr"/>
-
-  <rect x="480" y="440" width="120" height="50" class="energy"/>
-  <text x="540" y="462" text-anchor="middle" class="label" font-weight="bold">LM2596</text>
-  <text x="540" y="477" text-anchor="middle" class="note">12V → 5V ESP32</text>
-  <line x1="450" y1="465" x2="480" y2="465" class="wire-pwr"/>
+  <!-- Alimentation USB -->
+  <rect x="30" y="440" width="200" height="50" class="energy"/>
+  <text x="130" y="462" text-anchor="middle" class="label" font-weight="bold">🔌 USB 5V Secteur</text>
+  <text x="130" y="477" text-anchor="middle" class="note">Prise balcon · Chargeur 5V 2A</text>
+  <line x1="230" y1="465" x2="340" y2="380" class="wire-pwr"/>
 
   <!-- Safety components -->
-  <rect x="330" y="510" width="270" height="60" class="safety"/>
+  <rect x="330" y="510" width="270" height="50" class="safety"/>
   <text x="465" y="530" text-anchor="middle" class="label" font-weight="bold">🔴 SÉCURITÉ PASSIVE</text>
-  <text x="465" y="545" text-anchor="middle" class="note">Fusible 5A sortie batterie · Fusible 3A pompe</text>
-  <text x="465" y="558" text-anchor="middle" class="note">Fusible thermique 72°C · Pull-down 10kΩ MOSFET</text>
+  <text x="465" y="548" text-anchor="middle" class="note">Fusible 3A pompe · Pull-down 10kΩ MOSFET</text>
 
   <!-- Boitier label -->
   <rect x="620" y="340" width="230" height="80" fill="#E8F8F5" stroke="#27AE60" stroke-width="1" rx="4" stroke-dasharray="4,2"/>
