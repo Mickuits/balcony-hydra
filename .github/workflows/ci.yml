@@ -32,11 +32,10 @@ jobs:
           cd firmware/master
           pio run -e master
 
-      - name: Run Master Unit Tests
+      - name: Run Master Unit Tests (native — no hardware)
         run: |
           cd firmware/master
           pio test -e native --verbose
-        continue-on-error: true  # Tests may need hardware
 
       - name: Check firmware size
         run: |
