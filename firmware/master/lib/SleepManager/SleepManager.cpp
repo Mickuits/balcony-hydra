@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "SleepManager.h"
+#include <WiFi.h>  // WiFi.mode() / WIFI_OFF
 
 SleepManager::SleepManager(ConfigManager& configMgr) : _configMgr(configMgr) {}
 
