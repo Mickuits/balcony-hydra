@@ -1507,7 +1507,77 @@ void test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets() {
 }
 
 // ================================================================
-// MAIN — 102 tests total
+// CATEGORY 14 — Protocol.h : packing messages de pairing (5 tests)
+// ================================================================
+// Note : la logique comportementale du pairing (NVS, switch peer, handshake)
+// ne peut PAS être testée en SIL natif car EspNowMaster/EspNowSlave sont en
+// lib_ignore (dépendances esp_now.h/WiFi.h non mockables). Ces 5 tests
+// vérifient uniquement le packing/unpacking des structs Protocol.
+
+void test_T14_01_cmd_pairing_req_size() {
+    // GIVEN la struct CmdPairingReq
+    // THEN taille <= 250 bytes (limite ESP-NOW)
+    TEST_ASSERT_LESS_OR_EQUAL(250, sizeof(CmdPairingReq));
+    // ET les champs sont accessibles
+    CmdPairingReq req;
+    req.deviceType = (uint8_t)DeviceType::MASTER;
+    req.firmwareVersion = PROTOCOL_VERSION;
+    TEST_ASSERT_EQUAL((uint8_t)DeviceType::MASTER, req.deviceType);
+    TEST_ASSERT_EQUAL(PROTOCOL_VERSION, req.firmwareVersion);
+}
+
+void test_T14_02_data_pairing_ack_size() {
+    // GIVEN la struct DataPairingAck
+    // THEN taille <= 250 bytes
+    TEST_ASSERT_LESS_OR_EQUAL(250, sizeof(DataPairingAck));
+    DataPairingAck ack;
+    ack.deviceType = (uint8_t)DeviceType::SLAVE;
+    ack.firmwareVersion = PROTOCOL_VERSION;
+    TEST_ASSERT_EQUAL((uint8_t)DeviceType::SLAVE, ack.deviceType);
+}
+
+void test_T14_03_cmd_pairing_confirm_size() {
+    // GIVEN la struct CmdPairingConfirm (header seul, pas de payload)
+    // THEN taille == sizeof(MsgHeader) == 4 bytes
+    TEST_ASSERT_EQUAL(sizeof(MsgHeader), sizeof(CmdPairingConfirm));
+    TEST_ASSERT_LESS_OR_EQUAL(250, sizeof(CmdPairingConfirm));
+}
+
+void test_T14_04_pairing_req_roundtrip() {
+    // GIVEN un CmdPairingReq populé
+    CmdPairingReq req;
+    req.header = Protocol::makeHeader((uint8_t)CmdType::CMD_PAIRING_REQ);
+    req.deviceType = (uint8_t)DeviceType::MASTER;
+    req.firmwareVersion = PROTOCOL_VERSION;
+
+    // WHEN sérialisé dans un buffer puis relu
+    uint8_t buf[sizeof(CmdPairingReq)];
+    memcpy(buf, &req, sizeof(req));
+    const CmdPairingReq* rx = (const CmdPairingReq*)buf;
+
+    // THEN tous les champs sont préservés
+    TEST_ASSERT_EQUAL(PROTOCOL_MAGIC,   rx->header.magic);
+    TEST_ASSERT_EQUAL(PROTOCOL_VERSION, rx->header.version);
+    TEST_ASSERT_EQUAL((uint8_t)CmdType::CMD_PAIRING_REQ, rx->header.type);
+    TEST_ASSERT_EQUAL((uint8_t)DeviceType::MASTER, rx->deviceType);
+    TEST_ASSERT_EQUAL(PROTOCOL_VERSION, rx->firmwareVersion);
+}
+
+void test_T14_05_pairing_type_names() {
+    // GIVEN les nouveaux types de messages pairing
+    // THEN typeName() retourne des chaînes non-UNKNOWN
+    TEST_ASSERT_EQUAL_STRING("PAIRING_REQ",
+        Protocol::typeName((uint8_t)CmdType::CMD_PAIRING_REQ));
+    TEST_ASSERT_EQUAL_STRING("PAIRING_CONFIRM",
+        Protocol::typeName((uint8_t)CmdType::CMD_PAIRING_CONFIRM));
+    TEST_ASSERT_EQUAL_STRING("PAIRING_ACK",
+        Protocol::typeName((uint8_t)DataType::DATA_PAIRING_ACK));
+    // ET un type inconnu retourne UNKNOWN
+    TEST_ASSERT_EQUAL_STRING("UNKNOWN", Protocol::typeName(0xFE));
+}
+
+// ================================================================
+// MAIN — 107 tests total
 // ================================================================
 
 int setup() {
@@ -1659,6 +1729,13 @@ int setup() {
     RUN_TEST(test_T13_08_isTankCritical_below_threshold);
     RUN_TEST(test_T13_09_toJson_contains_main_fields);
     RUN_TEST(test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets);
+
+    // Cat 14: Protocol pairing message packing (5)
+    RUN_TEST(test_T14_01_cmd_pairing_req_size);
+    RUN_TEST(test_T14_02_data_pairing_ack_size);
+    RUN_TEST(test_T14_03_cmd_pairing_confirm_size);
+    RUN_TEST(test_T14_04_pairing_req_roundtrip);
+    RUN_TEST(test_T14_05_pairing_type_names);
 
     return UNITY_END();
 }
