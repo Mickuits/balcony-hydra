@@ -28,7 +28,9 @@ struct SlaveCallbacks {
 class EspNowSlave {
 public:
     EspNowSlave();
-    void begin(const uint8_t* masterMac);
+    // Charge le MAC maître depuis NVS (namespace "espnow", clé "peerMac").
+    // Si absent → mode pairing actif (écoute en broadcast).
+    void begin();
     void update();
 
     // Send data to master
@@ -37,6 +39,11 @@ public:
     bool sendPumpStatus(const DataPumpStatus& status);
     bool sendAck(uint8_t cmdType, uint8_t seqNum, bool success, const char* msg = "");
     bool sendAlert(AlertType type, const char* message);
+
+    // État pairing
+    bool isPaired() const { return _paired; }
+    // Efface le MAC persisté (NVS) et redémarre le mode pairing (debug/reset)
+    void resetPairing();
 
     // State
     SlaveCommState commState() const { return _commState; }
@@ -55,10 +62,17 @@ private:
     uint8_t         _missedPings;
     SlaveCallbacks  _callbacks;
 
+    // Pairing dynamique
+    bool            _paired;
+
     bool _send(const void* data, size_t len);
     void _checkMasterTimeout();
 
+    // Pairing
+    bool _addPeer(const uint8_t* mac);
+    void _handlePairingReq(const uint8_t* senderMac, const uint8_t* data, int len);
+
     static EspNowSlave* _instance;
     static void _onDataRecv(const uint8_t* mac, const uint8_t* data, int len);
-    void _handleReceived(const uint8_t* data, int len);
+    void _handleReceived(const uint8_t* mac, const uint8_t* data, int len);
 };

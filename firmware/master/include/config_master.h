@@ -93,7 +93,9 @@ constexpr bool DEFAULT_OTA_ENABLED = true;
 #define OTA_HOSTNAME "hydra-master"
 
 // ---- ESP-NOW SLAVE MAC ----
-constexpr uint8_t DEFAULT_SLAVE_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+// [DEPRECATED 2026-04-08] Remplacé par le pairing dynamique au premier boot.
+// Conservé pour référence et debug uniquement.
+// constexpr uint8_t DEFAULT_SLAVE_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 constexpr uint8_t PIN_MUX2_SIG = 0xFF;
 constexpr uint8_t PIN_PUMP_A = 0xFF;  // Zone A remote
 constexpr uint8_t ZONE_A_SENSORS_START = 0;

@@ -21,7 +21,9 @@ enum class CommState : uint8_t {
 class EspNowMaster {
 public:
     EspNowMaster();
-    void begin(const uint8_t* slaveMac);
+    // Charge le MAC esclave depuis NVS (namespace "espnow", clé "peerMac").
+    // Si absent → mode pairing actif (broadcast FF:FF:...).
+    void begin();
     void update();
 
     // Send commands to slave
@@ -38,6 +40,11 @@ public:
     const DataPong&       lastPong() const { return _lastPong; }
     bool                  hasNewSensorData() const { return _newSensorData; }
     void                  clearNewSensorData() { _newSensorData = false; }
+
+    // État pairing
+    bool isPaired() const { return _paired; }
+    // Efface le MAC persisté (NVS) et redémarre le mode pairing (debug/reset)
+    void resetPairing();
 
     // Connection state
     CommState  commState() const { return _commState; }
@@ -62,6 +69,10 @@ private:
     uint32_t  _lastPongReceived;
     bool      _newSensorData;
 
+    // Pairing dynamique
+    bool      _paired;
+    uint32_t  _lastPairingReq;  // millis() du dernier CMD_PAIRING_REQ envoyé
+
     DataSensors    _lastSensors;
     DataPumpStatus _lastPumpStatus;
     DataPong       _lastPong;
@@ -71,9 +82,14 @@ private:
     bool _sendEspNow(const void* data, size_t len);
     void _checkHeartbeat();
 
+    // Pairing
+    bool _addPeer(const uint8_t* mac);
+    void _sendPairingReq();
+    void _handlePairingAck(const uint8_t* senderMac, const uint8_t* data, int len);
+
     // ESP-NOW callbacks (static, routed to instance)
     static EspNowMaster* _instance;
     static void _onDataRecv(const uint8_t* mac, const uint8_t* data, int len);
     static void _onDataSent(const uint8_t* mac, esp_now_send_status_t status);
-    void _handleReceived(const uint8_t* data, int len);
+    void _handleReceived(const uint8_t* mac, const uint8_t* data, int len);
 };

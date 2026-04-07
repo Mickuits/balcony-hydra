@@ -32,9 +32,9 @@ EspNowSlave      espNow;
 DegradedMode     degraded;
 SafetyLocal      safetyLocal;
 
-// ---- Slave MAC for ESP-NOW ----
-// Master MAC address — configure after flashing master
-static const uint8_t MASTER_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+// [DEPRECATED 2026-04-08] Remplacé par le pairing dynamique au premier boot.
+// Conservé pour référence et debug uniquement.
+// static const uint8_t MASTER_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
 // ---- Sensor data buffer for sending to master ----
 DataSensors buildSensorData() {
@@ -161,7 +161,12 @@ void setup() {
     degraded.begin();
 
     // 7 — ESP-NOW
-    espNow.begin(MASTER_MAC);
+    // Pairing dynamique : le MAC maître est chargé depuis NVS (namespace "espnow").
+    // Si absent (premier boot), l'esclave écoute en broadcast et attend CMD_PAIRING_REQ
+    // du maître, répond DATA_PAIRING_ACK, puis persiste le MAC maître en NVS.
+    // [DEPRECATED 2026-04-08] MASTER_MAC conservé pour référence uniquement.
+    // static const uint8_t MASTER_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    espNow.begin();
     SlaveCallbacks cb;
     cb.onPumpStart = onPumpStart;
     cb.onPumpStop = onPumpStop;

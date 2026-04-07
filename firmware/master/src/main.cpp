@@ -414,8 +414,12 @@ void setup() {
 
     // 10/12 — ESP-NOW
     Serial.println("[BOOT] 10/12 — EspNowMaster...");
-    // Load slave MAC from NVS or use default
-    espNow.begin(DEFAULT_SLAVE_MAC);
+    // Pairing dynamique : le MAC esclave est chargé depuis NVS (namespace "espnow").
+    // Si absent (premier boot), le maître broadcaste CMD_PAIRING_REQ toutes les 2s
+    // jusqu'à recevoir DATA_PAIRING_ACK de l'esclave, puis persiste le MAC en NVS.
+    // [DEPRECATED 2026-04-08] DEFAULT_SLAVE_MAC conservé pour référence uniquement.
+    // static const uint8_t DEFAULT_SLAVE_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    espNow.begin();
     espNow.onSlaveAlert([](const DataAlert& alert) {
         telegramBot.sendAlert("Esclave: " + String(alert.message));
         mqttClient.publishAlert(alert.message);
