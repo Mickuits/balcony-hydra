@@ -87,7 +87,8 @@ public:
 private:
     const ConfigManager& _configMgr;
     SensorData _data;
-    PotAlert   _potAlerts[NUM_MOISTURE_SENSORS];
+    // mutable: getPotAlertMessage() is const but flips alertSent to "already notified"
+    mutable PotAlert _potAlerts[NUM_MOISTURE_SENSORS];
     
     Adafruit_BME280 _bme;
     Adafruit_INA219 _ina;
