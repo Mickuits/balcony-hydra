@@ -1,6 +1,6 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-04-07
+> Dernière MAJ : 2026-04-08
 
 ## État du sprint
 
@@ -23,7 +23,7 @@ La session du 2026-04-07 a corrigé une dette technique massive accumulée depui
 
 - [ ] **Restaurer `ConfigManager::fromJson()` master** — le bloc network est actuellement un no-op (commit `7a20ef5`). À ré-implémenter proprement avec `JsonObject n = doc["network"]` + `containsKey()` guards.
 - [ ] **Implémenter `WebPortal::_handleApiProfiles` / `_handleApiProfileUpdate` / `_handleApiAutonomy`** — actuellement des stubs HTTP 501 (commit `d274956`). Les routes existent dans `_setupRoutes()` et le UI les attend.
-- [ ] **MAC ESP-NOW pairing** — `DEFAULT_SLAVE_MAC` dans `config_master.h:91` et `MASTER_MAC` dans `slave/main.cpp:37` sont à `0xFF:FF:FF:FF:FF:FF` (broadcast). Procédure de pairing à documenter et implémenter au premier boot.
+- [x] **MAC ESP-NOW pairing** — Pairing dynamique au premier boot implémenté (2026-04-08). NVS namespace `espnow` clé `peerMac`. Voir `docs/PAIRING.md`. Validation comportementale sur hardware requise.
 - [ ] **PIN_PUMP_B = 27 vs 15** — incohérence avec `config_v3_ref.h` non documentée. Valider physiquement avant flash hardware.
 - [ ] **Code v3 résiduel** à supprimer : `firmware/lib/`, `firmware/src/`, `firmware/include/config.h`, `firmware/platformio.ini` (racine).
 - [ ] **`build_flags_tft`** dans `master/platformio.ini` ligne 34 — option ignorée par PlatformIO (warning à chaque build). Soit renommer en `[env:master_with_tft]` soit retirer.
@@ -55,6 +55,21 @@ La session du 2026-04-07 a corrigé une dette technique massive accumulée depui
 Aucun bug bloquant. Tous les bugs préexistants découverts pendant la session 2026-04-07 ont été corrigés.
 
 ## Sessions récentes
+
+### 2026-04-08 — Pairing dynamique ESP-NOW au premier boot
+
+**Objectif** : remplacer les MACs hardcodés `0xFF:FF:FF:FF:FF:FF` par un mécanisme
+de découverte automatique persisté en NVS.
+
+**Résultats** :
+- `Protocol.h` : +3 types (CMD_PAIRING_REQ/CONFIRM, DATA_PAIRING_ACK), +3 structs,
+  +enum DeviceType, `typeName()` mis à jour, 3 static_assert ajoutés.
+- `EspNowMaster` : `begin()` sans param, charge NVS, mode pairing si absent,
+  `resetPairing()`, `_handlePairingAck()` avec save NVS + switch peer.
+- `EspNowSlave` : idem symétrique, `_handlePairingReq()`.
+- `master/src/main.cpp` + `slave/src/main.cpp` : appel `espNow.begin()` sans param.
+- 5 tests SIL Catégorie 14 (packing Protocol), total 107 tests natifs master.
+- `docs/PAIRING.md` créé.
 
 ### 2026-04-07 — Déblocage complet du build CI (25 commits)
 

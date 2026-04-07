@@ -4,13 +4,14 @@
 
 #include "EspNowMaster.h"
 #include <ArduinoJson.h>
+#include <Preferences.h>
 
 EspNowMaster* EspNowMaster::_instance = nullptr;
 
 EspNowMaster::EspNowMaster()
     : _peerAdded(false), _commState(CommState::DISCONNECTED),
       _missedPongs(0), _lastPingSent(0), _lastPongReceived(0),
-      _newSensorData(false) {
+      _newSensorData(false), _paired(false), _lastPairingReq(0) {
     memset(_slaveMac, 0, 6);
     memset(&_lastSensors, 0, sizeof(DataSensors));
     memset(&_lastPumpStatus, 0, sizeof(DataPumpStatus));
@@ -18,40 +19,81 @@ EspNowMaster::EspNowMaster()
     _instance = this;
 }
 
-void EspNowMaster::begin(const uint8_t* slaveMac) {
-    memcpy(_slaveMac, slaveMac, 6);
+void EspNowMaster::begin() {
+    // Lecture du MAC esclave persisté en NVS (namespace "espnow", clé "peerMac")
+    Preferences prefs;
+    prefs.begin("espnow", true);  // read-only
+    size_t loaded = prefs.getBytes("peerMac", _slaveMac, 6);
+    prefs.end();
 
     if (esp_now_init() != ESP_OK) {
         Serial.println("[ESPNOW] Init FAILED");
         return;
     }
 
-    // Register callbacks
+    // Enregistrement des callbacks
     esp_now_register_recv_cb(_onDataRecv);
     esp_now_register_send_cb(_onDataSent);
 
-    // Add slave as peer
+    if (loaded == 6) {
+        // MAC esclave connu — ajout du peer en unicast, mode normal
+        _paired = true;
+        if (_addPeer(_slaveMac)) {
+            Serial.printf("[ESPNOW] Peer esclave restauré depuis NVS: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                          _slaveMac[0], _slaveMac[1], _slaveMac[2],
+                          _slaveMac[3], _slaveMac[4], _slaveMac[5]);
+        }
+        _commState = CommState::DISCONNECTED;
+        sendPing();  // Ping initial
+    } else {
+        // Premier boot ou NVS effacé — mode pairing actif
+        _paired = false;
+        static const uint8_t broadcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+        memcpy(_slaveMac, broadcast, 6);
+        // channel=1 obligatoire pour le peer broadcast sur ESP-NOW
+        esp_now_peer_info_t peer;
+        memset(&peer, 0, sizeof(peer));
+        memcpy(peer.peer_addr, broadcast, 6);
+        peer.channel = 1;
+        peer.encrypt = false;
+        if (esp_now_add_peer(&peer) == ESP_OK) {
+            _peerAdded = true;
+        }
+        Serial.println("[ESPNOW] Mode pairing actif, recherche de l'esclave...");
+    }
+}
+
+void EspNowMaster::resetPairing() {
+    // Supprime le MAC persisté et redémarre en mode pairing (debug/re-pairing)
+    Preferences prefs;
+    prefs.begin("espnow", false);
+    prefs.remove("peerMac");
+    prefs.end();
+    _paired = false;
+    _peerAdded = false;
+    esp_now_del_peer(_slaveMac);  // Retire le peer unicast éventuel
+    static const uint8_t broadcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    memcpy(_slaveMac, broadcast, 6);
     esp_now_peer_info_t peer;
     memset(&peer, 0, sizeof(peer));
-    memcpy(peer.peer_addr, _slaveMac, 6);
-    peer.channel = 0;  // Auto
-    peer.encrypt = false;  // TODO: add PMK/LMK encryption
-
+    memcpy(peer.peer_addr, broadcast, 6);
+    peer.channel = 1;
+    peer.encrypt = false;
     if (esp_now_add_peer(&peer) == ESP_OK) {
         _peerAdded = true;
-        Serial.printf("[ESPNOW] Peer esclave ajouté: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                      _slaveMac[0], _slaveMac[1], _slaveMac[2],
-                      _slaveMac[3], _slaveMac[4], _slaveMac[5]);
-    } else {
-        Serial.println("[ESPNOW] Ajout peer ÉCHOUÉ");
     }
-
-    _commState = CommState::DISCONNECTED;
-    sendPing();  // Initial ping
+    Serial.println("[ESPNOW] Pairing réinitialisé — mode broadcast actif");
 }
 
 void EspNowMaster::update() {
-    _checkHeartbeat();
+    if (!_paired) {
+        // Mode pairing : broadcast CMD_PAIRING_REQ toutes les 2s
+        if (millis() - _lastPairingReq >= 2000) {
+            _sendPairingReq();
+        }
+    } else {
+        _checkHeartbeat();
+    }
 }
 
 // ---- SEND COMMANDS ----
@@ -98,6 +140,73 @@ bool EspNowMaster::sendReboot(uint32_t delayMs) {
     return _sendEspNow(&cmd, sizeof(cmd));
 }
 
+// ---- PAIRING ----
+
+bool EspNowMaster::_addPeer(const uint8_t* mac) {
+    esp_now_peer_info_t peer;
+    memset(&peer, 0, sizeof(peer));
+    memcpy(peer.peer_addr, mac, 6);
+    peer.channel = 0;
+    peer.encrypt = false;
+    if (esp_now_add_peer(&peer) == ESP_OK) {
+        _peerAdded = true;
+        return true;
+    }
+    Serial.println("[ESPNOW] Ajout peer ÉCHOUÉ");
+    return false;
+}
+
+void EspNowMaster::_sendPairingReq() {
+    if (!_peerAdded) return;
+    CmdPairingReq req;
+    req.header = Protocol::makeHeader((uint8_t)CmdType::CMD_PAIRING_REQ);
+    req.deviceType = (uint8_t)DeviceType::MASTER;
+    req.firmwareVersion = PROTOCOL_VERSION;
+    _lastPairingReq = millis();
+    static const uint8_t broadcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    esp_now_send(broadcast, (const uint8_t*)&req, sizeof(req));
+    Serial.println("[ESPNOW] → PAIRING_REQ (broadcast)");
+}
+
+void EspNowMaster::_handlePairingAck(const uint8_t* senderMac, const uint8_t* data, int len) {
+    if (len < (int)sizeof(DataPairingAck)) {
+        Serial.println("[ESPNOW] PAIRING_ACK trop court — ignoré");
+        return;
+    }
+
+    const DataPairingAck* ack = (const DataPairingAck*)data;
+    if (ack->deviceType != (uint8_t)DeviceType::SLAVE) {
+        Serial.println("[ESPNOW] PAIRING_ACK: deviceType inattendu — ignoré");
+        return;
+    }
+
+    // Sauvegarde du MAC esclave en NVS
+    Preferences prefs;
+    prefs.begin("espnow", false);
+    prefs.putBytes("peerMac", senderMac, 6);
+    prefs.end();
+
+    // Passage du broadcast peer au peer unicast
+    static const uint8_t broadcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    esp_now_del_peer(broadcast);
+    _peerAdded = false;
+
+    memcpy(_slaveMac, senderMac, 6);
+    _addPeer(_slaveMac);
+
+    _paired = true;
+    _commState = CommState::DISCONNECTED;
+
+    Serial.printf("[ESPNOW] Pairing OK avec esclave %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  _slaveMac[0], _slaveMac[1], _slaveMac[2],
+                  _slaveMac[3], _slaveMac[4], _slaveMac[5]);
+
+    // Confirmation unicast vers l'esclave
+    CmdPairingConfirm confirm;
+    confirm.header = Protocol::makeHeader((uint8_t)CmdType::CMD_PAIRING_CONFIRM);
+    _sendEspNow(&confirm, sizeof(confirm));
+}
+
 // ---- INTERNAL ----
 
 bool EspNowMaster::_sendEspNow(const void* data, size_t len) {
@@ -127,7 +236,7 @@ void EspNowMaster::_checkHeartbeat() {
 // ---- CALLBACKS ----
 
 void EspNowMaster::_onDataRecv(const uint8_t* mac, const uint8_t* data, int len) {
-    if (_instance) _instance->_handleReceived(data, len);
+    if (_instance) _instance->_handleReceived(mac, data, len);
 }
 
 void EspNowMaster::_onDataSent(const uint8_t* mac, esp_now_send_status_t status) {
@@ -136,13 +245,19 @@ void EspNowMaster::_onDataSent(const uint8_t* mac, esp_now_send_status_t status)
     }
 }
 
-void EspNowMaster::_handleReceived(const uint8_t* data, int len) {
+void EspNowMaster::_handleReceived(const uint8_t* mac, const uint8_t* data, int len) {
     if (len < (int)sizeof(MsgHeader)) return;
 
     const MsgHeader* header = (const MsgHeader*)data;
     if (!Protocol::validateHeader(*header)) return;
 
     Serial.printf("[ESPNOW] ← %s (%d bytes)\n", Protocol::typeName(header->type), len);
+
+    // Traitement du PAIRING_ACK en mode pairing (avant les autres messages)
+    if (header->type == (uint8_t)DataType::DATA_PAIRING_ACK && !_paired) {
+        _handlePairingAck(mac, data, len);
+        return;
+    }
 
     switch (header->type) {
         case (uint8_t)DataType::DATA_PONG:
