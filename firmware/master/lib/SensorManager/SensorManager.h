@@ -84,6 +84,12 @@ public:
     void calibrateMoistureDry();
     void calibrateMoistureWet();
 
+#ifdef HYDRA_TEST
+    // Injection directe pour tests SIL natifs (non disponible en production)
+    void injectTestEnvironment(const EnvironmentReading& env) { _data.environment = env; }
+    void injectTestPumpMetrics(const PumpMetrics& pump) { _data.pump = pump; }
+#endif
+
 private:
     const ConfigManager& _configMgr;
     SensorData _data;

@@ -803,7 +803,240 @@ void test_T10_08_scheduled_mode_exact_time_match() {
 }
 
 // ================================================================
-// MAIN — 92 tests total
+// CATEGORY 11: SafetyManager — Instance REELLE avec mocks injectés (10 tests)
+//
+// Premier niveau de tests qui instancient le vrai SafetyManager avec la
+// chaîne complète ConfigManager → SensorManager → StatusLED → SafetyManager.
+// L'injection thermique/courant passe par injectTestEnvironment() /
+// injectTestPumpMetrics() (#ifdef HYDRA_TEST dans SensorManager.h).
+// ================================================================
+
+// Inclure les vrais modules (compilés via lib_extra_dirs = lib dans platformio.ini)
+// Placé ici pour ne pas parasiter les catégories T1-T10 qui n'en ont pas besoin.
+#define HYDRA_TEST 1
+#include "ConfigManager.h"
+#include "SensorManager.h"
+#include "StatusLED.h"
+#include "SafetyManager.h"
+
+// --- Helpers locaux pour la catégorie T11 ---
+
+// Construit et initialise le stack complet pour un test T11.
+// Retourne par pointeur pour éviter des copies de références invalides.
+// L'appelant est responsable de la durée de vie (stack-allocated dans chaque test).
+struct T11_Fixtures {
+    ConfigManager cfg;
+    SensorManager sensors;
+    StatusLED     led;
+    SafetyManager safety;
+
+    T11_Fixtures()
+        : cfg(),
+          sensors(cfg),
+          led(),
+          safety(sensors, led)
+    {}
+
+    // Initialise tout le stack (GPIO mocks, NVS mock, BME/INA mocks)
+    void init() {
+        cfg.begin();
+        sensors.begin();
+        led.begin();
+        safety.begin();
+    }
+
+    // Injecte une température (°C) comme si le BME280 l'avait lue
+    void setTemperature(float tempC) {
+        EnvironmentReading env;
+        env.temperature = tempC;
+        env.humidity    = 50.0f;
+        env.pressure    = 1013.25f;
+        env.valid       = true;
+        sensors.injectTestEnvironment(env);
+    }
+};
+
+// ---- Tests T11 ----
+
+void test_T11_01_initial_state_nominal() {
+    // GIVEN un SafetyManager fraîchement initialisé (NVS vide → bootCount = 1 < 3)
+    // WHEN begin() est appelé
+    // THEN state == NOMINAL, isPumpArmed() == false
+    T11_Fixtures f;
+    f.init();
+
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::NOMINAL, (uint8_t)f.safety.state());
+    TEST_ASSERT_FALSE(f.safety.isLockout());
+    TEST_ASSERT_FALSE(f.safety.isPumpArmed());
+}
+
+void test_T11_02_arm_pump_engages_relay_in_nominal() {
+    // GIVEN un SafetyManager nominal
+    // WHEN armPump() est appelé
+    // THEN retourne true, isPumpArmed() == true, GPIO PIN_SAFETY_RELAY est HIGH
+    T11_Fixtures f;
+    f.init();
+
+    bool armed = f.safety.armPump();
+
+    TEST_ASSERT_TRUE(armed);
+    TEST_ASSERT_TRUE(f.safety.isPumpArmed());
+    TEST_ASSERT_EQUAL(HIGH, MockHW::getPin(PIN_SAFETY_RELAY));
+}
+
+void test_T11_03_disarm_pump_releases_relay() {
+    // GIVEN un SafetyManager avec relay armé
+    // WHEN disarmPump() est appelé
+    // THEN isPumpArmed() == false, GPIO PIN_SAFETY_RELAY est LOW
+    T11_Fixtures f;
+    f.init();
+    f.safety.armPump();
+
+    f.safety.disarmPump();
+
+    TEST_ASSERT_FALSE(f.safety.isPumpArmed());
+    TEST_ASSERT_EQUAL(LOW, MockHW::getPin(PIN_SAFETY_RELAY));
+}
+
+void test_T11_04_overcurrent_triggers_hard_lockout() {
+    // GIVEN un SafetyManager nominal
+    // WHEN notifyPumpOvercurrent() est appelé
+    // THEN state == LOCKOUT_HARD, isHardLockout() == true,
+    //      armPump() retourne false, relay est LOW
+    T11_Fixtures f;
+    f.init();
+    f.safety.armPump();  // Arm d'abord pour vérifier que le relay est coupé
+
+    f.safety.notifyPumpOvercurrent();
+
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::LOCKOUT_HARD, (uint8_t)f.safety.state());
+    TEST_ASSERT_TRUE(f.safety.isHardLockout());
+    TEST_ASSERT_EQUAL((uint8_t)LockoutType::OVERCURRENT, (uint8_t)f.safety.lockoutType());
+    TEST_ASSERT_FALSE(f.safety.armPump());
+    TEST_ASSERT_EQUAL(LOW, MockHW::getPin(PIN_SAFETY_RELAY));
+}
+
+void test_T11_05_dry_run_triggers_hard_lockout() {
+    // GIVEN un SafetyManager nominal
+    // WHEN notifyPumpDryRun() est appelé
+    // THEN state == LOCKOUT_HARD, lockoutType == DRY_RUN
+    T11_Fixtures f;
+    f.init();
+
+    f.safety.notifyPumpDryRun();
+
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::LOCKOUT_HARD, (uint8_t)f.safety.state());
+    TEST_ASSERT_EQUAL((uint8_t)LockoutType::DRY_RUN, (uint8_t)f.safety.lockoutType());
+    TEST_ASSERT_TRUE(f.safety.isHardLockout());
+}
+
+void test_T11_06_remote_unlock_clears_hard_lockout() {
+    // GIVEN un SafetyManager en LOCKOUT_HARD (overcurrent)
+    // WHEN remoteUnlock("telegram") est appelé
+    // THEN state == NOMINAL, armPump() retourne true
+    T11_Fixtures f;
+    f.init();
+    f.safety.notifyPumpOvercurrent();
+
+    bool unlocked = f.safety.remoteUnlock("telegram");
+
+    TEST_ASSERT_TRUE(unlocked);
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::NOMINAL, (uint8_t)f.safety.state());
+    TEST_ASSERT_FALSE(f.safety.isHardLockout());
+    TEST_ASSERT_TRUE(f.safety.armPump());
+}
+
+void test_T11_07_thermal_critical_triggers_auto_lockout() {
+    // GIVEN un SafetyManager nominal avec T° injectée à 60°C (> SAFETY_TEMP_CRITICAL = 58°C)
+    // WHEN update() est appelé (après >2s simulées)
+    // THEN state == LOCKOUT_AUTO, lockoutType == THERMAL
+    T11_Fixtures f;
+    f.init();
+    f.setTemperature(60.0f);
+
+    // update() a un garde _lastCheck: millis() - _lastCheck >= 2000
+    // Après begin(), _lastCheck = 0. Avancer millis > 2000ms.
+    MockHW::advanceMillis(3000);
+    f.safety.update();
+
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::LOCKOUT_AUTO, (uint8_t)f.safety.state());
+    TEST_ASSERT_EQUAL((uint8_t)LockoutType::THERMAL, (uint8_t)f.safety.lockoutType());
+    TEST_ASSERT_TRUE(f.safety.isLockout());
+    TEST_ASSERT_FALSE(f.safety.isHardLockout());  // AUTO lockout, pas HARD
+}
+
+void test_T11_08_thermal_recovery_below_45_after_5min_unlocks() {
+    // GIVEN un SafetyManager en LOCKOUT_AUTO thermique (T° était > 58°C)
+    // WHEN T° passe à 40°C (<= SAFETY_TEMP_RESUME = 45°C) et on attend 6 min
+    // THEN state revient à NOMINAL (auto-recovery)
+    T11_Fixtures f;
+    f.init();
+
+    // 1. Provoquer le lockout thermique
+    f.setTemperature(60.0f);
+    MockHW::advanceMillis(3000);
+    f.safety.update();
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::LOCKOUT_AUTO, (uint8_t)f.safety.state());
+
+    // 2. T° tombe à 40°C — début de la fenêtre de stabilisation
+    f.setTemperature(40.0f);
+    MockHW::advanceMillis(2001);   // Passer le garde 2s
+    f.safety.update();
+    // Pas encore assez stable (thermalResumeStart vient d'être fixé)
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::LOCKOUT_AUTO, (uint8_t)f.safety.state());
+
+    // 3. Avancer de 6 minutes (> SAFETY_TEMP_STABLE_MS = 5 min = 300000 ms)
+    MockHW::advanceMillis(360000);
+    f.safety.update();
+    TEST_ASSERT_EQUAL((uint8_t)SafetyState::NOMINAL, (uint8_t)f.safety.state());
+}
+
+void test_T11_09_boot_crash_counter_increments_in_nvs() {
+    // GIVEN un NVS vide (Preferences::resetAll() dans setUp)
+    // WHEN begin() est appelé
+    // THEN le compteur NVS "safety::bootCnt" est incrémenté à 1
+    // WHEN markBootStable() est appelé
+    // THEN le compteur est remis à 0
+    T11_Fixtures f;
+    f.init();  // begin() → _checkBootCrashes() (0) + _recordBoot() → bootCnt = 1
+
+    // Vérifier via Preferences que la valeur est bien 1
+    Preferences p;
+    p.begin("safety", true);
+    uint8_t cnt = p.getUChar("bootCnt", 0xFF);
+    p.end();
+    TEST_ASSERT_EQUAL(1, cnt);
+
+    // markBootStable() remet à 0
+    f.safety.markBootStable();
+    p.begin("safety", true);
+    cnt = p.getUChar("bootCnt", 0xFF);
+    p.end();
+    TEST_ASSERT_EQUAL(0, cnt);
+}
+
+void test_T11_10_status_json_includes_state_and_lockout_type() {
+    // GIVEN un SafetyManager en LOCKOUT_HARD overcurrent
+    // WHEN toJson() est appelé
+    // THEN la chaîne résultante contient le state (3 = LOCKOUT_HARD)
+    //      et le lockoutType (3 = OVERCURRENT)
+    T11_Fixtures f;
+    f.init();
+    f.safety.notifyPumpOvercurrent();
+
+    String json = f.safety.toJson();
+
+    // Vérifier que le JSON contient les champs critiques
+    // (implémentation mock JsonDocument → clés entre guillemets)
+    TEST_ASSERT_TRUE(json.indexOf("state") >= 0);
+    TEST_ASSERT_TRUE(json.indexOf("lockoutType") >= 0);
+    // State = 3 (LOCKOUT_HARD), lockoutType = 3 (OVERCURRENT)
+    TEST_ASSERT_TRUE(json.indexOf("3") >= 0);
+    TEST_ASSERT_TRUE(json.indexOf("Lockout dur") >= 0);
+}
+
+// ================================================================
+// MAIN — 102 tests total
 // ================================================================
 
 int setup() {
@@ -919,6 +1152,18 @@ int setup() {
     RUN_TEST(test_T10_06_relay_arm_disarm_gpio_sequence);
     RUN_TEST(test_T10_07_pulldown_ensures_pump_off_at_boot);
     RUN_TEST(test_T10_08_scheduled_mode_exact_time_match);
+
+    // Cat 11: SafetyManager — instance réelle avec mocks injectés (10)
+    RUN_TEST(test_T11_01_initial_state_nominal);
+    RUN_TEST(test_T11_02_arm_pump_engages_relay_in_nominal);
+    RUN_TEST(test_T11_03_disarm_pump_releases_relay);
+    RUN_TEST(test_T11_04_overcurrent_triggers_hard_lockout);
+    RUN_TEST(test_T11_05_dry_run_triggers_hard_lockout);
+    RUN_TEST(test_T11_06_remote_unlock_clears_hard_lockout);
+    RUN_TEST(test_T11_07_thermal_critical_triggers_auto_lockout);
+    RUN_TEST(test_T11_08_thermal_recovery_below_45_after_5min_unlocks);
+    RUN_TEST(test_T11_09_boot_crash_counter_increments_in_nvs);
+    RUN_TEST(test_T11_10_status_json_includes_state_and_lockout_type);
 
     return UNITY_END();
 }
