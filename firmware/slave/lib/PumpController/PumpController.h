@@ -42,10 +42,10 @@ struct ZoneStatus {
     bool           failsafeActive;
     uint8_t        avgMoisture;      // Zone-specific average
     
-    // Auto mode anti-spam
-    uint32_t       lastAutoWaterTime;
-    uint8_t        autoCycleCount;
-    uint32_t       autoCycleResetTime;
+    // Anti-spam mode AUTO — mutable car modifiés par shouldAutoWater() (const)
+    mutable uint32_t       lastAutoWaterTime;
+    mutable uint8_t        autoCycleCount;
+    mutable uint32_t       autoCycleResetTime;
 };
 
 struct ZoneConfig {

@@ -102,8 +102,11 @@ void test_sensor_interval() {
 // MAIN
 // ============================================================
 
-void setup() {
-    delay(2000);
+// setUp/tearDown requis par le mock unity.h natif (RUN_TEST)
+void setUp(void) {}
+void tearDown(void) {}
+
+int setup() {
     UNITY_BEGIN();
 
     RUN_TEST(test_protocol_magic);
@@ -127,6 +130,12 @@ void setup() {
     RUN_TEST(test_sensor_interval);
 
     UNITY_END();
+}
+
+// Nécessaire pour pio test -e native (platform = native ne génère
+// pas de main() automatiquement avec un test_filter custom)
+int main(int /*argc*/, char** /*argv*/) {
+    return setup();
 }
 
 void loop() {}

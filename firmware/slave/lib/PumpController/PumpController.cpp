@@ -3,8 +3,8 @@
 // ============================================================
 
 #include "PumpController.h"
-#include "TimeManager.h"
-// PlantProfile not available on slave
+// TimeManager absent sur l'esclave — le timing est piloté par le maître via ESP-NOW.
+// PlantProfile absent sur l'esclave — pas de calcul de cycle botanique local.
 
 const ZoneConfig PumpController::_zoneConfig[NUM_ZONES] = {
     { PIN_PUMP_A, ZONE_A_SENSORS_START, ZONE_A_SENSORS_END, "Balcon" },
@@ -198,11 +198,8 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute, uint8_t zone) con
             return _configMgr.isWateringTime(hour, minute);
             
         case WateringMode::SOLAR:
-            if (!_timeMgr) return false;
-            if (cfg.solar.sunriseEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunriseOffsetMin, false))
-                return true;
-            if (cfg.solar.sunsetEnabled && _timeMgr->isSolarTimeFor(hour, minute, cfg.solar.sunsetOffsetMin, true))
-                return true;
+            // Mode SOLAR non supporté sur l'esclave — le maître calcule les créneaux
+            // solaires (DS3231 + algo NOAA) et envoie CMD_PUMP_START au bon moment.
             return false;
             
         case WateringMode::MANUAL:

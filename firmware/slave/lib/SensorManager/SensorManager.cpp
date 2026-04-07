@@ -86,7 +86,7 @@ void SensorManager::readMoisture() {
         _selectMuxChannel(i);
         delayMicroseconds(500);  // Settling time
         
-        uint16_t raw = _readAnalog(PIN_MUX1_SIG);
+        uint16_t raw = _readAnalog(PIN_MUX_SIG);  // PIN_MUX_SIG — slave: unique MUX
         _data.moisture[i].raw     = raw;
         _data.moisture[i].percent = _rawToPercent(raw);
         _data.moisture[i].valid   = (raw > 100 && raw < 4000);  // Sanity check
@@ -143,15 +143,13 @@ void SensorManager::readTankLevels() {
             (_data.tank[0].levelCm / tCfg.heightCm) * 100.0, 0, 100);
     }
     
-    // Sensor 2 (redondance — Bidon 1)
-    float dist2 = _readUltrasonicCm(PIN_US2_TRIG, PIN_US2_ECHO);
-    // Slave: single US sensor for 2x25L vases communicants
-    // tank[1] mirrors tank[0] (same level)
+    // Esclave : capteur US unique — les 2x25L sont en vases communicants,
+    // donc tank[1] reflète tank[0] (même niveau physique).
+    // PIN_US2_TRIG/ECHO = 0xFF sur slave → pas de lecture réelle.
     _data.tank[1] = _data.tank[0];
-    }
-    
-    Serial.printf("[SENSOR] Réservoir: %d%% (US1: %.1fcm, US2: %.1fcm)\n",
-                  _data.tank[0].levelPct, dist1, dist2);
+
+    Serial.printf("[SENSOR] Réservoir: %d%% (US1: %.1fcm)\n",
+                  _data.tank[0].levelPct, dist1);
 }
 
 // ---- ENVIRONMENT ----
@@ -273,7 +271,7 @@ void SensorManager::calibrateMoistureDry() {
     _enableMux1();
     _selectMuxChannel(0);
     delayMicroseconds(500);
-    uint16_t val = _readAnalog(PIN_MUX1_SIG);
+    uint16_t val = _readAnalog(PIN_MUX_SIG);
     _disableAllMux();
     Serial.printf("[CALIB] Air sec: ADC = %d\n", val);
 }
@@ -282,7 +280,7 @@ void SensorManager::calibrateMoistureWet() {
     _enableMux1();
     _selectMuxChannel(0);
     delayMicroseconds(500);
-    uint16_t val = _readAnalog(PIN_MUX1_SIG);
+    uint16_t val = _readAnalog(PIN_MUX_SIG);
     _disableAllMux();
     Serial.printf("[CALIB] Immergé: ADC = %d\n", val);
 }
