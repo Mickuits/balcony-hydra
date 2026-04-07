@@ -7,7 +7,8 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include "Protocol.h"  // path injecté via -I../../common
+#include "Protocol.h"        // path injecté via -I$PROJECT_DIR/../common
+#include "config_common.h"   // ESPNOW_PING_INTERVAL_MS, ESPNOW_MAX_MISSED_PONGS
 
 enum class SlaveCommState : uint8_t {
     WAITING_MASTER  = 0,
