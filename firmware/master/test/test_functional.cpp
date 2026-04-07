@@ -925,5 +925,7 @@ int setup() {
 
 void loop() {}
 
-// Native runner
-NATIVE_TEST_RUNNER
+// Note: under `pio test -e native`, PlatformIO's own Unity runner calls
+// setup() automatically — no extra main() needed. The NATIVE_TEST_RUNNER
+// macro is only used for the standalone (non-PIO) build pipeline that
+// uses test/mocks/unity.h.
