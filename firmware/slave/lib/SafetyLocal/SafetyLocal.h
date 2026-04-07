@@ -17,7 +17,7 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include "../../common/config_common.h"
+#include "config_common.h"  // path injecté via -I../../common
 
 enum class LocalSafetyState : uint8_t {
     OK           = 0,

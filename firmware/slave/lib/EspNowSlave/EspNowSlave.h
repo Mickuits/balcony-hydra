@@ -7,7 +7,7 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include "../../common/Protocol.h"
+#include "Protocol.h"  // path injecté via -I../../common
 
 enum class SlaveCommState : uint8_t {
     WAITING_MASTER  = 0,

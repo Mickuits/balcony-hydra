@@ -8,8 +8,8 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include "../../common/Protocol.h"
-#include "../../common/config_common.h"
+#include "Protocol.h"        // path injecté via -I../../common
+#include "config_common.h"   // path injecté via -I../../common
 
 enum class CommState : uint8_t {
     DISCONNECTED = 0,

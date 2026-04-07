@@ -11,7 +11,7 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include "../../common/config_common.h"
+#include "config_common.h"  // path injecté via -I../../common
 
 struct DegradedConfig {
     uint8_t  moistureMin;
