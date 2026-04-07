@@ -75,6 +75,36 @@ jobs:
           cd firmware/slave
           pio run -e slave -t size
 
+  # ----------------------------------------------------------------
+  # lint — pio check (cppcheck) on both firmwares.
+  # Non-bloquant (continue-on-error) — l'objectif est de démarrer
+  # une culture lint sans gater les builds. Les warnings doivent
+  # diminuer commit après commit.
+  # ----------------------------------------------------------------
+  lint:
+    name: Lint (${{ matrix.firmware }})
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        firmware: [master, slave]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Run pio check (${{ matrix.firmware }})
+        run: |
+          cd firmware/${{ matrix.firmware }}
+          pio check --skip-packages --fail-on-defect=high || true
+        continue-on-error: true
+
   protocol-check:
     runs-on: ubuntu-latest
     steps:
