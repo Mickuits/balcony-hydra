@@ -1161,13 +1161,24 @@ void test_T12_03_stop_zone_b_returns_to_idle() {
 // T12_04 — Max runtime failsafe stoppe la pompe après PUMP_MAX_RUNTIME_S
 // ----------------------------------------------------------------
 void test_T12_04_max_runtime_safety_stops_pump() {
-    // TODO: PumpController::start() clamp probablement la durée à PUMP_MAX_RUNTIME_S
-    //       en interne, ce qui fait que le check DURATION_DONE arrive avant le
-    //       failsafe MAX_RUNTIME quel que soit le paramètre passé. Pour valider
-    //       le code path MAX_RUNTIME il faudrait soit injecter un mock qui
-    //       court-circuite le clamp, soit refactorer la logique. À revoir avec
-    //       hardware ou en lisant plus en détail PumpController::_checkFailsafes().
-    TEST_IGNORE_MESSAGE("MAX_RUNTIME failsafe path needs deeper investigation");
+    // DEAD CODE PATH confirmé après lecture de PumpController.cpp:97-99 :
+    // ```
+    // if (_targetDuration[zone] > PUMP_MAX_RUNTIME_S) {
+    //     _targetDuration[zone] = PUMP_MAX_RUNTIME_S;
+    // }
+    // ```
+    // start() clamp _targetDuration à PUMP_MAX_RUNTIME_S avant de démarrer.
+    // Donc le check DURATION_DONE (update() ligne 38) déclenche TOUJOURS avant
+    // le failsafe MAX_RUNTIME (_checkFailsafes ligne 252). Le path
+    // PumpStopReason::MAX_RUNTIME est donc inateignable depuis l'API publique.
+    //
+    // C'est de la défense en profondeur (au cas où _targetDuration serait
+    // corrompu en RAM par un bug ailleurs), mais on ne peut pas l'exercer
+    // depuis un test sans accès aux membres privés ou refactoring.
+    //
+    // À refactorer si on veut : soit retirer le clamp et garder seulement le
+    // failsafe (plus simple), soit exposer un setter test sous #ifdef HYDRA_TEST.
+    TEST_IGNORE_MESSAGE("MAX_RUNTIME failsafe is unreachable due to start() clamp");
 }
 
 // ----------------------------------------------------------------
@@ -1210,13 +1221,33 @@ void test_T12_06_should_auto_water_returns_false_when_wet() {
 // T12_07 — Cooldown empêche un deuxième cycle immédiat
 // ----------------------------------------------------------------
 void test_T12_07_auto_cooldown_blocks_back_to_back() {
-    // TODO: Le cooldown ne semble pas se déclencher après start()+stop()
-    //       en l'absence de TimeManager injecté. La logique
-    //       _isAutoCooldownOk() utilise probablement millis() ou un timestamp
-    //       qui dépend de l'injection horaire. À revoir avec un setTimeManager()
-    //       ou en lisant PumpController::_isAutoCooldownOk() pour comprendre
-    //       quel champ tracker.
-    TEST_IGNORE_MESSAGE("Auto cooldown logic needs TimeManager injection");
+    // GIVEN : mode AUTO, sol sec, lastAutoWaterTime initialisé via shouldAutoWater()
+    // qui set lastAutoWaterTime = millis() ligne 194 PumpController.cpp.
+    //
+    // SUBTILITÉ SIL : _isAutoCooldownOk() ligne 227 traite lastAutoWaterTime == 0
+    // comme "jamais arrosé" → cooldown OK. En SIL natif, MockHW::_millis = 0 au
+    // démarrage du test (setUp reset), donc le 1er shouldAutoWater set
+    // lastAutoWaterTime = 0 et le check 2 le considère "jamais arrosé". Workaround :
+    // avancer millis avant le 1er appel pour que millis() soit > 0.
+    //
+    // [code smell production : 0 utilisé comme sentinel "jamais" mais aussi valeur
+    //  valide ; à corriger en passant à -1 ou en gardant un flag bool séparé]
+    MockHW::advanceMillis(100);  // millis() = 100ms
+
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    injectMoisture(sm, pump, 2800);  // 20% — sec
+
+    // WHEN : 1er appel — cooldown OK (jamais arrosé) → returns true et set
+    // lastAutoWaterTime = 100
+    TEST_ASSERT_TRUE(pump.shouldAutoWater(1));
+
+    // THEN : 2e appel immédiat — elapsed = (100 - 100) / 1000 = 0s
+    // < cooldownS (7200) → cooldown NOT OK → returns false
+    TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
 }
 
 // ----------------------------------------------------------------
@@ -1466,19 +1497,15 @@ void test_T13_09_toJson_contains_main_fields() {
     // WHEN toJson() est appelé
     String json = cfg.toJson();
 
-    // THEN la chaîne contient AU MOINS les clés top-level
-    // Limitation mock: le JsonObject mock (Arduino.h ligne ~268) ne stocke
-    // PAS les writes nested (sched["hour1"] = X est un no-op). Donc seuls
-    // les fields écrits directement sur doc["..."] apparaissent dans la
-    // sortie. Le vrai ArduinoJson v7 sérialise tout correctement —
-    // c'est juste notre mock qui est minimal.
+    // THEN la chaîne contient toutes les clés top-level + nested.
+    // Le mock JsonObject est maintenant CONNECTED au _d parent du JsonDocument,
+    // donc sched["hour1"] = X est stocké comme _d["schedule::hour1"] = "X" et
+    // apparaît dans serializeJson(). indexOf("schedule") matche le préfixe.
     TEST_ASSERT_TRUE(json.indexOf("mode")         != -1);
     TEST_ASSERT_TRUE(json.indexOf("pumpDuration") != -1);
-    // TODO: réactiver les checks suivants quand le mock JsonObject sera
-    // amélioré pour stocker les writes nested:
-    // TEST_ASSERT_TRUE(json.indexOf("schedule") != -1);
-    // TEST_ASSERT_TRUE(json.indexOf("moisture") != -1);
-    // TEST_ASSERT_TRUE(json.indexOf("tank")     != -1);
+    TEST_ASSERT_TRUE(json.indexOf("schedule")     != -1);
+    TEST_ASSERT_TRUE(json.indexOf("moisture")     != -1);
+    TEST_ASSERT_TRUE(json.indexOf("tank")         != -1);
 }
 
 // ----------------------------------------------------------------

@@ -279,19 +279,42 @@ class JsonArray{public:
     template<typename T> T add(){return T{};}
 };
 
-class JsonObject{public:
+// JsonObject mock CONNECTED to the parent JsonDocument's _d map.
+// Writes via obj["key"] = value are stored as _d["prefix::key"] = value
+// so they appear in serializeJson() output. This matches the flat encoding
+// that JsonDocument::Proxy already uses for nested access.
+class JsonObject{
+    std::map<std::string,std::string>* _d;
+    std::string _prefix;
+public:
+    JsonObject() : _d(nullptr), _prefix("") {}
+    JsonObject(std::map<std::string,std::string>* d, const std::string& p)
+        : _d(d), _prefix(p) {}
+
     struct P2{
-        P2& operator=(float){return*this;}
-        P2& operator=(int){return*this;}
-        P2& operator=(uint8_t){return*this;}
-        P2& operator=(uint16_t){return*this;}
-        P2& operator=(uint32_t){return*this;}
-        P2& operator=(bool){return*this;}
-        P2& operator=(const char*){return*this;}
-        P2& operator=(const String&){return*this;}
+        std::map<std::string,std::string>* _d;
+        std::string _key;
+        P2(std::map<std::string,std::string>* d, const std::string& k) : _d(d), _key(k) {}
+        P2& operator=(float v){if(_d){char b[32];snprintf(b,32,"%.6f",(double)v);(*_d)[_key]=b;}return*this;}
+        P2& operator=(int v){if(_d)(*_d)[_key]=std::to_string(v);return*this;}
+        P2& operator=(uint8_t v){if(_d)(*_d)[_key]=std::to_string(v);return*this;}
+        P2& operator=(uint16_t v){if(_d)(*_d)[_key]=std::to_string(v);return*this;}
+        P2& operator=(uint32_t v){if(_d)(*_d)[_key]=std::to_string(v);return*this;}
+        P2& operator=(bool v){if(_d)(*_d)[_key]=v?"true":"false";return*this;}
+        P2& operator=(const char* v){if(_d)(*_d)[_key]=v?v:"";return*this;}
+        P2& operator=(const String& v){if(_d)(*_d)[_key]=v._s;return*this;}
     };
-    P2 operator[](const char*){static P2 p;return p;}
+    P2 operator[](const char* k) {
+        return P2(_d, _prefix.empty() ? std::string(k) : _prefix + "::" + k);
+    }
 };
+
+// Specialization of Proxy::to<JsonObject>() — must be after JsonObject definition.
+// Returns a JsonObject connected to the same _d, with the Proxy's key as prefix.
+template<>
+inline JsonObject JsonDocument::Proxy::to<JsonObject>() {
+    return JsonObject(_d, _k);
+}
 
 struct DeserializationError{
     int code;
