@@ -1577,7 +1577,7 @@ void test_T14_05_pairing_type_names() {
 }
 
 // ================================================================
-// MAIN — 107 tests total
+// MAIN — 126 tests total (T1-T10: 91 constantes/logique, T11-T13: 30 instances réelles, T14: 5 pairing)
 // ================================================================
 
 int setup() {
