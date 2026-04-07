@@ -462,3 +462,25 @@ void WebPortal::_handleApiFactoryReset(AsyncWebServerRequest* req) {
     delay(500);
     ESP.restart();
 }
+
+// ---- Plant profiles & autonomy (stubs — see TODO) ----
+// These three handlers are declared in the header and wired in
+// _setupRoutes(), but the full implementation is TODO. Returning a
+// 501 keeps the link step happy until they are written.
+
+void WebPortal::_handleApiProfiles(AsyncWebServerRequest* req) {
+    req->send(501, "application/json",
+              "{\"error\":\"not_implemented\",\"todo\":\"GET /api/profiles\"}");
+}
+
+void WebPortal::_handleApiProfileUpdate(AsyncWebServerRequest* req,
+                                        uint8_t* /*data*/, size_t /*len*/,
+                                        size_t /*index*/, size_t /*total*/) {
+    req->send(501, "application/json",
+              "{\"error\":\"not_implemented\",\"todo\":\"POST /api/profiles\"}");
+}
+
+void WebPortal::_handleApiAutonomy(AsyncWebServerRequest* req) {
+    req->send(501, "application/json",
+              "{\"error\":\"not_implemented\",\"todo\":\"GET /api/autonomy\"}");
+}
