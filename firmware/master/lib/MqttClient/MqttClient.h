@@ -26,7 +26,8 @@ public:
 
 private:
     WiFiClient      _wifiClient;
-    PubSubClient    _mqtt;
+    // mutable: PubSubClient::connected() is not const-qualified, so isConnected() const must work around it
+    mutable PubSubClient _mqtt;
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
     PumpController& _pumpCtrl;
