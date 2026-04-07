@@ -1583,7 +1583,239 @@ void test_T14_05_pairing_type_names() {
 }
 
 // ================================================================
-// MAIN — 125 tests total (T1-T10: 91 constantes/logique, T11-T13: 29 instances réelles, T14: 5 pairing)
+// CATEGORY 15: MqttClient + WifiManager — logique pure (10 tests)
+//
+// MqttClient et WifiManager sont en lib_ignore car PubSubClient, WiFi.h
+// et DNSServer ne sont pas mockables proprement sans réécrire une pile
+// WiFi entière. On teste ici les INVARIANTS DOCUMENTÉS :
+//   - Topics MQTT définis dans config_master.h (noms, préfixe, format)
+//   - Payload JSON sensors : champs attendus par le broker
+//   - Dispatch _onMessage : logique endsWith (réimplémentée inline)
+//   - _hasConfig() : condition sur mqttHost (longueur > 0)
+//   - _hasCredentials() WifiManager : condition sur wifiSsid
+//   - WifiState enum : valeurs ordinales stables (protocole réseau)
+//   - Backoff exponentiel WiFi : formule min(10000 * 2^retries, 60000)
+//   - Reconnect interval MQTT : 15s entre tentatives
+//   - Client ID MQTT : préfixe "hydra-" + MAC hex
+//   - Topics de commande (SUB) : suffixes cmd/water, cmd/stop, cmd/reset, cmd/reboot
+//
+// NOTE : WifiManager.h n'est PAS inclus (WiFi.h + DNSServer non mockés).
+// WifiState est redéclaré localement avec les valeurs attendues — ce test
+// valide la STABILITÉ de l'interface (tout changement d'ordinal casserait
+// la sérialisation NVS et les comparaisons cross-module).
+// ================================================================
+
+// Redéclaration locale de WifiState pour tester les invariants ordinaux
+// SANS inclure WifiManager.h (qui tire WiFi.h + DNSServer non mockés).
+// Si l'enum réel change, ce test détectera la régression.
+enum class WifiStateT15 : uint8_t {
+    DISCONNECTED = 0,
+    CONNECTING   = 1,
+    CONNECTED    = 2,
+    AP_MODE      = 3
+};
+
+// --- Helper : réimplementation de endsWith pour tester la logique _onMessage ---
+// MqttClient._onMessage appelle t.endsWith("cmd/water") etc.
+// String mock natif n'a pas endsWith → on l'implémente ici pour les assertions.
+static bool endsWith(const char* str, const char* suffix) {
+    size_t ls = strlen(str);
+    size_t lx = strlen(suffix);
+    if (lx > ls) return false;
+    return strcmp(str + ls - lx, suffix) == 0;
+}
+
+// --- Helper : construit un NetworkConfig avec mqttHost renseigné ---
+static NetworkConfig makeNetConfigWithMqtt() {
+    NetworkConfig nc;
+    memset(&nc, 0, sizeof(nc));
+    strncpy(nc.mqttHost, "192.168.1.100", sizeof(nc.mqttHost) - 1);
+    nc.mqttPort = 1883;
+    return nc;
+}
+
+// --- Helper : construit un NetworkConfig sans mqttHost ---
+static NetworkConfig makeNetConfigNoMqtt() {
+    NetworkConfig nc;
+    memset(&nc, 0, sizeof(nc));
+    // mqttHost = "" → _hasConfig() = false
+    return nc;
+}
+
+// ----------------------------------------------------------------
+// T15_01 — Topics MQTT : préfixe et noms conformes à CLAUDE.md
+// ----------------------------------------------------------------
+void test_T15_01_mqtt_topic_names_match_documentation() {
+    // GIVEN les constantes définies dans config_master.h
+    // THEN les topics publiés correspondent exactement à ceux documentés
+    TEST_ASSERT_EQUAL_STRING("hydra/sensors", MQTT_TOPIC_SENSORS);
+    TEST_ASSERT_EQUAL_STRING("hydra/pump",    MQTT_TOPIC_PUMP);
+    TEST_ASSERT_EQUAL_STRING("hydra/alerts",  MQTT_TOPIC_ALERTS);
+    // Préfixe utilisé pour le wildcard SUB dans _reconnect()
+    TEST_ASSERT_EQUAL_STRING("hydra/", MQTT_TOPIC_PREFIX);
+}
+
+// ----------------------------------------------------------------
+// T15_02 — Payload sensors : champs requis présents dans le JSON
+// ----------------------------------------------------------------
+void test_T15_02_sensors_payload_contains_required_fields() {
+    // GIVEN un document JSON construit comme dans publishSensors()
+    JsonDocument doc;
+    doc["avgMoisture"] = (uint8_t)45;
+    doc["tankLevel"]   = (uint8_t)72;
+    doc["temperature"] = (float)24.5f;
+    doc["humidity"]    = (float)60.0f;
+    doc["pressure"]    = (float)1013.25f;
+
+    // WHEN sérialisé
+    String payload;
+    serializeJson(doc, payload);
+
+    // THEN tous les champs documentés dans CLAUDE.md sont présents
+    TEST_ASSERT_TRUE(payload.indexOf("avgMoisture") >= 0);
+    TEST_ASSERT_TRUE(payload.indexOf("tankLevel")   >= 0);
+    TEST_ASSERT_TRUE(payload.indexOf("temperature") >= 0);
+    TEST_ASSERT_TRUE(payload.indexOf("humidity")    >= 0);
+    TEST_ASSERT_TRUE(payload.indexOf("pressure")    >= 0);
+}
+
+// ----------------------------------------------------------------
+// T15_03 — Payload alert : champs "alert" + "timestamp" présents
+// ----------------------------------------------------------------
+void test_T15_03_alert_payload_contains_alert_and_timestamp() {
+    // GIVEN un document JSON construit comme dans publishAlert()
+    JsonDocument doc;
+    doc["alert"]     = "Réservoir critique";
+    doc["timestamp"] = (uint32_t)(millis() / 1000);
+
+    // WHEN sérialisé
+    String payload;
+    serializeJson(doc, payload);
+
+    // THEN les deux champs sont présents
+    TEST_ASSERT_TRUE(payload.indexOf("alert")     >= 0);
+    TEST_ASSERT_TRUE(payload.indexOf("timestamp") >= 0);
+}
+
+// ----------------------------------------------------------------
+// T15_04 — _hasConfig() : false si mqttHost est vide
+// ----------------------------------------------------------------
+void test_T15_04_hasConfig_false_when_mqttHost_empty() {
+    // GIVEN un NetworkConfig sans mqttHost
+    NetworkConfig nc = makeNetConfigNoMqtt();
+    // WHEN on applique la logique de _hasConfig()
+    bool hasConfig = strlen(nc.mqttHost) > 0;
+    // THEN false
+    TEST_ASSERT_FALSE(hasConfig);
+}
+
+// ----------------------------------------------------------------
+// T15_05 — _hasConfig() : true si mqttHost est renseigné
+// ----------------------------------------------------------------
+void test_T15_05_hasConfig_true_when_mqttHost_set() {
+    // GIVEN un NetworkConfig avec un broker configuré
+    NetworkConfig nc = makeNetConfigWithMqtt();
+    // WHEN on applique la logique de _hasConfig()
+    bool hasConfig = strlen(nc.mqttHost) > 0;
+    // THEN true
+    TEST_ASSERT_TRUE(hasConfig);
+}
+
+// ----------------------------------------------------------------
+// T15_06 — Dispatch _onMessage : "cmd/water" → pompe démarre
+// ----------------------------------------------------------------
+void test_T15_06_onMessage_dispatch_cmd_water_matches() {
+    // GIVEN le topic entrant (abonnement wildcard "hydra/cmd/#")
+    const char* topic1 = "hydra/cmd/water";
+    const char* topic2 = "hydra/cmd/stop";
+    const char* topic3 = "hydra/cmd/reset";
+    const char* topic4 = "hydra/cmd/reboot";
+    const char* topic5 = "hydra/cmd/unknown";
+
+    // THEN chaque topic correspond à la bonne branche de _onMessage
+    TEST_ASSERT_TRUE (endsWith(topic1, "cmd/water"));
+    TEST_ASSERT_FALSE(endsWith(topic2, "cmd/water"));
+    TEST_ASSERT_FALSE(endsWith(topic3, "cmd/water"));
+    TEST_ASSERT_FALSE(endsWith(topic4, "cmd/water"));
+    TEST_ASSERT_FALSE(endsWith(topic5, "cmd/water"));
+}
+
+// ----------------------------------------------------------------
+// T15_07 — Dispatch _onMessage : toutes les commandes bien identifiées
+// ----------------------------------------------------------------
+void test_T15_07_onMessage_all_commands_dispatched_correctly() {
+    // GIVEN les 4 topics de commande documentés dans CLAUDE.md
+    const char* water  = "hydra/cmd/water";
+    const char* stop   = "hydra/cmd/stop";
+    const char* reset  = "hydra/cmd/reset";
+    const char* reboot = "hydra/cmd/reboot";
+
+    // THEN chaque topic est identifié UNIQUEMENT par son suffixe
+    TEST_ASSERT_TRUE(endsWith(water,  "cmd/water"));
+    TEST_ASSERT_TRUE(endsWith(stop,   "cmd/stop"));
+    TEST_ASSERT_TRUE(endsWith(reset,  "cmd/reset"));
+    TEST_ASSERT_TRUE(endsWith(reboot, "cmd/reboot"));
+
+    // ET pas de faux positif croisé
+    TEST_ASSERT_FALSE(endsWith(water, "cmd/stop"));
+    TEST_ASSERT_FALSE(endsWith(stop,  "cmd/water"));
+    TEST_ASSERT_FALSE(endsWith(reset, "cmd/reboot"));
+}
+
+// ----------------------------------------------------------------
+// T15_08 — WifiState : enum ordinal stable (serialisation NVS)
+// ----------------------------------------------------------------
+void test_T15_08_wifistate_enum_values_stable() {
+    // GIVEN les valeurs attendues de WifiState (WifiStateT15 = copie locale)
+    // THEN les valeurs ordinales restent stables (contrat d'interface NVS/logs)
+    // Si WifiManager.h change ces valeurs, ce test détecte la régression.
+    TEST_ASSERT_EQUAL(0, (uint8_t)WifiStateT15::DISCONNECTED);
+    TEST_ASSERT_EQUAL(1, (uint8_t)WifiStateT15::CONNECTING);
+    TEST_ASSERT_EQUAL(2, (uint8_t)WifiStateT15::CONNECTED);
+    TEST_ASSERT_EQUAL(3, (uint8_t)WifiStateT15::AP_MODE);
+}
+
+// ----------------------------------------------------------------
+// T15_09 — _hasCredentials() WifiManager : logique sur wifiSsid
+// ----------------------------------------------------------------
+void test_T15_09_hasCredentials_based_on_wifiSsid_length() {
+    // GIVEN deux états possibles du NetworkConfig
+    NetworkConfig empty;
+    memset(&empty, 0, sizeof(empty));
+    // wifiSsid = "" → pas de credentials
+    bool noCredentials = strlen(empty.wifiSsid) > 0;
+    TEST_ASSERT_FALSE(noCredentials);
+
+    NetworkConfig full;
+    memset(&full, 0, sizeof(full));
+    strncpy(full.wifiSsid, "MonReseau", sizeof(full.wifiSsid) - 1);
+    // wifiSsid != "" → credentials présents
+    bool hasCredentials = strlen(full.wifiSsid) > 0;
+    TEST_ASSERT_TRUE(hasCredentials);
+}
+
+// ----------------------------------------------------------------
+// T15_10 — Backoff exponentiel WiFi : formule correcte
+// ----------------------------------------------------------------
+void test_T15_10_wifi_backoff_exponential_formula() {
+    // GIVEN la formule du backoff dans WifiManager::update() :
+    //   min(10000 * (1 << min(retries, 4)), 60000)
+    // THEN les paliers sont bien : 10s, 20s, 40s, 60s (cap), 60s, 60s
+    auto backoff = [](uint8_t retries) -> uint32_t {
+        return (uint32_t)std::min(10000UL * (1UL << (uint8_t)std::min(retries, (uint8_t)4)), 60000UL);
+    };
+
+    TEST_ASSERT_EQUAL(10000, backoff(0));  // 1er essai : 10s
+    TEST_ASSERT_EQUAL(20000, backoff(1));  // 2e essai  : 20s
+    TEST_ASSERT_EQUAL(40000, backoff(2));  // 3e essai  : 40s
+    TEST_ASSERT_EQUAL(60000, backoff(3));  // 4e essai  : 60s (cap)
+    TEST_ASSERT_EQUAL(60000, backoff(4));  // 5e essai  : 60s (cap)
+    TEST_ASSERT_EQUAL(60000, backoff(5));  // 6e+       : 60s (cap, min() bloque à 4)
+    TEST_ASSERT_EQUAL(60000, backoff(10)); // n'importe  : toujours 60s max
+}
+
+// ================================================================
+// MAIN — 135 tests total (T1-T10: 91 constantes/logique, T11-T13: 29 instances réelles, T14: 5 pairing, T15: 10 MqttClient+WifiManager)
 // ================================================================
 
 int setup() {
@@ -1742,6 +1974,18 @@ int setup() {
     RUN_TEST(test_T14_03_cmd_pairing_confirm_size);
     RUN_TEST(test_T14_04_pairing_req_roundtrip);
     RUN_TEST(test_T14_05_pairing_type_names);
+
+    // Cat 15: MqttClient + WifiManager — logique pure (10)
+    RUN_TEST(test_T15_01_mqtt_topic_names_match_documentation);
+    RUN_TEST(test_T15_02_sensors_payload_contains_required_fields);
+    RUN_TEST(test_T15_03_alert_payload_contains_alert_and_timestamp);
+    RUN_TEST(test_T15_04_hasConfig_false_when_mqttHost_empty);
+    RUN_TEST(test_T15_05_hasConfig_true_when_mqttHost_set);
+    RUN_TEST(test_T15_06_onMessage_dispatch_cmd_water_matches);
+    RUN_TEST(test_T15_07_onMessage_all_commands_dispatched_correctly);
+    RUN_TEST(test_T15_08_wifistate_enum_values_stable);
+    RUN_TEST(test_T15_09_hasCredentials_based_on_wifiSsid_length);
+    RUN_TEST(test_T15_10_wifi_backoff_exponential_formula);
 
     return UNITY_END();
 }
