@@ -246,7 +246,10 @@ public:
         
         // Nested access
         Proxy operator[](const char*k)const{return Proxy(_d,_k+"::"+k);}
-        
+
+        // containsKey on a sub-object (uses the flat _k::child encoding)
+        bool containsKey(const char*k)const{return _d->count(_k+"::"+k)>0;}
+
         // to<JsonArray>() / to<JsonObject>() stubs
         template<typename T> T to(){return T{};}
     };

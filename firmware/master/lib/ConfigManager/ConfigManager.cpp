@@ -278,12 +278,31 @@ bool ConfigManager::fromJson(const String& json) {
     // SIL-skip: if (t.containsKey("warning"))  _config.tank.warningPct  = constrain(t["warning"].as<uint8_t>(), 5, 80);
     }
     
-    // Network — only update if provided (never blank out existing)
+    // Network — only update if provided (never blank out existing).
+    // Pattern: tester strlen() avant de copier pour ne PAS écraser un secret
+    // existant si l'utilisateur soumet un POST partiel depuis le portail web.
     if (doc.containsKey("network")) {
-        // Network from doc (simplified for SIL)
-        // TODO production: re-implement with JsonObject n = doc["network"]
-        // and individual containsKey() guards. Currently a no-op to keep
-        // the SIL native build green.
+        auto net = doc["network"];
+
+        auto copyIfPresent = [&](const char* key, char* dst, size_t dstSize) {
+            if (!net.containsKey(key)) return;
+            const char* val = net[key].as<const char*>();
+            if (!val || strlen(val) == 0) return;
+            strncpy(dst, val, dstSize - 1);
+            dst[dstSize - 1] = '\0';
+        };
+
+        copyIfPresent("wifiSsid",       _config.network.wifiSsid,       sizeof(_config.network.wifiSsid));
+        copyIfPresent("wifiPass",       _config.network.wifiPass,       sizeof(_config.network.wifiPass));
+        copyIfPresent("mqttHost",       _config.network.mqttHost,       sizeof(_config.network.mqttHost));
+        copyIfPresent("mqttUser",       _config.network.mqttUser,       sizeof(_config.network.mqttUser));
+        copyIfPresent("mqttPass",       _config.network.mqttPass,       sizeof(_config.network.mqttPass));
+        copyIfPresent("telegramToken",  _config.network.telegramToken,  sizeof(_config.network.telegramToken));
+        copyIfPresent("telegramChatId", _config.network.telegramChatId, sizeof(_config.network.telegramChatId));
+
+        if (net.containsKey("mqttPort")) {
+            _config.network.mqttPort = net["mqttPort"].as<uint16_t>();
+        }
     }
 
     return true;
