@@ -137,6 +137,29 @@ void TelegramBot::_handleMessages(int numNew) {
                 _bot->sendMessage(chatId, "AutonomyCalculator non disponible", "");
             }
         }
+        else if (text == "/pairing_status") {
+            if (_espNowMaster) {
+                String msg = "🔗 *Pairing ESP-NOW*\n\n";
+                if (_espNowMaster->isPaired()) {
+                    const uint8_t* mac = _espNowMaster->peerMac();
+                    char macStr[18];
+                    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+                             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                    msg += "✅ Pairé\n";
+                    msg += "MAC slave: `" + String(macStr) + "`\n";
+                    msg += "Comm: " + String(_espNowMaster->isConnected() ? "OK" : "perdue") + "\n";
+                    msg += "Missed pongs: " + String(_espNowMaster->missedPongs()) + "\n";
+                    msg += "RSSI: " + String(_espNowMaster->lastRssi()) + " dBm";
+                } else {
+                    msg += "⚠ NON pairé\n";
+                    msg += "Mode pairing actif — recherche du slave en broadcast\n";
+                    msg += "Allume le slave dans la même pièce.";
+                }
+                _bot->sendMessage(chatId, msg, "Markdown");
+            } else {
+                _bot->sendMessage(chatId, "⚠ EspNowMaster non disponible", "");
+            }
+        }
         else if (text == "/pairing_reset") {
             // Re-pairing ESP-NOW : utile pour remplacer un slave depuis Cogolin
             // sans rentrer physiquement à Mougins. Clear le NVS espnow et reboot
@@ -170,6 +193,7 @@ void TelegramBot::_handleMessages(int numNew) {
             help += "🛡 /safety — État sécurité détaillé\n";
             help += "🌱 /profiles — Profils hydriques plantes\n";
             help += "📊 /autonomy N — Calcul autonomie N jours\n";
+            help += "🔗 /pairing_status — État pairing ESP-NOW\n";
             help += "🔗 /pairing_reset — Re-pairer le slave ESP-NOW\n";
             help += "🔄 /reboot — Redémarrer système\n";
             _bot->sendMessage(chatId, help, "Markdown");
