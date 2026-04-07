@@ -40,7 +40,9 @@ private:
     SensorManager&  _sensorMgr;
     PumpController& _pumpCtrl;
     SafetyManager*  _safetyMgr = nullptr;
-    
+    PlantProfile*       _plantProfile = nullptr;
+    AutonomyCalculator* _autonomyCalc = nullptr;
+
     uint32_t _lastCheck;
     uint32_t _lastHeartbeat;
     bool     _enabled;

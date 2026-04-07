@@ -12,6 +12,10 @@
 #include "PumpController.h"
 #include "WifiManager.h"
 
+// Forward declarations (injected after construction to avoid include cycles)
+class PlantProfile;
+class AutonomyCalculator;
+
 class WebPortal {
 public:
     WebPortal(ConfigManager& configMgr, SensorManager& sensorMgr,
