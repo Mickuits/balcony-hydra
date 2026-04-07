@@ -6,6 +6,7 @@
 #include "PlantProfile.h"
 #include "AutonomyCalculator.h"
 #include "SafetyManager.h"
+#include "EspNowMaster.h"
 
 TelegramBot::TelegramBot(ConfigManager& configMgr, SensorManager& sensorMgr, PumpController& pumpCtrl)
     : _bot(nullptr), _configMgr(configMgr), _sensorMgr(sensorMgr), _pumpCtrl(pumpCtrl),
@@ -136,6 +137,24 @@ void TelegramBot::_handleMessages(int numNew) {
                 _bot->sendMessage(chatId, "AutonomyCalculator non disponible", "");
             }
         }
+        else if (text == "/pairing_reset") {
+            // Re-pairing ESP-NOW : utile pour remplacer un slave depuis Cogolin
+            // sans rentrer physiquement à Mougins. Clear le NVS espnow et reboot
+            // → le master repart en mode pairing au prochain démarrage et
+            // découvre automatiquement le nouveau slave (qui doit lui-même
+            // être en mode pairing — flash neuf ou reset NVS via série).
+            if (_espNowMaster) {
+                _espNowMaster->resetPairing();
+                _bot->sendMessage(chatId,
+                    "🔗 Pairing ESP-NOW réinitialisé.\n"
+                    "Redémarrage en mode pairing...\n"
+                    "Allume le slave dans la même pièce dans les 30s.", "");
+                delay(500);
+                ESP.restart();
+            } else {
+                _bot->sendMessage(chatId, "⚠ EspNowMaster non disponible", "");
+            }
+        }
         else if (text == "/reboot") {
             _bot->sendMessage(chatId, "🔄 Redémarrage...", "");
             delay(500);
@@ -151,6 +170,7 @@ void TelegramBot::_handleMessages(int numNew) {
             help += "🛡 /safety — État sécurité détaillé\n";
             help += "🌱 /profiles — Profils hydriques plantes\n";
             help += "📊 /autonomy N — Calcul autonomie N jours\n";
+            help += "🔗 /pairing_reset — Re-pairer le slave ESP-NOW\n";
             help += "🔄 /reboot — Redémarrer système\n";
             _bot->sendMessage(chatId, help, "Markdown");
         }

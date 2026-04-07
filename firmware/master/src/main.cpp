@@ -436,6 +436,7 @@ void setup() {
     telegramBot.setSafetyManager(&safetyMgr);
     telegramBot.setPlantProfile(&plantProfile);
     telegramBot.setAutonomyCalc(&autonomyCalc);
+    telegramBot.setEspNowMaster(&espNow);  // Pour /pairing_reset
 
     // 12/12 — TFT Dashboard
     Serial.println("[BOOT] 12/12 — TftDashboard...");

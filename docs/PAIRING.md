@@ -44,20 +44,31 @@ MAÎTRE                              ESCLAVE
 
 ## Procédure de re-pairing
 
-Si l'un des ESP32 est remplacé physiquement :
+Si l'un des ESP32 est remplacé physiquement (ex : nouveau slave après panne) :
+
+**Via Telegram (maître) — RECOMMANDÉ pour usage à distance** :
+```
+/pairing_reset
+```
+- Cette commande efface uniquement le pairing NVS du maître (pas la config),
+  redémarre, et le maître repart automatiquement en mode pairing.
+- Le slave doit être en mode pairing aussi (NVS vide ou `resetPairing()` appelé).
+  Solution simple : le slave neuf est forcément en mode pairing au premier flash.
+- Permet de re-pairer depuis Cogolin sans rentrer physiquement à Mougins.
 
 **Via port série (debug)** :
 ```
 reset    — efface tout le NVS (factory reset complet) + reboot
 ```
 
-**Via Telegram (maître)** :
+**Via Telegram (maître) — factory reset complet** :
 ```
-/factory_reset — efface NVS maître + reboot → le maître repart en mode pairing
+/factory_reset — efface NVS maître complet (config + pairing) + reboot
 ```
 
 Pour l'esclave, le factory reset doit passer par le port série ou par appel
-programmatique à `espNow.resetPairing()` depuis le firmware.
+programmatique à `espNow.resetPairing()` depuis le firmware (pas de Telegram
+sur le slave).
 
 **Via code** :
 ```cpp

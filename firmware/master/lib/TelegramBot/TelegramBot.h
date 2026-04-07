@@ -17,6 +17,7 @@
 class SafetyManager;
 class PlantProfile;
 class AutonomyCalculator;
+class EspNowMaster;
 
 class TelegramBot {
 public:
@@ -27,11 +28,12 @@ public:
     void sendAlert(const String& message);
     void sendHeartbeat();
     bool isEnabled() const;
-    
+
     // Inject SafetyManager after construction (circular dependency)
     void setSafetyManager(SafetyManager* mgr) { _safetyMgr = mgr; }
     void setPlantProfile(PlantProfile* pp) { _plantProfile = pp; }
     void setAutonomyCalc(AutonomyCalculator* ac) { _autonomyCalc = ac; }
+    void setEspNowMaster(EspNowMaster* espnow) { _espNowMaster = espnow; }
 
 private:
     WiFiClientSecure _secureClient;
@@ -42,6 +44,7 @@ private:
     SafetyManager*  _safetyMgr = nullptr;
     PlantProfile*       _plantProfile = nullptr;
     AutonomyCalculator* _autonomyCalc = nullptr;
+    EspNowMaster*       _espNowMaster = nullptr;
 
     uint32_t _lastCheck;
     uint32_t _lastHeartbeat;
