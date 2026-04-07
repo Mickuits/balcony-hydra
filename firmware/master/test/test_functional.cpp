@@ -1160,20 +1160,22 @@ void test_T12_03_stop_zone_b_returns_to_idle() {
 // T12_04 — Max runtime failsafe stoppe la pompe après PUMP_MAX_RUNTIME_S
 // ----------------------------------------------------------------
 void test_T12_04_max_runtime_safety_stops_pump() {
-    // GIVEN : pompe zone B démarrée pour 60s (< max 300s)
+    // GIVEN : pompe zone B démarrée pour PUMP_MAX_RUNTIME_S + 60s pour forcer
+    // le déclenchement du failsafe MAX_RUNTIME (sinon DURATION_DONE arrive en
+    // premier et le test ne valide pas le bon code path)
     ConfigManager cfg = makeConfigAutoMode();
     SensorManager sm(cfg);
     PumpController pump(cfg, sm);
     sm.begin();
     pump.begin();
-    pump.start(1, 60);
+    pump.start(1, PUMP_MAX_RUNTIME_S + 60);
     TEST_ASSERT_TRUE(pump.isRunning(1));
 
     // WHEN : on avance millis au-delà de PUMP_MAX_RUNTIME_S (300s)
     MockHW::advanceMillis((PUMP_MAX_RUNTIME_S + 1) * 1000UL);
     pump.update();
 
-    // THEN : pompe arrêtée — MAX_RUNTIME → état IDLE (reason MAX_RUNTIME ne set pas BLOCKED)
+    // THEN : pompe arrêtée par le failsafe MAX_RUNTIME (pas par DURATION_DONE)
     TEST_ASSERT_FALSE(pump.isRunning(1));
     TEST_ASSERT_EQUAL((uint8_t)PumpStopReason::MAX_RUNTIME,
                       (uint8_t)pump.zoneStatus(1).lastStopReason);
@@ -1221,7 +1223,10 @@ void test_T12_06_should_auto_water_returns_false_when_wet() {
 // T12_07 — Cooldown empêche un deuxième cycle immédiat
 // ----------------------------------------------------------------
 void test_T12_07_auto_cooldown_blocks_back_to_back() {
-    // GIVEN : mode AUTO, sol sec, un premier shouldAutoWater(1) déclenché
+    // GIVEN : mode AUTO, sol sec, un premier cycle auto déclenché et terminé
+    // Note: lastAutoWaterTime n'est mis à jour que par start() (pas par
+    // shouldAutoWater seul). Il faut donc déclencher un VRAI cycle pour que
+    // le cooldown commence.
     ConfigManager cfg = makeConfigAutoMode();
     SensorManager sm(cfg);
     PumpController pump(cfg, sm);
@@ -1229,11 +1234,14 @@ void test_T12_07_auto_cooldown_blocks_back_to_back() {
     pump.begin();
     injectMoisture(sm, pump, 2800);  // 20% — sec
 
-    bool first = pump.shouldAutoWater(1);
-    TEST_ASSERT_TRUE(first);  // Premier cycle autorisé
+    TEST_ASSERT_TRUE(pump.shouldAutoWater(1));  // Premier cycle autorisé
+
+    // Démarrer puis stopper un cycle pour set lastAutoWaterTime
+    pump.start(1, 60);
+    pump.stop(1);
 
     // WHEN : on n'avance pas le temps (0s écoulé depuis dernier auto)
-    // THEN : le cooldown (7200s) bloque immédiatement le second appel
+    // THEN : le cooldown (7200s) bloque immédiatement un nouveau cycle
     TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
 }
 
