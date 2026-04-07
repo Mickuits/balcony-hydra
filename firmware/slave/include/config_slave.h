@@ -63,7 +63,7 @@ constexpr uint8_t ZONE_A_SENSORS_START = 0;
 constexpr uint8_t ZONE_A_SENSORS_END   = 9;
 
 // ---- WATERING DEFAULTS ----
-constexpr uint16_t DEFAULT_PUMP_DURATION = 60;
+// DEFAULT_PUMP_DURATION vient de config_common.h
 constexpr uint32_t DEFAULT_SLEEP_INTERVAL_S = 3600;
 constexpr uint32_t DEFAULT_HEARTBEAT_MS = 43200000;
 constexpr uint16_t DEFAULT_MQTT_PORT = 1883;

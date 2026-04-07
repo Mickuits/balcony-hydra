@@ -5,18 +5,10 @@
 #pragma once
 
 #include <Arduino.h>
+#include "config_slave.h"
 
-// RGB LED pins (common cathode — HIGH = ON)
-constexpr uint8_t PIN_LED_R = 17;
-constexpr uint8_t PIN_LED_G = 19;
-constexpr uint8_t PIN_LED_B = 23;
-
-// PWM channels (ESP32 LEDC)
-constexpr uint8_t LEDC_CH_R = 4;
-constexpr uint8_t LEDC_CH_G = 5;
-constexpr uint8_t LEDC_CH_B = 6;
-constexpr uint32_t LEDC_FREQ = 5000;
-constexpr uint8_t LEDC_RES  = 8;  // 0-255
+// PIN_LED_R/G/B et LEDC_CH_R/G/B + LEDC_FREQ viennent de config_slave.h
+constexpr uint8_t LEDC_RES  = 8;  // 0-255 (résolution LEDC, slave-specific)
 
 enum class LedState : uint8_t {
     OFF              = 0,

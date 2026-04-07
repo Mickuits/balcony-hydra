@@ -59,8 +59,9 @@ constexpr uint16_t DEFAULT_PUMP_DURATION = 60;
 constexpr float   TANK_MIN_LEVEL_CM    = 3.0;
 constexpr uint32_t HEARTBEAT_INTERVAL_MS = 43200000;
 #define NVS_NAMESPACE "hydra"
-constexpr uint8_t MUX1_CHANNELS = 10;
-constexpr uint8_t MUX2_CHANNELS = 10;
+// MUX channel counts are firmware-specific (master uses 1×MUX 10ch, slave
+// uses 1×MUX 10ch with MUX2 disabled). Defined per firmware in
+// config_master.h / config_slave.h to keep cohérent with PIN_MUX2_EN.
 constexpr uint32_t MIN_SLEEP_INTERVAL_S = 60;
 constexpr uint32_t MAX_SLEEP_INTERVAL_S = 86400;
 constexpr uint8_t  DEFAULT_WATERING_HOUR_1 = 7;

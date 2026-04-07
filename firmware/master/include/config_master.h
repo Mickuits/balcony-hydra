@@ -59,6 +59,8 @@ constexpr uint8_t PIN_BUTTON       = 5;
 constexpr uint8_t  NUM_MOISTURE_SENSORS  = 10;
 constexpr uint8_t  NUM_TANKS             = 1;
 constexpr float    TANK_VOLUME_L         = 25.0;
+constexpr uint8_t  MUX1_CHANNELS         = 10;  // 10 capteurs intérieur
+constexpr uint8_t  MUX2_CHANNELS         = 0;   // No 2nd MUX (PIN_MUX2_EN = 0xFF)
 
 // ---- ZONE MAPPING ----
 constexpr uint8_t ZONE_B_SENSORS_START = 0;
