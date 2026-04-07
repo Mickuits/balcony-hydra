@@ -424,8 +424,9 @@ void setup() {
     // 11/12 — Web + MQTT + Telegram
     Serial.println("[BOOT] 11/12 — WebPortal + MQTT + Telegram...");
     webPortal.begin();
-    webPortal.setPlantProfile(&plantProfile);
-    webPortal.setAutonomyCalc(&autonomyCalc);
+    // Note: PlantProfile et AutonomyCalculator ne sont PAS injectés dans
+    // WebPortal — ces fonctionnalités sont exposées uniquement via Telegram
+    // (/profiles, /autonomy N). À ré-injecter si on ajoute les routes REST.
     mqttClient.begin();
     telegramBot.begin();
     telegramBot.setSafetyManager(&safetyMgr);

@@ -314,18 +314,16 @@ void WebPortal::_setupRoutes() {
     _server.on("/api/factory-reset", HTTP_POST, [this](AsyncWebServerRequest* req) { _handleApiFactoryReset(req); });
 
     // 404 → redirect to main page (captive portal)
-
-    // Profiles API
-    _server.on("/api/profiles", HTTP_GET, [this](AsyncWebServerRequest* req) { _handleApiProfiles(req); });
-    _server.on("/api/profiles", HTTP_POST,
-        [](AsyncWebServerRequest* req) {},
-        NULL,
-        [this](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t idx, size_t total) {
-            _handleApiProfileUpdate(req, data, len, idx, total);
-        });
-
-    // Autonomy API
-    _server.on("/api/autonomy", HTTP_GET, [this](AsyncWebServerRequest* req) { _handleApiAutonomy(req); });
+    //
+    // TODO: Plant profiles & autonomy REST API.
+    // Pour l'instant ces fonctionnalités sont accessibles UNIQUEMENT via
+    // les commandes Telegram (/profiles, /autonomy N) qui utilisent
+    // directement PlantProfile et AutonomyCalculator. Si on veut les
+    // exposer aussi en HTTP REST, il faudra :
+    //   - Ré-injecter les pointeurs via setPlantProfile/setAutonomyCalc
+    //   - Wirer GET /api/profiles, POST /api/profiles, GET /api/autonomy
+    //   - Implémenter les handlers (sérialisation JSON depuis PlantProfile)
+    // Voir TelegramBot::_buildProfilesMessage pour le pattern de référence.
 
     _server.onNotFound([this](AsyncWebServerRequest* req) { _handleCaptivePortal(req); });
 }
@@ -461,26 +459,4 @@ void WebPortal::_handleApiFactoryReset(AsyncWebServerRequest* req) {
     req->send(200, "application/json", "{\"message\":\"Reset usine — redémarrage...\"}");
     delay(500);
     ESP.restart();
-}
-
-// ---- Plant profiles & autonomy (stubs — see TODO) ----
-// These three handlers are declared in the header and wired in
-// _setupRoutes(), but the full implementation is TODO. Returning a
-// 501 keeps the link step happy until they are written.
-
-void WebPortal::_handleApiProfiles(AsyncWebServerRequest* req) {
-    req->send(501, "application/json",
-              "{\"error\":\"not_implemented\",\"todo\":\"GET /api/profiles\"}");
-}
-
-void WebPortal::_handleApiProfileUpdate(AsyncWebServerRequest* req,
-                                        uint8_t* /*data*/, size_t /*len*/,
-                                        size_t /*index*/, size_t /*total*/) {
-    req->send(501, "application/json",
-              "{\"error\":\"not_implemented\",\"todo\":\"POST /api/profiles\"}");
-}
-
-void WebPortal::_handleApiAutonomy(AsyncWebServerRequest* req) {
-    req->send(501, "application/json",
-              "{\"error\":\"not_implemented\",\"todo\":\"GET /api/autonomy\"}");
 }
