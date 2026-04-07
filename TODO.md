@@ -13,6 +13,39 @@ de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais mo
 slave, commands Telegram pairing, mock JSON parser fonctionnel, lint job CI ajouté, 5300+ lignes
 de dette technique éradiquées.
 
+## Couverture SIL réelle (audit honnête — 2026-04-08)
+
+**Le SIL couvre ~60% du chemin critique.** Pas 100%. Détail :
+
+**Couvert SIL avec instances réelles + mocks fonctionnels** (~32 tests T11/T12/T13) :
+- ✅ SafetyManager : machine d'états complète, NVS, thermal lockout via T° injectée, hard lockout via overcurrent/dry-run, remoteUnlock
+- ✅ PumpController : start/stop GPIO, shouldAutoWater, cooldown, max cycles, overcurrent callback
+- ✅ ConfigManager : NVS roundtrip, parser JSON réel, fromJson partial preserve secrets
+
+**Couvert avec mocks pour les capteurs** :
+- ✅ ADC humidité (`MockHW::setADC`)
+- ✅ BME280 T°/HR/pression (`Adafruit_BME280::setMock` + `injectTestEnvironment`)
+- ✅ INA219 courant pompe (`MockINA::setGlobalCurrent`)
+- ✅ NVS Preferences (vrai roundtrip via `std::map`)
+- ✅ GPIO digitalWrite/Read (via `MockHW`)
+- ✅ millis() (via `MockHW::advanceMillis`)
+- ✅ JsonDocument deserializeJson (parser récursif réel)
+
+**NON couvert SIL — nécessite hardware** :
+- ❌ Capteur ultrasonique tank level (`pulseIn` mock retourne valeur fixe)
+- ❌ ESP-NOW transmission (pairing handshake jamais exécuté en bout-en-bout, juste les structs)
+- ❌ WiFi connection / AP / STA / reconnect / captive portal
+- ❌ MQTT broker connect / publish / subscribe
+- ❌ Telegram bot (envoi alertes, réception commandes)
+- ❌ HTTP server WebPortal (toutes les routes)
+- ❌ TFT display + touchscreen
+- ❌ Mode dégradé slave bout-en-bout
+- ❌ Failsafes hardware (MOSFET, relay, fusibles, pull-down)
+- ❌ FreeRTOS scheduling (tâches, dual-core, watchdog par tâche)
+- ❌ TimeManager NTP/DS3231 + algorithme solaire NOAA
+
+Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces limites.
+
 ## En attente — validation hardware (1 journée + ESP32)
 
 - [ ] **Flash master + slave sur ESP32 réels** et valider :
