@@ -281,12 +281,16 @@ bool ConfigManager::fromJson(const String& json) {
     // Network — only update if provided (never blank out existing).
     // Pattern: tester strlen() avant de copier pour ne PAS écraser un secret
     // existant si l'utilisateur soumet un POST partiel depuis le portail web.
+    //
+    // Note ArduinoJson v7: doc["network"] retourne un MemberProxy temporaire
+    // dont le constructeur de copie est PRIVATE. On ne peut donc pas écrire
+    // `auto net = doc["network"]`. Le lambda ré-évalue doc["network"][key] à
+    // chaque appel pour rester compatible avec cette contrainte ET avec le
+    // mock JsonDocument du build natif.
     if (doc.containsKey("network")) {
-        auto net = doc["network"];
-
         auto copyIfPresent = [&](const char* key, char* dst, size_t dstSize) {
-            if (!net.containsKey(key)) return;
-            const char* val = net[key].as<const char*>();
+            if (!doc["network"].containsKey(key)) return;
+            const char* val = doc["network"][key].as<const char*>();
             if (!val || strlen(val) == 0) return;
             strncpy(dst, val, dstSize - 1);
             dst[dstSize - 1] = '\0';
@@ -300,8 +304,8 @@ bool ConfigManager::fromJson(const String& json) {
         copyIfPresent("telegramToken",  _config.network.telegramToken,  sizeof(_config.network.telegramToken));
         copyIfPresent("telegramChatId", _config.network.telegramChatId, sizeof(_config.network.telegramChatId));
 
-        if (net.containsKey("mqttPort")) {
-            _config.network.mqttPort = net["mqttPort"].as<uint16_t>();
+        if (doc["network"].containsKey("mqttPort")) {
+            _config.network.mqttPort = doc["network"]["mqttPort"].as<uint16_t>();
         }
     }
 
