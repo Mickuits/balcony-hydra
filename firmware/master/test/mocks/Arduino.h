@@ -324,12 +324,150 @@ struct DeserializationError{
 
 inline void serializeJson(const JsonDocument&d,String&o){
     std::string s="{";bool f=true;
-    for(auto&p:d._d){if(!f)s+=",";f=false;s+="\""+p.first+"\":\""+p.second+"\"";} 
+    for(auto&p:d._d){if(!f)s+=",";f=false;s+="\""+p.first+"\":\""+p.second+"\"";}
     s+="}";o=String(s.c_str());
 }
 
+// ---- Parser JSON minimal pour deserializeJson ----
+// Supporte : objets top-level, sous-objets 1 niveau, strings, nombres, booleans.
+// Stockage plat via encoding prefix::key (cohérent avec JsonDocument::Proxy).
+// Ne supporte PAS : arrays, sous-objets 2+ niveaux, escape sequences dans strings.
+
+namespace JsonParser {
+
+    // Avance l'index en sautant les espaces/tabs/newlines/CR
+    inline void skipWs(const std::string& s, size_t& i) {
+        while (i < s.size() && (s[i]==' '||s[i]=='\t'||s[i]=='\n'||s[i]=='\r')) ++i;
+    }
+
+    // Parse une string JSON délimitée par guillemets doubles.
+    // Retourne false si la syntaxe est invalide.
+    // Gestion minimale : pas d'escape sequences — suffisant pour les payloads internes.
+    inline bool parseString(const std::string& s, size_t& i, std::string& out) {
+        if (i >= s.size() || s[i] != '"') return false;
+        ++i; // consomme le guillemet ouvrant
+        out.clear();
+        while (i < s.size() && s[i] != '"') {
+            // Gestion basique du backslash : consommer sans interpréter
+            if (s[i] == '\\' && i+1 < s.size()) { ++i; }
+            out += s[i++];
+        }
+        if (i >= s.size()) return false; // guillemet fermant absent
+        ++i; // consomme le guillemet fermant
+        return true;
+    }
+
+    // Parse une valeur JSON (string, number, bool) dans le contexte du prefix donné.
+    // Pour un sous-objet, appelle récursivement parseObject avec prefix = parentKey+"::".
+    // Retourne false en cas d'erreur de syntaxe.
+    inline bool parseValue(const std::string& s, size_t& i,
+                           const std::string& fullKey,
+                           std::map<std::string,std::string>& store);
+
+    // Parse les paires key:value d'un objet JSON { ... }.
+    // prefix : préfixe plat à ajouter devant chaque clé (ex: "network::").
+    // Retourne false en cas d'erreur de syntaxe.
+    inline bool parseObject(const std::string& s, size_t& i,
+                            const std::string& prefix,
+                            std::map<std::string,std::string>& store) {
+        if (i >= s.size() || s[i] != '{') return false;
+        ++i; // consomme '{'
+        skipWs(s, i);
+        if (i < s.size() && s[i] == '}') { ++i; return true; } // objet vide
+
+        while (i < s.size()) {
+            skipWs(s, i);
+            // Parse la clé
+            std::string key;
+            if (!parseString(s, i, key)) return false;
+            skipWs(s, i);
+            if (i >= s.size() || s[i] != ':') return false;
+            ++i; // consomme ':'
+            skipWs(s, i);
+            // Parse la valeur avec le préfixe complet
+            std::string fullKey = prefix + key;
+            if (!parseValue(s, i, fullKey, store)) return false;
+            skipWs(s, i);
+            if (i < s.size() && s[i] == ',') { ++i; continue; }
+            if (i < s.size() && s[i] == '}') { ++i; return true; }
+            return false; // caractère inattendu
+        }
+        return false; // '}' absent
+    }
+
+    inline bool parseValue(const std::string& s, size_t& i,
+                           const std::string& fullKey,
+                           std::map<std::string,std::string>& store) {
+        if (i >= s.size()) return false;
+
+        if (s[i] == '"') {
+            // Valeur string
+            std::string val;
+            if (!parseString(s, i, val)) return false;
+            store[fullKey] = val;
+            return true;
+        }
+
+        if (s[i] == '{') {
+            // Sous-objet : parse récursif avec prefix = fullKey + "::"
+            // On stocke aussi une entrée sentinelle pour que containsKey(fullKey) soit vrai
+            store[fullKey] = "__object__";
+            return parseObject(s, i, fullKey + "::", store);
+        }
+
+        if (s[i] == 't' && s.substr(i, 4) == "true") {
+            store[fullKey] = "true"; i += 4; return true;
+        }
+        if (s[i] == 'f' && s.substr(i, 5) == "false") {
+            store[fullKey] = "false"; i += 5; return true;
+        }
+        if (s[i] == 'n' && s.substr(i, 4) == "null") {
+            store[fullKey] = ""; i += 4; return true;
+        }
+
+        // Nombre : integer ou float, éventuellement négatif
+        if (s[i] == '-' || (s[i] >= '0' && s[i] <= '9')) {
+            size_t start = i;
+            if (s[i] == '-') ++i;
+            while (i < s.size() && (s[i] >= '0' && s[i] <= '9')) ++i;
+            if (i < s.size() && s[i] == '.') {
+                ++i;
+                while (i < s.size() && (s[i] >= '0' && s[i] <= '9')) ++i;
+            }
+            if (i < s.size() && (s[i] == 'e' || s[i] == 'E')) {
+                ++i;
+                if (i < s.size() && (s[i] == '+' || s[i] == '-')) ++i;
+                while (i < s.size() && (s[i] >= '0' && s[i] <= '9')) ++i;
+            }
+            store[fullKey] = s.substr(start, i - start);
+            return true;
+        }
+
+        return false; // type non reconnu
+    }
+
+} // namespace JsonParser
+
 inline DeserializationError deserializeJson(JsonDocument&d,const String&in){
-    d.clear();return{in._s.empty()||in._s[0]!='{'?1:0};
+    d.clear();
+    const std::string& s = in._s;
+    if (s.empty()) return {1};
+
+    // Trouver le premier caractère non-whitespace
+    size_t i = 0;
+    while (i < s.size() && (s[i]==' '||s[i]=='\t'||s[i]=='\n'||s[i]=='\r')) ++i;
+    if (i >= s.size() || s[i] != '{') return {1};
+
+    // Accès à la map interne via friend
+    std::map<std::string,std::string> store;
+    bool ok = JsonParser::parseObject(s, i, "", store);
+    if (!ok) return {1};
+
+    // Injecter les entrées parsées dans le document
+    for (auto& kv : store) {
+        d[kv.first.c_str()] = kv.second.c_str();
+    }
+    return {0};
 }
 
 // ---- getLocalTime ----

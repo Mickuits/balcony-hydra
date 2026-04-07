@@ -1490,10 +1490,9 @@ void test_T13_09_toJson_contains_main_fields() {
 // ----------------------------------------------------------------
 // T13_10 — fromJson() partial ne wipe pas les secrets existants
 //
-// Le mock deserializeJson() vide le document et ne parse PAS le JSON.
-// Après appel, doc.containsKey("network") → false → le bloc network
-// est skippé entièrement → wifiPass est préservé par construction.
-// Ce test valide que fromJson() retourne true et ne crash pas.
+// Le parser JSON mock est désormais fonctionnel.
+// payload = {"network":{"wifiSsid":"newssid"}} → seul wifiSsid est mis à jour.
+// wifiPass n'est pas dans le payload → copyIfPresent le préserve.
 // ----------------------------------------------------------------
 void test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets() {
     // GIVEN un cfg avec wifiPass déjà renseigné
@@ -1506,10 +1505,64 @@ void test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets() {
     String payload = "{\"network\":{\"wifiSsid\":\"newssid\"}}";
     bool ok = cfg.fromJson(payload);
 
-    // THEN fromJson retourne true (payload valide syntaxiquement)
+    // THEN fromJson retourne true
     TEST_ASSERT_TRUE(ok);
-    // ET wifiPass est préservé (le mock ne parse pas, donc pas de clobber)
+    // ET wifiSsid est mis à jour (parser réel — VRAIE logique copyIfPresent)
+    TEST_ASSERT_EQUAL_STRING("newssid", cfg.config().network.wifiSsid);
+    // ET wifiPass est préservé (absent du payload → copyIfPresent le skip)
     TEST_ASSERT_EQUAL_STRING("secret123", cfg.config().network.wifiPass);
+}
+
+// ----------------------------------------------------------------
+// T13_11 — fromJson() payload simple : mode scalaire parsé correctement
+// ----------------------------------------------------------------
+void test_T13_11_fromJson_simple_scalar_mode_parsed() {
+    // GIVEN un cfg en mode AUTOMATIC (défaut)
+    ConfigManager cfg;
+    cfg.begin();
+    TEST_ASSERT_EQUAL((uint8_t)WateringMode::AUTOMATIC, (uint8_t)cfg.config().mode);
+
+    // WHEN fromJson reçoit {"mode": 1}  (1 = SCHEDULED)
+    String payload = "{\"mode\": 1}";
+    bool ok = cfg.fromJson(payload);
+
+    // THEN mode est mis à jour à SCHEDULED
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL((uint8_t)WateringMode::SCHEDULED, (uint8_t)cfg.config().mode);
+}
+
+// ----------------------------------------------------------------
+// T13_12 — fromJson() nested complet : mqttHost et mqttPort mis à jour
+// ----------------------------------------------------------------
+void test_T13_12_fromJson_nested_network_mqtt_fields_updated() {
+    // GIVEN un cfg avec les defaults réseau
+    ConfigManager cfg;
+    cfg.begin();
+
+    // WHEN fromJson reçoit un payload avec mqttHost et mqttPort
+    String payload = "{\"network\":{\"mqttHost\":\"broker.foo\",\"mqttPort\":8883}}";
+    bool ok = cfg.fromJson(payload);
+
+    // THEN les champs réseau sont mis à jour
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_STRING("broker.foo", cfg.config().network.mqttHost);
+    TEST_ASSERT_EQUAL(8883, cfg.config().network.mqttPort);
+}
+
+// ----------------------------------------------------------------
+// T13_13 — fromJson() payload invalide retourne false
+// ----------------------------------------------------------------
+void test_T13_13_fromJson_invalid_payload_returns_false() {
+    // GIVEN un cfg valide
+    ConfigManager cfg;
+    cfg.begin();
+
+    // WHEN fromJson reçoit un payload qui n'est pas du JSON
+    String payload = "not json at all";
+    bool ok = cfg.fromJson(payload);
+
+    // THEN fromJson retourne false (DeserializationError code != 0)
+    TEST_ASSERT_FALSE(ok);
 }
 
 // ================================================================
@@ -1583,7 +1636,7 @@ void test_T14_05_pairing_type_names() {
 }
 
 // ================================================================
-// MAIN — 125 tests total (T1-T10: 91 constantes/logique, T11-T13: 29 instances réelles, T14: 5 pairing)
+// MAIN — 128 tests total (T1-T10: 91 constantes/logique, T11-T13: 32 instances réelles, T14: 5 pairing)
 // ================================================================
 
 int setup() {
@@ -1724,7 +1777,7 @@ int setup() {
     RUN_TEST(test_T12_09_overcurrent_callback_fires_on_high_current);
     RUN_TEST(test_T12_10_runningForS_calculates_elapsed);
 
-    // Cat 13: ConfigManager — instance réelle NVS + JSON (10)
+    // Cat 13: ConfigManager — instance réelle NVS + JSON (13)
     RUN_TEST(test_T13_01_load_defaults_populates_struct);
     RUN_TEST(test_T13_02_save_then_load_roundtrip_preserves_mode);
     RUN_TEST(test_T13_03_save_then_load_preserves_pump_duration);
@@ -1735,6 +1788,9 @@ int setup() {
     RUN_TEST(test_T13_08_isTankCritical_below_threshold);
     RUN_TEST(test_T13_09_toJson_contains_main_fields);
     RUN_TEST(test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets);
+    RUN_TEST(test_T13_11_fromJson_simple_scalar_mode_parsed);
+    RUN_TEST(test_T13_12_fromJson_nested_network_mqtt_fields_updated);
+    RUN_TEST(test_T13_13_fromJson_invalid_payload_returns_false);
 
     // Cat 14: Protocol pairing message packing (5)
     RUN_TEST(test_T14_01_cmd_pairing_req_size);
