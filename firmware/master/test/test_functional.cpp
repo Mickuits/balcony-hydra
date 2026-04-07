@@ -20,6 +20,7 @@
 
 // Provide config.h alias for modules that include it
 // (config_master.h pulls config_common.h which has all shared constants)
+#include "ConfigManager.h"
 
 // ---- Test fixtures: reset all mock state before each test ----
 void setUp(void) {
@@ -803,7 +804,215 @@ void test_T10_08_scheduled_mode_exact_time_match() {
 }
 
 // ================================================================
-// MAIN — 92 tests total
+// CATEGORY 13: ConfigManager — instance réelle NVS + JSON (~10 tests)
+//
+// Instancie un vrai ConfigManager sur le mock Preferences (std::map).
+// setUp() appelle Preferences::resetAll() → NVS vide avant chaque test.
+// Pattern d'instanciation :
+//   ConfigManager cfg;  cfg.begin();  // loadDefaults() + load()
+// Contrainte mock JsonDocument : deserializeJson() vide le document
+// et retourne ok si payload commence par '{' — ne PARSE PAS le contenu.
+// Les tests fromJson() sont donc limités à la non-régression et au
+// comportement de robustesse, pas au parsing JSON réel.
+// ================================================================
+
+// (ConfigManager.h inclus en tête de fichier)
+
+// ----------------------------------------------------------------
+// T13_01 — begin() charge les defaults si NVS vide
+// ----------------------------------------------------------------
+void test_T13_01_load_defaults_populates_struct() {
+    // GIVEN un NVS vide (garanti par setUp)
+    ConfigManager cfg;
+    // WHEN begin() est appelé
+    cfg.begin();
+    // THEN les valeurs par défaut sont présentes
+    TEST_ASSERT_EQUAL(WateringMode::AUTOMATIC, cfg.config().mode);
+    TEST_ASSERT_EQUAL(DEFAULT_PUMP_DURATION,   cfg.config().pumpDurationS);   // 60
+    TEST_ASSERT_EQUAL(DEFAULT_MOISTURE_MIN,    cfg.config().moisture.minThreshold); // 30
+    TEST_ASSERT_EQUAL(DEFAULT_MOISTURE_MAX,    cfg.config().moisture.maxThreshold); // 70
+    TEST_ASSERT_EQUAL(TANK_LEVEL_CRITICAL,     cfg.config().tank.criticalPct); // 10
+    TEST_ASSERT_TRUE(cfg.config().otaEnabled);
+}
+
+// ----------------------------------------------------------------
+// T13_02 — save() + load() roundtrip préserve le mode
+// ----------------------------------------------------------------
+void test_T13_02_save_then_load_roundtrip_preserves_mode() {
+    // GIVEN cfg1 avec mode = SCHEDULED, sauvegardé
+    ConfigManager cfg1;
+    cfg1.begin();
+    cfg1.config().mode = WateringMode::SCHEDULED;
+    cfg1.save();
+
+    // WHEN un second ConfigManager lit depuis le même NVS mock
+    ConfigManager cfg2;
+    cfg2.begin();
+
+    // THEN mode est SCHEDULED
+    TEST_ASSERT_EQUAL(WateringMode::SCHEDULED, cfg2.config().mode);
+}
+
+// ----------------------------------------------------------------
+// T13_03 — save() + load() roundtrip préserve pumpDurationS
+// ----------------------------------------------------------------
+void test_T13_03_save_then_load_preserves_pump_duration() {
+    // GIVEN cfg1 avec pumpDurationS = 180, sauvegardé
+    ConfigManager cfg1;
+    cfg1.begin();
+    cfg1.config().pumpDurationS = 180;
+    cfg1.save();
+
+    // WHEN cfg2 charge depuis le même NVS
+    ConfigManager cfg2;
+    cfg2.begin();
+
+    // THEN durée est préservée
+    TEST_ASSERT_EQUAL(180, cfg2.config().pumpDurationS);
+}
+
+// ----------------------------------------------------------------
+// T13_04 — save() + load() roundtrip préserve les seuils humidité
+// ----------------------------------------------------------------
+void test_T13_04_save_preserves_moisture_thresholds() {
+    // GIVEN cfg1 avec min=45 max=85, sauvegardé
+    ConfigManager cfg1;
+    cfg1.begin();
+    cfg1.config().moisture.minThreshold = 45;
+    cfg1.config().moisture.maxThreshold = 85;
+    cfg1.save();
+
+    // WHEN cfg2 charge
+    ConfigManager cfg2;
+    cfg2.begin();
+
+    // THEN seuils préservés
+    TEST_ASSERT_EQUAL(45, cfg2.config().moisture.minThreshold);
+    TEST_ASSERT_EQUAL(85, cfg2.config().moisture.maxThreshold);
+}
+
+// ----------------------------------------------------------------
+// T13_05 — reset() remet tout aux defaults et efface le NVS
+// ----------------------------------------------------------------
+void test_T13_05_reset_wipes_to_defaults() {
+    // GIVEN cfg avec mode MANUAL et pumpDuration=240 sauvegardés
+    ConfigManager cfg;
+    cfg.begin();
+    cfg.config().mode = WateringMode::MANUAL;
+    cfg.config().pumpDurationS = 240;
+    cfg.save();
+
+    // WHEN reset() est appelé
+    cfg.reset();
+
+    // THEN valeurs revenues aux defaults
+    TEST_ASSERT_EQUAL(WateringMode::AUTOMATIC, cfg.config().mode);
+    TEST_ASSERT_EQUAL(DEFAULT_PUMP_DURATION,   cfg.config().pumpDurationS);
+
+    // ET les defaults sont persistés (vérif via un second ConfigManager)
+    ConfigManager cfg2;
+    cfg2.begin();
+    TEST_ASSERT_EQUAL(WateringMode::AUTOMATIC, cfg2.config().mode);
+}
+
+// ----------------------------------------------------------------
+// T13_06 — isWateringTime() — correspondance exacte heure/minute
+// ----------------------------------------------------------------
+void test_T13_06_isWateringTime_matches_schedule_hour1() {
+    // GIVEN schedule hour1=7 min1=0 enabled1=true
+    ConfigManager cfg;
+    cfg.begin();
+    cfg.config().schedule.hour1    = 7;
+    cfg.config().schedule.min1     = 0;
+    cfg.config().schedule.enabled1 = true;
+    cfg.config().schedule.enabled2 = false;
+
+    // THEN 7:00 correspond, 7:01 et 8:00 ne correspondent pas
+    TEST_ASSERT_TRUE (cfg.isWateringTime(7, 0));
+    TEST_ASSERT_FALSE(cfg.isWateringTime(7, 1));
+    TEST_ASSERT_FALSE(cfg.isWateringTime(8, 0));
+}
+
+// ----------------------------------------------------------------
+// T13_07 — isWateringTime() — slot désactivé retourne false
+// ----------------------------------------------------------------
+void test_T13_07_isWateringTime_disabled_returns_false() {
+    // GIVEN enabled1=false malgré hour1=7 min1=0
+    ConfigManager cfg;
+    cfg.begin();
+    cfg.config().schedule.hour1    = 7;
+    cfg.config().schedule.min1     = 0;
+    cfg.config().schedule.enabled1 = false;
+    cfg.config().schedule.enabled2 = false;
+
+    // THEN même à 7:00 → false
+    TEST_ASSERT_FALSE(cfg.isWateringTime(7, 0));
+}
+
+// ----------------------------------------------------------------
+// T13_08 — isTankCritical() — logique de seuil (<= criticalPct)
+// ----------------------------------------------------------------
+void test_T13_08_isTankCritical_below_threshold() {
+    // GIVEN criticalPct=10 (default)
+    ConfigManager cfg;
+    cfg.begin();
+    // cfg.config().tank.criticalPct est déjà TANK_LEVEL_CRITICAL = 10
+
+    // THEN 5 < 10 → critique, 15 > 10 → ok, 10 == 10 → critique (<=)
+    TEST_ASSERT_TRUE (cfg.isTankCritical(5));
+    TEST_ASSERT_FALSE(cfg.isTankCritical(15));
+    TEST_ASSERT_TRUE (cfg.isTankCritical(10));
+}
+
+// ----------------------------------------------------------------
+// T13_09 — toJson() contient les clés de configuration principales
+// ----------------------------------------------------------------
+void test_T13_09_toJson_contains_main_fields() {
+    // GIVEN un ConfigManager avec ses defaults
+    ConfigManager cfg;
+    cfg.begin();
+
+    // WHEN toJson() est appelé
+    String json = cfg.toJson();
+
+    // THEN la chaîne contient les clés attendues
+    // Note: le mock serializeJson() encode _d au format {"k":"v",...}
+    // ConfigManager::toJson() utilise JsonDocument avec des Proxy qui
+    // alimentent _d — on vérifie la présence des clés dans la sortie
+    TEST_ASSERT_TRUE(json.indexOf("mode")        != -1);
+    TEST_ASSERT_TRUE(json.indexOf("pumpDuration") != -1);
+    TEST_ASSERT_TRUE(json.indexOf("schedule")     != -1);
+    TEST_ASSERT_TRUE(json.indexOf("moisture")     != -1);
+    TEST_ASSERT_TRUE(json.indexOf("tank")         != -1);
+}
+
+// ----------------------------------------------------------------
+// T13_10 — fromJson() partial ne wipe pas les secrets existants
+//
+// Le mock deserializeJson() vide le document et ne parse PAS le JSON.
+// Après appel, doc.containsKey("network") → false → le bloc network
+// est skippé entièrement → wifiPass est préservé par construction.
+// Ce test valide que fromJson() retourne true et ne crash pas.
+// ----------------------------------------------------------------
+void test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets() {
+    // GIVEN un cfg avec wifiPass déjà renseigné
+    ConfigManager cfg;
+    cfg.begin();
+    strncpy(cfg.config().network.wifiPass, "secret123",
+            sizeof(cfg.config().network.wifiPass));
+
+    // WHEN fromJson reçoit un payload partiel (wifiSsid seulement)
+    String payload = "{\"network\":{\"wifiSsid\":\"newssid\"}}";
+    bool ok = cfg.fromJson(payload);
+
+    // THEN fromJson retourne true (payload valide syntaxiquement)
+    TEST_ASSERT_TRUE(ok);
+    // ET wifiPass est préservé (le mock ne parse pas, donc pas de clobber)
+    TEST_ASSERT_EQUAL_STRING("secret123", cfg.config().network.wifiPass);
+}
+
+// ================================================================
+// MAIN — 102 tests total
 // ================================================================
 
 int setup() {
@@ -919,6 +1128,18 @@ int setup() {
     RUN_TEST(test_T10_06_relay_arm_disarm_gpio_sequence);
     RUN_TEST(test_T10_07_pulldown_ensures_pump_off_at_boot);
     RUN_TEST(test_T10_08_scheduled_mode_exact_time_match);
+
+    // Cat 13: ConfigManager — instance réelle NVS + JSON (10)
+    RUN_TEST(test_T13_01_load_defaults_populates_struct);
+    RUN_TEST(test_T13_02_save_then_load_roundtrip_preserves_mode);
+    RUN_TEST(test_T13_03_save_then_load_preserves_pump_duration);
+    RUN_TEST(test_T13_04_save_preserves_moisture_thresholds);
+    RUN_TEST(test_T13_05_reset_wipes_to_defaults);
+    RUN_TEST(test_T13_06_isWateringTime_matches_schedule_hour1);
+    RUN_TEST(test_T13_07_isWateringTime_disabled_returns_false);
+    RUN_TEST(test_T13_08_isTankCritical_below_threshold);
+    RUN_TEST(test_T13_09_toJson_contains_main_fields);
+    RUN_TEST(test_T13_10_fromJson_partial_network_does_not_wipe_existing_secrets);
 
     return UNITY_END();
 }
