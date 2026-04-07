@@ -16,28 +16,9 @@
 #include "SensorManager.h"
 #include "StatusLED.h"
 
-#ifndef PIN_SAFETY_RELAY
-constexpr uint8_t PIN_SAFETY_RELAY = 18;
-#endif
-
-#ifndef SAFETY_TEMP_WARNING
-constexpr float    SAFETY_TEMP_WARNING      = 50.0;
-#endif
-#ifndef SAFETY_TEMP_CRITICAL
-constexpr float    SAFETY_TEMP_CRITICAL     = 58.0;
-#endif
-#ifndef SAFETY_TEMP_RESUME
-constexpr float    SAFETY_TEMP_RESUME       = 45.0;
-#endif
-#ifndef SAFETY_TEMP_STABLE_MS
-constexpr uint32_t SAFETY_TEMP_STABLE_MS    = 300000;  // 5 min stable avant auto-réarm
-#endif
-#ifndef SAFETY_MAX_BOOT_CRASHES
-constexpr uint8_t  SAFETY_MAX_BOOT_CRASHES  = 3;
-#endif
-#ifndef SAFETY_STABLE_BOOT_MS
-constexpr uint32_t SAFETY_STABLE_BOOT_MS    = 60000;
-#endif
+// Note: PIN_SAFETY_RELAY est défini dans config_master.h
+// Note: SAFETY_TEMP_*, SAFETY_*_BOOT_* sont définis dans config_common.h
+// (inclus via config_master.h)
 
 enum class SafetyState : uint8_t {
     NOMINAL      = 0,

@@ -79,19 +79,7 @@ public:
     void updatePotAlerts(uint8_t minThreshold);
     bool hasPotAlerts() const;
     String getPotAlertMessage() const;
-    void readTankLevels();
-    void readEnvironment();
-    void readPumpMetrics();
-    
-    const SensorData& data() const { return _data; }
-    
-    // Quick accessors
-    uint8_t avgMoisture() const { return _data.avgMoisture; }
-    uint8_t tankLevel() const { return _data.tank[0].valid ? _data.tank[0].levelPct : 0; }
-    bool    tankLevelsMatch() const;  // Check if both US sensors agree
-    float   temperature() const { return _data.environment.temperature; }
-    float   pumpCurrent() const { return _data.pump.current_mA; }
-    
+
     // Calibration
     void calibrateMoistureDry();
     void calibrateMoistureWet();

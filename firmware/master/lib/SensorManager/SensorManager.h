@@ -35,6 +35,7 @@ struct PumpMetrics {
     float voltage;      // V
     float current_mA;   // mA
     float power_mW;     // mW
+    bool  valid;        // INA219 read OK
 };
 
 struct SensorData {
@@ -76,7 +77,9 @@ public:
     
     // Per-pot alerts (chronic dryness despite watering)
     void updatePotAlerts(uint8_t minThreshold);
-    
+    bool   hasPotAlerts() const;
+    String getPotAlertMessage() const;
+
     // Calibration
     void calibrateMoistureDry();
     void calibrateMoistureWet();

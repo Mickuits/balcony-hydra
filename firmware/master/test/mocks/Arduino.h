@@ -51,6 +51,13 @@ inline uint32_t micros(){return MockHW::_millis*1000;}
 inline void delay(uint32_t ms){MockHW::_millis+=ms;}
 inline void delayMicroseconds(uint32_t us){MockHW::_millis+=us/1000;}
 inline void yield(){}
+// pulseIn: mock returns ~17cm equivalent (1000us at 343m/s)
+// Tests can override via MockHW if precise distance simulation is needed.
+inline unsigned long pulseIn(uint8_t /*pin*/, uint8_t /*state*/, unsigned long /*timeout*/=1000000UL){return 1000UL;}
+// isnan is in <cmath> as std::isnan but Arduino code uses bare isnan()
+#ifndef isnan
+using std::isnan;
+#endif
 #ifndef constrain
 #define constrain(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))
 #endif
