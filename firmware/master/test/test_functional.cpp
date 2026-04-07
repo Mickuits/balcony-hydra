@@ -920,16 +920,15 @@ int setup() {
     RUN_TEST(test_T10_07_pulldown_ensures_pump_off_at_boot);
     RUN_TEST(test_T10_08_scheduled_mode_exact_time_match);
 
-    UNITY_END();
+    return UNITY_END();
 }
 
 void loop() {}
 
 // Native test runner — explicit main() because pio test -e native
 // does not generate one automatically when platform = native is used
-// with a custom test_filter. Calls setup() which runs RUN_TEST(...)
-// for every test and returns the UNITY_END() exit code.
+// with a custom test_filter. Returns setup()'s exit code (which is
+// the UNITY_END() return value: 0 on success, non-zero on failure).
 int main(int /*argc*/, char** /*argv*/) {
-    setup();
-    return 0;
+    return setup();
 }
