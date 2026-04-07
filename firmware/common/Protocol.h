@@ -21,13 +21,16 @@ constexpr uint8_t PROTOCOL_MAGIC   = 0xBA;  // "BA" for BAlcony
 
 // Maître → Esclave (Commands)
 enum class CmdType : uint8_t {
-    CMD_PING          = 0x01,  // Heartbeat, esclave répond DATA_PONG
-    CMD_READ_SENSORS  = 0x02,  // Demande lecture capteurs
-    CMD_PUMP_START    = 0x03,  // Démarrer pompe A
-    CMD_PUMP_STOP     = 0x04,  // Arrêter pompe A
-    CMD_SET_CONFIG    = 0x05,  // Envoyer config (seuils, durée, profils)
-    CMD_REBOOT        = 0x06,  // Reboot esclave
-    CMD_OTA_BEGIN     = 0x07,  // Préparer OTA (future use)
+    CMD_PING            = 0x01,  // Heartbeat, esclave répond DATA_PONG
+    CMD_READ_SENSORS    = 0x02,  // Demande lecture capteurs
+    CMD_PUMP_START      = 0x03,  // Démarrer pompe A
+    CMD_PUMP_STOP       = 0x04,  // Arrêter pompe A
+    CMD_SET_CONFIG      = 0x05,  // Envoyer config (seuils, durée, profils)
+    CMD_REBOOT          = 0x06,  // Reboot esclave
+    CMD_OTA_BEGIN       = 0x07,  // Préparer OTA (future use)
+    // Pairing dynamique (premier boot)
+    CMD_PAIRING_REQ     = 0x10,  // Broadcast: "Maître ici, quelqu'un ?"
+    CMD_PAIRING_CONFIRM = 0x11,  // Unicast: "Pairing confirmé par le maître"
 };
 
 // Esclave → Maître (Data)
@@ -37,6 +40,15 @@ enum class DataType : uint8_t {
     DATA_PUMP_STATUS  = 0x83,  // État pompe A
     DATA_ACK          = 0x84,  // Acquittement commande
     DATA_ALERT        = 0x85,  // Alerte locale (failsafe, etc.)
+    // Pairing dynamique (premier boot)
+    DATA_PAIRING_ACK  = 0x90,  // Unicast: "Esclave ici, je suis à toi"
+};
+
+// Type d'appareil — utilisé dans les messages de pairing
+enum class DeviceType : uint8_t {
+    UNKNOWN = 0,
+    MASTER  = 1,
+    SLAVE   = 2,
 };
 
 // ---- MESSAGE HEADER (4 bytes) ----
@@ -82,6 +94,19 @@ struct __attribute__((packed)) CmdSetConfig {
 struct __attribute__((packed)) CmdReboot {
     MsgHeader header;
     uint32_t  delayMs;       // Délai avant reboot (0 = immédiat)
+};
+
+// ---- PAIRING PAYLOADS ----
+
+struct __attribute__((packed)) CmdPairingReq {
+    MsgHeader header;
+    uint8_t   deviceType;      // DeviceType::MASTER (1)
+    uint8_t   firmwareVersion; // PROTOCOL_VERSION — vérif compat future
+};
+
+struct __attribute__((packed)) CmdPairingConfirm {
+    MsgHeader header;
+    // Pas de payload — la réception de ce message scelle le pairing
 };
 
 // ---- ESCLAVE → MAÎTRE PAYLOADS ----
@@ -154,6 +179,12 @@ struct __attribute__((packed)) DataAlert {
     char      message[48]; // Description en français
 };
 
+struct __attribute__((packed)) DataPairingAck {
+    MsgHeader header;
+    uint8_t   deviceType;      // DeviceType::SLAVE (2)
+    uint8_t   firmwareVersion; // PROTOCOL_VERSION — vérif compat future
+};
+
 // ---- UTILITY FUNCTIONS ----
 
 namespace Protocol {
@@ -171,17 +202,20 @@ namespace Protocol {
     // Get message type name (for logging)
     inline const char* typeName(uint8_t type) {
         switch (type) {
-            case (uint8_t)CmdType::CMD_PING:         return "PING";
-            case (uint8_t)CmdType::CMD_READ_SENSORS:  return "READ_SENSORS";
-            case (uint8_t)CmdType::CMD_PUMP_START:    return "PUMP_START";
-            case (uint8_t)CmdType::CMD_PUMP_STOP:     return "PUMP_STOP";
-            case (uint8_t)CmdType::CMD_SET_CONFIG:    return "SET_CONFIG";
-            case (uint8_t)CmdType::CMD_REBOOT:        return "REBOOT";
-            case (uint8_t)DataType::DATA_PONG:        return "PONG";
-            case (uint8_t)DataType::DATA_SENSORS:     return "SENSORS";
-            case (uint8_t)DataType::DATA_PUMP_STATUS:  return "PUMP_STATUS";
-            case (uint8_t)DataType::DATA_ACK:         return "ACK";
-            case (uint8_t)DataType::DATA_ALERT:       return "ALERT";
+            case (uint8_t)CmdType::CMD_PING:             return "PING";
+            case (uint8_t)CmdType::CMD_READ_SENSORS:     return "READ_SENSORS";
+            case (uint8_t)CmdType::CMD_PUMP_START:       return "PUMP_START";
+            case (uint8_t)CmdType::CMD_PUMP_STOP:        return "PUMP_STOP";
+            case (uint8_t)CmdType::CMD_SET_CONFIG:       return "SET_CONFIG";
+            case (uint8_t)CmdType::CMD_REBOOT:           return "REBOOT";
+            case (uint8_t)CmdType::CMD_PAIRING_REQ:      return "PAIRING_REQ";
+            case (uint8_t)CmdType::CMD_PAIRING_CONFIRM:  return "PAIRING_CONFIRM";
+            case (uint8_t)DataType::DATA_PONG:           return "PONG";
+            case (uint8_t)DataType::DATA_SENSORS:        return "SENSORS";
+            case (uint8_t)DataType::DATA_PUMP_STATUS:    return "PUMP_STATUS";
+            case (uint8_t)DataType::DATA_ACK:            return "ACK";
+            case (uint8_t)DataType::DATA_ALERT:          return "ALERT";
+            case (uint8_t)DataType::DATA_PAIRING_ACK:    return "PAIRING_ACK";
             default: return "UNKNOWN";
         }
     }
@@ -191,4 +225,7 @@ namespace Protocol {
     static_assert(sizeof(DataPumpStatus) <= 250, "DataPumpStatus exceeds ESP-NOW max payload");
     static_assert(sizeof(DataAlert) <= 250, "DataAlert exceeds ESP-NOW max payload");
     static_assert(sizeof(CmdSetConfig) <= 250, "CmdSetConfig exceeds ESP-NOW max payload");
+    static_assert(sizeof(CmdPairingReq) <= 250, "CmdPairingReq exceeds ESP-NOW max payload");
+    static_assert(sizeof(CmdPairingConfirm) <= 250, "CmdPairingConfirm exceeds ESP-NOW max payload");
+    static_assert(sizeof(DataPairingAck) <= 250, "DataPairingAck exceeds ESP-NOW max payload");
 }
