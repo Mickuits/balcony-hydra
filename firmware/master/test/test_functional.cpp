@@ -1160,26 +1160,14 @@ void test_T12_03_stop_zone_b_returns_to_idle() {
 // ----------------------------------------------------------------
 // T12_04 — Max runtime failsafe stoppe la pompe après PUMP_MAX_RUNTIME_S
 // ----------------------------------------------------------------
-void test_T12_04_max_runtime_safety_stops_pump() {
-    // DEAD CODE PATH confirmé après lecture de PumpController.cpp:97-99 :
-    // ```
-    // if (_targetDuration[zone] > PUMP_MAX_RUNTIME_S) {
-    //     _targetDuration[zone] = PUMP_MAX_RUNTIME_S;
-    // }
-    // ```
-    // start() clamp _targetDuration à PUMP_MAX_RUNTIME_S avant de démarrer.
-    // Donc le check DURATION_DONE (update() ligne 38) déclenche TOUJOURS avant
-    // le failsafe MAX_RUNTIME (_checkFailsafes ligne 252). Le path
-    // PumpStopReason::MAX_RUNTIME est donc inateignable depuis l'API publique.
-    //
-    // C'est de la défense en profondeur (au cas où _targetDuration serait
-    // corrompu en RAM par un bug ailleurs), mais on ne peut pas l'exercer
-    // depuis un test sans accès aux membres privés ou refactoring.
-    //
-    // À refactorer si on veut : soit retirer le clamp et garder seulement le
-    // failsafe (plus simple), soit exposer un setter test sous #ifdef HYDRA_TEST.
-    TEST_IGNORE_MESSAGE("MAX_RUNTIME failsafe is unreachable due to start() clamp");
-}
+// T12_04 SUPPRIMÉ : le path PumpStopReason::MAX_RUNTIME (PumpController.cpp ligne 252)
+// est volontairement inateignable depuis l'API publique. start() clamp
+// _targetDuration à PUMP_MAX_RUNTIME_S (ligne 97-99), donc DURATION_DONE
+// arrive toujours en premier. Le failsafe MAX_RUNTIME existe comme défense
+// en profondeur au cas où _targetDuration serait corrompu en RAM par un bug
+// ailleurs — c'est intentionnel, à garder, mais pas testable sans
+// accès aux membres privés (et refactorer pour le rendre testable
+// affaiblirait justement la défense).
 
 // ----------------------------------------------------------------
 // T12_05 — shouldAutoWater(zone B) = true quand humidité < minThreshold
@@ -1221,19 +1209,9 @@ void test_T12_06_should_auto_water_returns_false_when_wet() {
 // T12_07 — Cooldown empêche un deuxième cycle immédiat
 // ----------------------------------------------------------------
 void test_T12_07_auto_cooldown_blocks_back_to_back() {
-    // GIVEN : mode AUTO, sol sec, lastAutoWaterTime initialisé via shouldAutoWater()
-    // qui set lastAutoWaterTime = millis() ligne 194 PumpController.cpp.
-    //
-    // SUBTILITÉ SIL : _isAutoCooldownOk() ligne 227 traite lastAutoWaterTime == 0
-    // comme "jamais arrosé" → cooldown OK. En SIL natif, MockHW::_millis = 0 au
-    // démarrage du test (setUp reset), donc le 1er shouldAutoWater set
-    // lastAutoWaterTime = 0 et le check 2 le considère "jamais arrosé". Workaround :
-    // avancer millis avant le 1er appel pour que millis() soit > 0.
-    //
-    // [code smell production : 0 utilisé comme sentinel "jamais" mais aussi valeur
-    //  valide ; à corriger en passant à -1 ou en gardant un flag bool séparé]
-    MockHW::advanceMillis(100);  // millis() = 100ms
-
+    // GIVEN : mode AUTO, sol sec, lastAutoWaterTime initialisé à UINT32_MAX
+    // par le constructeur (sentinel "jamais arrosé"). millis() peut être 0
+    // au démarrage du test sans casser le check cooldown.
     ConfigManager cfg = makeConfigAutoMode();
     SensorManager sm(cfg);
     PumpController pump(cfg, sm);
@@ -1241,12 +1219,13 @@ void test_T12_07_auto_cooldown_blocks_back_to_back() {
     pump.begin();
     injectMoisture(sm, pump, 2800);  // 20% — sec
 
-    // WHEN : 1er appel — cooldown OK (jamais arrosé) → returns true et set
-    // lastAutoWaterTime = 100
+    // WHEN : 1er appel — sentinel UINT32_MAX → cooldown OK → returns true
+    // et set lastAutoWaterTime = millis() (= 0 en SIL au démarrage)
     TEST_ASSERT_TRUE(pump.shouldAutoWater(1));
 
-    // THEN : 2e appel immédiat — elapsed = (100 - 100) / 1000 = 0s
-    // < cooldownS (7200) → cooldown NOT OK → returns false
+    // THEN : 2e appel immédiat — lastAutoWaterTime != UINT32_MAX,
+    // elapsed = (0 - 0) / 1000 = 0s < cooldownS (7200) → cooldown NOT OK
+    // → returns false
     TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
 }
 
@@ -1604,7 +1583,7 @@ void test_T14_05_pairing_type_names() {
 }
 
 // ================================================================
-// MAIN — 126 tests total (T1-T10: 91 constantes/logique, T11-T13: 30 instances réelles, T14: 5 pairing)
+// MAIN — 125 tests total (T1-T10: 91 constantes/logique, T11-T13: 29 instances réelles, T14: 5 pairing)
 // ================================================================
 
 int setup() {
@@ -1737,7 +1716,7 @@ int setup() {
     RUN_TEST(test_T12_01_initial_state_idle);
     RUN_TEST(test_T12_02_start_zone_b_sets_running);
     RUN_TEST(test_T12_03_stop_zone_b_returns_to_idle);
-    RUN_TEST(test_T12_04_max_runtime_safety_stops_pump);
+    // T12_04 supprimé — voir commentaire au-dessus de la définition T12_03
     RUN_TEST(test_T12_05_should_auto_water_returns_true_when_dry);
     RUN_TEST(test_T12_06_should_auto_water_returns_false_when_wet);
     RUN_TEST(test_T12_07_auto_cooldown_blocks_back_to_back);

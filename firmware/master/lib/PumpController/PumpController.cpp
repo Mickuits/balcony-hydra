@@ -18,6 +18,10 @@ PumpController::PumpController(ConfigManager& configMgr, SensorManager& sensorMg
     memset(_targetDuration, 0, sizeof(_targetDuration));
     for (uint8_t z = 0; z < NUM_ZONES; z++) {
         _zones[z].state = PumpState::IDLE;
+        // Sentinel "jamais arrosé" — UINT32_MAX au lieu de 0 pour distinguer
+        // ce cas du cas légitime "millis() = 0 au boot" qui ferait croire
+        // au cooldown check qu'on n'a jamais arrosé. Voir _isAutoCooldownOk().
+        _zones[z].lastAutoWaterTime = UINT32_MAX;
     }
 }
 
@@ -224,7 +228,10 @@ bool PumpController::shouldWater(uint8_t hour, uint8_t minute, uint8_t zone) con
 // ---- ANTI-SPAM ----
 
 bool PumpController::_isAutoCooldownOk(uint8_t zone) const {
-    if (_zones[zone].lastAutoWaterTime == 0) return true;
+    // UINT32_MAX = sentinel "jamais arrosé" (set par le constructeur).
+    // Avant : 0 était utilisé comme sentinel mais c'est aussi millis() au boot,
+    // ce qui faisait croire à "jamais arrosé" alors qu'on venait juste d'arroser.
+    if (_zones[zone].lastAutoWaterTime == UINT32_MAX) return true;
     uint32_t elapsed = (millis() - _zones[zone].lastAutoWaterTime) / 1000;
     return elapsed >= _configMgr.config().autoMode.cooldownS;
 }
