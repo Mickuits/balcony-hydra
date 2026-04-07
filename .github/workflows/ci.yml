@@ -12,7 +12,7 @@ jobs:
   build-master:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PlatformIO
         uses: actions/cache@v4
@@ -45,7 +45,7 @@ jobs:
   build-slave:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PlatformIO
         uses: actions/cache@v4
@@ -78,7 +78,7 @@ jobs:
   protocol-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Verify Protocol.h consistency
         run: |
