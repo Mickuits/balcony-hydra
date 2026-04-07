@@ -57,8 +57,9 @@ void test_pump_max_runtime() {
 }
 
 void test_tank_critical_below_warning() {
-    TEST_ASSERT_LESS_THAN(TANK_LEVEL_WARNING, 100);
-    TEST_ASSERT_LESS_THAN(TANK_LEVEL_CRITICAL, TANK_LEVEL_WARNING);
+    // Unity: TEST_ASSERT_LESS_THAN(threshold, actual) checks actual < threshold
+    TEST_ASSERT_LESS_THAN(100, TANK_LEVEL_WARNING);              // warning < 100
+    TEST_ASSERT_LESS_THAN(TANK_LEVEL_WARNING, TANK_LEVEL_CRITICAL); // critical < warning
 }
 
 // ============================================================
