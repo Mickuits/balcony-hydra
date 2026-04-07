@@ -62,6 +62,9 @@ constexpr float    TANK_VOLUME_L         = 25.0;
 constexpr uint8_t  MUX1_CHANNELS         = 10;  // 10 capteurs intérieur
 constexpr uint8_t  MUX2_CHANNELS         = 0;   // No 2nd MUX (PIN_MUX2_EN = 0xFF)
 
+// ---- WEB SERVER ----
+constexpr uint16_t WEB_SERVER_PORT       = 80;
+
 // ---- ZONE MAPPING ----
 constexpr uint8_t ZONE_B_SENSORS_START = 0;
 constexpr uint8_t ZONE_B_SENSORS_END   = 9;
