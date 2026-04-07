@@ -81,6 +81,8 @@ public:
     bool isBlocked(uint8_t zone) const { return _zones[zone].state == PumpState::BLOCKED; }
     bool isBlocked() const { return isBlocked(0) || isBlocked(1); }
     uint32_t runningForS(uint8_t zone) const;
+    // Legacy compat: return the running zone's elapsed time, or zone 0 by default
+    uint32_t runningForS() const { return isRunning(0) ? runningForS(0) : (isRunning(1) ? runningForS(1) : 0); }
     uint8_t zoneMoisture(uint8_t zone) const { return _zones[zone].avgMoisture; }
     
     // Auto mode
