@@ -24,6 +24,7 @@
 // ---- Test fixtures: reset all mock state before each test ----
 void setUp(void) {
     MockHW::reset();
+    MockINA::reset();  // Remet le courant INA219 à 150mA (pompe nominale)
     Preferences::resetAll();
     MockTime::set(14, 30, 7);  // Default: 14:30, August
     ESP_mock::restarted = false;
@@ -803,7 +804,283 @@ void test_T10_08_scheduled_mode_exact_time_match() {
 }
 
 // ================================================================
-// MAIN — 92 tests total
+// CATEGORY 12: PumpController — Instance réelle avec mocks injectés (~10 tests)
+//
+// Instancie un vrai ConfigManager + SensorManager + PumpController sur natif.
+// Les dépendances optionnelles (TimeManager*, PlantProfile*) ne sont PAS
+// injectées — PumpController se replie sur pumpDurationS (config default = 60s).
+//
+// Note architecture master : Zone 0 = Zone A (PIN_PUMP_A = 0xFF, remote slave).
+//   → digitalWrite(0xFF, HIGH) ignoré par le mock (pin >= 40).
+//   → Les tests GPIO ciblent Zone 1 (Zone B, PIN_PUMP_B = 27, locale).
+//   → Les tests logique (state, shouldAutoWater) peuvent cibler zone 0 ou 1
+//     indifféremment — le comportement est symétrique par zone.
+//
+// Injection humidité : MockHW::setADC(PIN_MUX_SIG=36, raw) + readMoisture()
+//   + updateZoneMoisture(). L'ADC mock retourne la valeur fixée pour tous les
+//   canaux MUX (5 suréchantillonnages, même pin = même valeur).
+//
+// Injection courant : MockINA::setGlobalCurrent(mA) + readPumpMetrics().
+//   La valeur est lue par tous les Adafruit_INA219::getCurrent_mA().
+//
+// Tank par défaut : pulseIn retourne 1000µs → ~17cm → ~51% (non critique).
+// ================================================================
+
+#include "ConfigManager.h"
+#include "SensorManager.h"
+#include "PumpController.h"
+
+// Callback global capturant le dernier événement de sécurité
+static PumpStopReason g_lastSafetyReason = PumpStopReason::NONE;
+static int            g_safetyCbCallCount = 0;
+static void onSafetyCb(PumpStopReason reason) {
+    g_lastSafetyReason = reason;
+    g_safetyCbCallCount++;
+}
+
+// Helper : construit un ConfigManager avec défauts + mode AUTOMATIC
+static ConfigManager makeConfigAutoMode() {
+    ConfigManager cfg;
+    cfg.loadDefaults();  // Pas de begin() (NVS read-only open peut échouer)
+    cfg.setMode(WateringMode::AUTOMATIC);
+    return cfg;
+}
+
+// Helper : injecte une humidité uniforme sur tous les capteurs MUX1 puis
+// force la mise à jour de la moyenne de zone dans PumpController.
+// raw ADC → percent via map(raw, airValue=3200, waterValue=1200, 0, 100)
+//   20% sec  → raw 2800  (3200 - 20/100 * (3200-1200) = 2800)
+//   80% humide → raw 1600  (3200 - 80/100 * 2000 = 1600)
+static void injectMoisture(SensorManager& sm, PumpController& pc, uint16_t rawAdc) {
+    MockHW::setADC(PIN_MUX_SIG, rawAdc);  // PIN_MUX_SIG = 36
+    sm.readMoisture();
+    pc.updateZoneMoisture();
+}
+
+// ----------------------------------------------------------------
+// T12_01 — État initial IDLE après begin()
+// ----------------------------------------------------------------
+void test_T12_01_initial_state_idle() {
+    // GIVEN : un PumpController fraîchement instancié
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+
+    // WHEN : begin() initialise les GPIO
+    sm.begin();
+    pump.begin();
+
+    // THEN : les deux zones sont IDLE, aucune pompe en marche
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::IDLE, (uint8_t)pump.zoneStatus(0).state);
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::IDLE, (uint8_t)pump.zoneStatus(1).state);
+    TEST_ASSERT_FALSE(pump.isRunning());
+    TEST_ASSERT_FALSE(pump.isBlocked());
+}
+
+// ----------------------------------------------------------------
+// T12_02 — start(zone B) met la pompe en marche et GPIO 27 HIGH
+// ----------------------------------------------------------------
+void test_T12_02_start_zone_b_sets_running() {
+    // GIVEN : PumpController initialisé, tank OK (pulseIn mock ~51%)
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    MockHW::reset();  // Efface les GPIO du begin()
+    MockINA::reset();
+
+    // WHEN : démarrage explicite zone B (60s)
+    bool started = pump.start(1, 60);
+
+    // THEN : zone B RUNNING, GPIO 27 HIGH
+    TEST_ASSERT_TRUE(started);
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::RUNNING, (uint8_t)pump.zoneStatus(1).state);
+    TEST_ASSERT_TRUE(pump.isRunning(1));
+    TEST_ASSERT_TRUE(MockHW::wasGpioSet(27, HIGH));  // PIN_PUMP_B = 27
+}
+
+// ----------------------------------------------------------------
+// T12_03 — stop(zone B) remet IDLE et GPIO 27 LOW
+// ----------------------------------------------------------------
+void test_T12_03_stop_zone_b_returns_to_idle() {
+    // GIVEN : pompe zone B en marche
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    pump.start(1, 60);
+
+    // WHEN : arrêt manuel
+    pump.stop(1, PumpStopReason::MANUAL_STOP);
+
+    // THEN : état IDLE, GPIO 27 LOW
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::IDLE, (uint8_t)pump.zoneStatus(1).state);
+    TEST_ASSERT_FALSE(pump.isRunning(1));
+    TEST_ASSERT_TRUE(MockHW::wasGpioSet(27, LOW));
+    TEST_ASSERT_EQUAL((uint8_t)PumpStopReason::MANUAL_STOP,
+                      (uint8_t)pump.zoneStatus(1).lastStopReason);
+}
+
+// ----------------------------------------------------------------
+// T12_04 — Max runtime failsafe stoppe la pompe après PUMP_MAX_RUNTIME_S
+// ----------------------------------------------------------------
+void test_T12_04_max_runtime_safety_stops_pump() {
+    // GIVEN : pompe zone B démarrée pour 60s (< max 300s)
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    pump.start(1, 60);
+    TEST_ASSERT_TRUE(pump.isRunning(1));
+
+    // WHEN : on avance millis au-delà de PUMP_MAX_RUNTIME_S (300s)
+    MockHW::advanceMillis((PUMP_MAX_RUNTIME_S + 1) * 1000UL);
+    pump.update();
+
+    // THEN : pompe arrêtée — MAX_RUNTIME → état IDLE (reason MAX_RUNTIME ne set pas BLOCKED)
+    TEST_ASSERT_FALSE(pump.isRunning(1));
+    TEST_ASSERT_EQUAL((uint8_t)PumpStopReason::MAX_RUNTIME,
+                      (uint8_t)pump.zoneStatus(1).lastStopReason);
+    // MAX_RUNTIME → IDLE (pas BLOCKED — failsafe auto-recovery attendu)
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::IDLE, (uint8_t)pump.zoneStatus(1).state);
+}
+
+// ----------------------------------------------------------------
+// T12_05 — shouldAutoWater(zone B) = true quand humidité < minThreshold
+// ----------------------------------------------------------------
+void test_T12_05_should_auto_water_returns_true_when_dry() {
+    // GIVEN : mode AUTO, humidité 20% (< 30% = minThreshold)
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+
+    // raw 2800 → 20% humide (calcul vérifié : map(2800,3200,1200,0,100) = 20)
+    injectMoisture(sm, pump, 2800);
+
+    // WHEN / THEN : zone B (capteurs 0-9 sur master) doit demander arrosage
+    TEST_ASSERT_TRUE(pump.shouldAutoWater(1));
+}
+
+// ----------------------------------------------------------------
+// T12_06 — shouldAutoWater(zone B) = false quand humidité > maxThreshold
+// ----------------------------------------------------------------
+void test_T12_06_should_auto_water_returns_false_when_wet() {
+    // GIVEN : mode AUTO, humidité 80% (> 70% = maxThreshold)
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+
+    // raw 1600 → 80% humide (map(1600,3200,1200,0,100) = 80)
+    injectMoisture(sm, pump, 1600);
+
+    // WHEN / THEN
+    TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
+}
+
+// ----------------------------------------------------------------
+// T12_07 — Cooldown empêche un deuxième cycle immédiat
+// ----------------------------------------------------------------
+void test_T12_07_auto_cooldown_blocks_back_to_back() {
+    // GIVEN : mode AUTO, sol sec, un premier shouldAutoWater(1) déclenché
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    injectMoisture(sm, pump, 2800);  // 20% — sec
+
+    bool first = pump.shouldAutoWater(1);
+    TEST_ASSERT_TRUE(first);  // Premier cycle autorisé
+
+    // WHEN : on n'avance pas le temps (0s écoulé depuis dernier auto)
+    // THEN : le cooldown (7200s) bloque immédiatement le second appel
+    TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
+}
+
+// ----------------------------------------------------------------
+// T12_08 — Max cycles par jour bloque après DEFAULT_AUTO_MAX_CYCLES
+// ----------------------------------------------------------------
+void test_T12_08_max_cycles_per_day_blocks_after_4() {
+    // GIVEN : mode AUTO, sol sec
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    injectMoisture(sm, pump, 2800);  // 20% — sec
+
+    // WHEN : on simule DEFAULT_AUTO_MAX_CYCLES (4) cycles consécutifs avec cooldown passé
+    for (uint8_t i = 0; i < DEFAULT_AUTO_MAX_CYCLES; i++) {
+        // Avance le temps pour passer le cooldown entre chaque appel
+        MockHW::advanceMillis(DEFAULT_AUTO_COOLDOWN_S * 1000UL + 1000UL);
+        bool ok = pump.shouldAutoWater(1);
+        TEST_ASSERT_TRUE(ok);  // Les 4 premiers doivent passer
+    }
+
+    // THEN : le 5ème appel (après cooldown) est bloqué par max cycles
+    MockHW::advanceMillis(DEFAULT_AUTO_COOLDOWN_S * 1000UL + 1000UL);
+    TEST_ASSERT_FALSE(pump.shouldAutoWater(1));
+}
+
+// ----------------------------------------------------------------
+// T12_09 — Surintensité déclenche le callback et stoppe la pompe
+// ----------------------------------------------------------------
+void test_T12_09_overcurrent_callback_fires_on_high_current() {
+    // GIVEN : pompe zone B en marche, callback de sécurité enregistré
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    g_lastSafetyReason = PumpStopReason::NONE;
+    g_safetyCbCallCount = 0;
+    pump.onSafetyEvent(onSafetyCb);
+    pump.start(1, 60);
+
+    // WHEN : INA219 signale 3500mA (> seuil 3000mA)
+    MockINA::setGlobalCurrent(3500.0f);
+    sm.readPumpMetrics();  // Met à jour _data.pump
+
+    // On avance millis de 4s (> 3s requis pour le dry-run check aussi)
+    MockHW::advanceMillis(4000);
+    pump.update();  // Déclenche _checkFailsafes → détection overcurrent
+
+    // THEN : callback appelé, pompe bloquée
+    TEST_ASSERT_EQUAL(1, g_safetyCbCallCount);
+    TEST_ASSERT_EQUAL((uint8_t)PumpStopReason::OVERCURRENT, (uint8_t)g_lastSafetyReason);
+    TEST_ASSERT_FALSE(pump.isRunning(1));
+    TEST_ASSERT_EQUAL((uint8_t)PumpState::BLOCKED, (uint8_t)pump.zoneStatus(1).state);
+}
+
+// ----------------------------------------------------------------
+// T12_10 — runningForS() retourne le temps écoulé correct
+// ----------------------------------------------------------------
+void test_T12_10_runningForS_calculates_elapsed() {
+    // GIVEN : pompe zone B démarrée
+    ConfigManager cfg = makeConfigAutoMode();
+    SensorManager sm(cfg);
+    PumpController pump(cfg, sm);
+    sm.begin();
+    pump.begin();
+    pump.start(1, 300);  // Durée 300s pour ne pas timeout pendant le test
+
+    // WHEN : on avance millis de 30s
+    MockHW::advanceMillis(30000);
+
+    // THEN : runningForS retourne ~30s
+    TEST_ASSERT_EQUAL(30, pump.runningForS(1));
+    TEST_ASSERT_TRUE(pump.isRunning(1));  // Toujours en marche (< 300s target)
+}
+
+// ================================================================
+// MAIN — 102 tests total
 // ================================================================
 
 int setup() {
@@ -919,6 +1196,18 @@ int setup() {
     RUN_TEST(test_T10_06_relay_arm_disarm_gpio_sequence);
     RUN_TEST(test_T10_07_pulldown_ensures_pump_off_at_boot);
     RUN_TEST(test_T10_08_scheduled_mode_exact_time_match);
+
+    // Cat 12: PumpController instance réelle (10)
+    RUN_TEST(test_T12_01_initial_state_idle);
+    RUN_TEST(test_T12_02_start_zone_b_sets_running);
+    RUN_TEST(test_T12_03_stop_zone_b_returns_to_idle);
+    RUN_TEST(test_T12_04_max_runtime_safety_stops_pump);
+    RUN_TEST(test_T12_05_should_auto_water_returns_true_when_dry);
+    RUN_TEST(test_T12_06_should_auto_water_returns_false_when_wet);
+    RUN_TEST(test_T12_07_auto_cooldown_blocks_back_to_back);
+    RUN_TEST(test_T12_08_max_cycles_per_day_blocks_after_4);
+    RUN_TEST(test_T12_09_overcurrent_callback_fires_on_high_current);
+    RUN_TEST(test_T12_10_runningForS_calculates_elapsed);
 
     return UNITY_END();
 }
