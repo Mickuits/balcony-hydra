@@ -56,10 +56,23 @@ Si l'un des ESP32 est remplacé physiquement (ex : nouveau slave après panne) :
   Solution simple : le slave neuf est forcément en mode pairing au premier flash.
 - Permet de re-pairer depuis Cogolin sans rentrer physiquement à Mougins.
 
-**Via port série (debug)** :
+**Via port série (debug) — maître** :
 ```
-reset    — efface tout le NVS (factory reset complet) + reboot
+reset    — efface tout le NVS maître (factory reset complet) + reboot
 ```
+
+**Via port série (debug) — esclave** :
+Connecter un câble USB au slave, ouvrir un terminal 115200 baud :
+```
+pairing_status  — affiche l'état pairing slave (paired=YES/NO + MAC maître)
+pairing_reset   — efface NVS pairing slave + reboot (esclave repart en mode pairing)
+status          — snapshot complet (humidité, réservoir, pompe, safety, ESP-NOW)
+reboot          — redémarre l'ESP32 slave
+help            — liste toutes les commandes disponibles
+```
+
+Note : le CLI serie slave est non bloquant (timeout 50ms). Il ne perturbe pas
+le watchdog 30s ni la boucle 10Hz.
 
 **Via Telegram (maître) — factory reset complet** :
 ```
