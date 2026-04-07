@@ -177,13 +177,22 @@ class Adafruit_BME280{public:
 };
 
 // ---- Adafruit_INA219 ----
+// Registre global : permet d'injecter le courant depuis les tests sans accès
+// à l'instance privée de SensorManager. MockHW::reset() le remet à 150mA.
+namespace MockINA {
+    inline float globalCurrent_mA = 150.0f;  // Valeur par défaut (pompe nominale)
+    inline float globalVoltage_V  = 5.0f;
+    inline void setGlobalCurrent(float c) { globalCurrent_mA = c; }
+    inline void setGlobalVoltage(float v) { globalVoltage_V  = v; }
+    inline void reset() { globalCurrent_mA = 150.0f; globalVoltage_V = 5.0f; }
+}
 class Adafruit_INA219{public:
     float _v=5,_c=150;
     bool begin(TwoWire* w=nullptr){return true;}
-    float getBusVoltage_V(){return _v;}
-    float getCurrent_mA(){return _c;}
-    float getPower_mW(){return _v*_c;}
-    void setMock(float v,float c){_v=v;_c=c;}
+    float getBusVoltage_V(){return MockINA::globalVoltage_V;}
+    float getCurrent_mA(){return MockINA::globalCurrent_mA;}
+    float getPower_mW(){return MockINA::globalVoltage_V * MockINA::globalCurrent_mA;}
+    void setMock(float v,float c){_v=v;_c=c; MockINA::globalVoltage_V=v; MockINA::globalCurrent_mA=c;}
     void setCalibration_32V_1A(){}
     void setCalibration_32V_2A(){}
     void setCalibration_16V_400mA(){}
