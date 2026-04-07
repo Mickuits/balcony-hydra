@@ -23,6 +23,26 @@
 // (slave doesn't need full config — uses master's commands)
 #include "ConfigManager.h"
 
+// ============================================================
+// CLI SÉRIE SLAVE — debug/maintenance via USB (115200 baud)
+// Non bloquant : Serial.setTimeout(50) dans setup().
+// Toutes les fonctions sont static (portée fichier uniquement).
+// ============================================================
+
+static void _printHelp() {
+    Serial.println("--- Balcony Hydra Slave CLI ---");
+    Serial.println("pairing_status  Affiche l'etat ESP-NOW pairing (MAC maitre)");
+    Serial.println("pairing_reset   Efface NVS pairing slave + reboot");
+    Serial.println("status          Affiche capteurs, pompe, safety, uptime");
+    Serial.println("reboot          Redemarre l'ESP32");
+    Serial.println("help / ?        Cette aide");
+    Serial.println("-------------------------------");
+}
+
+// Instances globales déclarées plus bas — forward declarations pour le CLI.
+// Les fonctions _printStatus / _printPairingStatus / _handleSerial sont
+// définies APRÈS les instances (elles y accèdent par valeur globale).
+
 // ---- Global instances ----
 ConfigManager    configMgr;      // Minimal, defaults only
 SensorManager    sensorMgr(configMgr);
@@ -35,6 +55,109 @@ SafetyLocal      safetyLocal;
 // [DEPRECATED 2026-04-08] Remplacé par le pairing dynamique au premier boot.
 // Conservé pour référence et debug uniquement.
 // static const uint8_t MASTER_MAC[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+// ============================================================
+// CLI SÉRIE — implémentation (accès aux instances globales)
+// ============================================================
+
+/** Affiche l'état de connexion ESP-NOW et le MAC maître persisté. */
+static void _printPairingStatus() {
+    if (espNow.isPaired()) {
+        const uint8_t* mac = espNow.peerMac();
+        Serial.printf("ESPNOW: paired=YES  MAC maitre=%02X:%02X:%02X:%02X:%02X:%02X\n",
+                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    } else {
+        Serial.println("ESPNOW: paired=NO  (mode pairing actif — en attente maitre)");
+    }
+    const char* stateStr = "INCONNU";
+    switch (espNow.commState()) {
+        case SlaveCommState::WAITING_MASTER: stateStr = "WAITING_MASTER"; break;
+        case SlaveCommState::CONNECTED:      stateStr = "CONNECTED";      break;
+        case SlaveCommState::MASTER_LOST:    stateStr = "MASTER_LOST";    break;
+    }
+    Serial.printf("ESPNOW: commState=%s\n", stateStr);
+}
+
+/** Affiche un snapshot complet de l'état esclave (capteurs, pompe, safety, uptime). */
+static void _printStatus() {
+    Serial.println("--- Status Esclave ---");
+    Serial.printf("Uptime        : %lu s\n", millis() / 1000);
+
+    // Capteurs
+    const auto& d = sensorMgr.data();
+    Serial.printf("Humidite moy  : %u%%\n", d.avgMoisture);
+    Serial.printf("Reservoir     : %u%% (%s)\n",
+                  d.tank[0].levelPct,
+                  d.tank[0].valid ? "valide" : "INVALIDE");
+    if (d.environment.valid) {
+        Serial.printf("BME280        : T=%.1f°C  H=%.1f%%  P=%.1f hPa\n",
+                      d.environment.temperature,
+                      d.environment.humidity,
+                      d.environment.pressure);
+    } else {
+        Serial.println("BME280        : INVALIDE");
+    }
+    if (d.pump.valid) {
+        Serial.printf("INA219        : %.0f mA  %.2f V\n",
+                      d.pump.current_mA, d.pump.voltage);
+    } else {
+        Serial.println("INA219        : INVALIDE");
+    }
+
+    // Pompe
+    const auto& zs = pumpCtrl.zoneStatus(0);
+    const char* pumpStateStr = "INCONNU";
+    switch (zs.state) {
+        case PumpState::IDLE:    pumpStateStr = "IDLE";    break;
+        case PumpState::RUNNING: pumpStateStr = "RUNNING"; break;
+        case PumpState::BLOCKED: pumpStateStr = "BLOCKED"; break;
+        case PumpState::ERROR:   pumpStateStr = "ERROR";   break;
+    }
+    Serial.printf("Pompe A       : %s  failsafe=%s  cycles=%lu\n",
+                  pumpStateStr,
+                  zs.failsafeActive ? "OUI" : "non",
+                  (unsigned long)zs.totalCycleCount);
+
+    // Safety
+    Serial.printf("SafetyLocal   : safeMode=%s  etat=%u  raison=%s\n",
+                  safetyLocal.isSafeMode() ? "OUI" : "non",
+                  (uint8_t)safetyLocal.state(),
+                  safetyLocal.blockReason());
+
+    // ESP-NOW
+    _printPairingStatus();
+    Serial.println("---------------------");
+}
+
+/** Traitement non bloquant du CLI série. Appelé en tête de loop(). */
+static void _handleSerial() {
+    if (!Serial.available()) return;
+
+    // readStringUntil('\n') respecte Serial.setTimeout(50) → max 50ms de blocage.
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    line.toLowerCase();
+    if (line.length() == 0) return;
+
+    if (line == "help" || line == "?") {
+        _printHelp();
+    } else if (line == "status") {
+        _printStatus();
+    } else if (line == "pairing_status") {
+        _printPairingStatus();
+    } else if (line == "pairing_reset") {
+        Serial.println("Reset pairing NVS slave + reboot dans 200ms...");
+        espNow.resetPairing();
+        delay(200);
+        ESP.restart();
+    } else if (line == "reboot") {
+        Serial.println("Rebooting...");
+        delay(100);
+        ESP.restart();
+    } else {
+        Serial.printf("[CLI] Commande inconnue : '%s'  (tape 'help')\n", line.c_str());
+    }
+}
 
 // ---- Sensor data buffer for sending to master ----
 DataSensors buildSensorData() {
@@ -125,6 +248,8 @@ uint32_t lastPongSent = 0;
 
 void setup() {
     Serial.begin(115200);
+    // Timeout 50ms pour readStringUntil() dans le CLI — évite de bloquer le watchdog 30s.
+    Serial.setTimeout(50);
     delay(1000);
 
     Serial.println();
@@ -192,6 +317,9 @@ void setup() {
 
 void loop() {
     esp_task_wdt_reset();
+
+    // ---- CLI série (non bloquant, timeout 50ms) ----
+    _handleSerial();
 
     // ---- ESP-NOW update (check master timeout) ----
     espNow.update();

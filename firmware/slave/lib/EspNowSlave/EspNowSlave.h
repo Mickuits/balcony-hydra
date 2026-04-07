@@ -42,6 +42,9 @@ public:
 
     // État pairing
     bool isPaired() const { return _paired; }
+    // Pointeur const sur les 6 bytes du MAC maître (valide tant que cette
+    // instance vit). Retourne 0xFF×6 si !isPaired() (broadcast placeholder).
+    const uint8_t* peerMac() const { return _masterMac; }
     // Efface le MAC persisté (NVS) et redémarre le mode pairing (debug/reset)
     void resetPairing();
 
