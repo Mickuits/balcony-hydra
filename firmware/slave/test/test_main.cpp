@@ -130,7 +130,7 @@ int setup() {
     RUN_TEST(test_master_timeout);
     RUN_TEST(test_sensor_interval);
 
-    UNITY_END();
+    return UNITY_END();
 }
 
 // Nécessaire pour pio test -e native (platform = native ne génère
