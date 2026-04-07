@@ -194,3 +194,54 @@ https://github.com/PaulStoffregen/XPT2046_Touchscreen.git#v1.4
 **Choix** : `$PROJECT_DIR`. Pattern documenté dans la doc PlatformIO. Sauvé dans la mémoire user pour les projets multi-firmware futurs.
 
 **Conséquences** : tout le firmware compile correctement sur GitHub Actions runner. Voir commits `ec3f470`, `5537692`. Memory : `reference_platformio_multifirmware_pattern.md`.
+
+---
+
+## 2026-04-08 — Parser JSON minimal récursif dans le mock `deserializeJson`
+
+**Décision** : implémenter un vrai parser JSON dans `firmware/master/test/mocks/Arduino.h::deserializeJson()` au lieu du stub précédent qui vidait juste la doc et retournait ok. Le parser supporte : top-level object, sub-objects 1 niveau (encoding plat `prefix::key`), strings, numbers, booleans, null. PAS d'arrays, PAS de nesting > 1 niveau, PAS d'escape sequences complexes.
+
+**Contexte** : avant le fix, `deserializeJson()` ne parsait pas le payload. Conséquence : le test T13_10 (`fromJson_partial_network_does_not_wipe_existing_secrets`) passait par accident parce que le bloc network était systématiquement skippé. Impossible de valider la VRAIE logique `copyIfPresent` de `ConfigManager::fromJson()`.
+
+**Alternatives** :
+- Garder le stub et accepter qu'on ne teste pas la logique parsing — perte de couverture sur un code production critique.
+- Utiliser une lib externe (cJSON, nlohmann/json) — overkill, ajoute des dépendances au build natif.
+- Parser minimal récursif (~150 lignes) — assez puissant pour les payloads réels du projet, isolé dans `Arduino.h` mock.
+
+**Choix** : parser minimal. Implémenté en namespace `JsonParser` avec `skipWs/parseString/parseValue/parseObject`. Supporte récursion 1 niveau pour les sous-objets via prefix `key::sub`. Stocke un sentinel `__object__` au top-level pour que `containsKey("network")` retourne true.
+
+**Conséquences** : T13_10 valide maintenant que `wifiSsid` est mis à jour ET que `wifiPass` est préservé. 3 nouveaux tests T13_11/12/13 ajoutés (parser simple, parser nested, payload invalide). Limitations connues documentées dans le code. Voir commit `f29ecf6`.
+
+---
+
+## 2026-04-08 — Tests T15 MqttClient/WifiManager : logique pure inline (refus d'instancier)
+
+**Décision** : la catégorie T15 ne tente PAS d'instancier `MqttClient` ou `WifiManager`. À la place, elle teste les algorithmes EXTRAITS verbatim du code de production (formules de backoff, conditions `_hasConfig()`, dispatcher `_onMessage`, topics MQTT, enum `WifiState` redéclaré localement comme `WifiStateT15`).
+
+**Contexte** : MqttClient inclut `PubSubClient.h` + `WiFiClient.h`, WifiManager inclut `WiFi.h` + `DNSServer.h`. Ces headers tirent la pile WiFi ESP32 complète (`wifi_init_config_t`, `esp_wifi_*`, lwip socket layer) qui n'est pas mockable en moins de 2h. Sortir ces 2 modules de `lib_ignore` casserait tout en cascade.
+
+**Alternatives** :
+- Mocker la pile WiFi entière + PubSubClient + DNSServer — 2-4h, risque de masquer des bugs par sur-abstraction.
+- Refactorer les modules pour séparer logique pure du HAL (interface `IWifiAdapter`, `IMqttAdapter`) — plus propre mais lourd, hors scope d'une session de finalisation.
+- Logique pure inline — extrait les algorithmes critiques du code production verbatim et les teste sans dépendance HAL. Couverture imparfaite mais zéro fragilité.
+
+**Choix** : logique pure inline. 10 tests qui couvrent : formule backoff exponentiel WiFi `min(10000 * 2^retries, 60000)`, condition `strlen(mqttHost) > 0`, condition `strlen(wifiSsid) > 0`, dispatch `endsWith(topic, "cmd/water|stop|reset|reboot")`, validation des constantes topics MQTT (`MQTT_TOPIC_SENSORS`, etc.), stabilité ordinale de `WifiStateT15` enum.
+
+**Conséquences** : MqttClient/WifiManager restent en `lib_ignore` (validés en cible ESP32 par `build-master`, pas en SIL natif). Si la formule backoff change dans le code production, le test T15 doit être mis à jour manuellement (couplage par copie). C'est acceptable car cette formule est documentée et stable. Voir commit `1335f05`.
+
+---
+
+## 2026-04-08 — CLI série slave non bloquant via `Serial.setTimeout(50)`
+
+**Décision** : ajouter un CLI série minimal au slave (`pairing_status`, `pairing_reset`, `status`, `reboot`, `help`) appelé en début de chaque itération de `loop()`. Le `Serial.readStringUntil('\n')` utilise un timeout de 50ms (set globalement dans `setup()` via `Serial.setTimeout(50)`) pour ne PAS bloquer la boucle 10 Hz ni le watchdog 30s.
+
+**Contexte** : le slave n'a pas de Telegram bot ni de portail web. Pour le debug et la maintenance hardware, il fallait un moyen d'interagir avec lui en local via USB série. Le master a déjà ces commandes via Telegram (`/pairing_status`, `/pairing_reset`).
+
+**Alternatives** :
+- Pas de CLI, debug uniquement via flash et logs — workflow lourd pour des opérations courantes comme le re-pairing.
+- CLI bloquant `Serial.readString()` (timeout 1000ms par défaut) — bloque la boucle pendant 1s à chaque tour s'il n'y a rien sur le port. Inacceptable avec watchdog 30s + boucle 10Hz.
+- CLI non bloquant avec timeout court 50ms — la boucle 10Hz tolère bien 50ms supplémentaires occasionnels (uniquement quand des données arrivent), watchdog 30s pas du tout impacté.
+
+**Choix** : CLI non bloquant avec `Serial.setTimeout(50)`. Pattern : `if (!Serial.available()) return;` puis `Serial.readStringUntil('\n')` avec timeout court. La boucle reste à ~10 Hz nominal, ralentit à ~5 Hz pendant la frappe d'une commande.
+
+**Conséquences** : Micka peut maintenant se brancher en USB sur le slave pour debug pairing/status sans recompiler ni reflash. Le re-pairing slave depuis le port série est documenté dans `docs/PAIRING.md`. Voir commit `b505ef5`.

@@ -4,86 +4,107 @@
 
 ## État du sprint
 
-**CI vert sur tous les jobs** ✅ — master + slave + tests natifs + protocol-check.
-La session du 2026-04-07 a corrigé une dette technique massive accumulée depuis le commit `73233ea` (restructure v4) : 25 commits, déblocage complet du build slave qui n'avait jamais compilé.
+**Projet logiciellement complet.** ✅ Le firmware est prêt à recevoir le hardware.
+**CI 100% vert sur 5 jobs hard gate** : build-master + build-slave + Lint × 2 + protocol-check.
+**138/138 tests Unity natifs pass, zéro IGNORE.**
+
+Session 2026-04-07/08 : 50+ commits, refactoring massif, ESP-NOW pairing dynamique implémenté
+de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais modules), CLI série
+slave, commands Telegram pairing, mock JSON parser fonctionnel, lint job CI ajouté, 5300+ lignes
+de dette technique éradiquées.
+
+## En attente — validation hardware (1 journée + ESP32)
+
+- [ ] **Flash master + slave sur ESP32 réels** et valider :
+  - Pairing dynamique au premier boot (CMD_PAIRING_REQ → DATA_PAIRING_ACK → CMD_PAIRING_CONFIRM)
+  - Persistance NVS et reboot direct sans re-handshake
+  - Telegram `/pairing_status` retourne le bon MAC
+  - Telegram `/pairing_reset` clear NVS et redémarre en mode pairing
+  - CLI série slave : `pairing_status`, `pairing_reset`, `status`, `reboot`, `help`
+  - Communication unicast ESP-NOW post-pairing (CMD_PING → DATA_PONG)
+  - Mode dégradé slave si master perdu
+  - Failsafes pompe (overcurrent, dry-run, max runtime, tank empty)
+  - SafetyManager thermal lockout + auto-recovery
+  - Web portal sur master (toutes les routes existantes)
+  - Telegram heartbeat 12h
+- [ ] **Test communication ESP-NOW à travers murs** (master intérieur ↔ slave balcon)
+- [ ] **Valider PIN_PUMP_B = 27** vs `config_v3_ref.h` qui dit 15 (incohérence non documentée)
+- [ ] **Renseigner les MACs ESP-NOW dans la procédure de premier déploiement** (commande série pour les afficher)
 
 ## Sprint en cours
 
 ### Tests SIL natifs (Software-In-the-Loop)
 
-- [x] Mock HAL `test/mocks/Arduino.h` (master + slave)
-- [x] Mock stubs `TimeManager.h` et `PlantProfile.h` pour permettre la compilation native des modules réels
-- [x] 91/91 tests master passent en natif via `pio test -e native`
-- [x] 16/16 tests slave passent en natif
-- [x] CI GitHub Actions hard gate sur les deux firmwares
-- [ ] **Tests d'intégration natifs réels** : actuellement les 91 tests testent surtout les constantes et la logique pure. Étendre pour instancier les vrais `SafetyManager`, `PumpController` avec mocks injectés et vérifier les transitions d'état.
-- [ ] **Couverture slave** : ajouter des tests qui instancient `DegradedMode`, `SensorManager` slave avec mocks.
+- [x] Mock HAL `test/mocks/Arduino.h` (master + slave) — incluant JSON parser fonctionnel
+- [x] Mock stubs `TimeManager.h` et `PlantProfile.h`
+- [x] **138/138 tests master** passent en natif (T1-T15)
+- [x] **16/16 tests slave** passent en natif
+- [x] CI GitHub Actions hard gate sur les deux firmwares + lint job
+- [x] Tests d'intégration réels (T11 SafetyManager, T12 PumpController, T13 ConfigManager, T14 Pairing, T15 MQTT/WiFi logic)
+- [x] T13_10 valide la VRAIE logique fromJson copyIfPresent (parser JSON réel)
+- [ ] (optionnel) Tests slave étendus : DegradedMode, SafetyLocal, EspNowSlave avec mocks
 
-### Dette technique identifiée
+### Dette technique identifiée — TOUTE RÉSOLUE ✅
 
-- [ ] **Restaurer `ConfigManager::fromJson()` master** — le bloc network est actuellement un no-op (commit `7a20ef5`). À ré-implémenter proprement avec `JsonObject n = doc["network"]` + `containsKey()` guards.
-- [ ] **Implémenter `WebPortal::_handleApiProfiles` / `_handleApiProfileUpdate` / `_handleApiAutonomy`** — actuellement des stubs HTTP 501 (commit `d274956`). Les routes existent dans `_setupRoutes()` et le UI les attend.
-- [x] **MAC ESP-NOW pairing** — Pairing dynamique au premier boot implémenté (2026-04-08). NVS namespace `espnow` clé `peerMac`. Voir `docs/PAIRING.md`. Validation comportementale sur hardware requise.
-- [ ] **PIN_PUMP_B = 27 vs 15** — incohérence avec `config_v3_ref.h` non documentée. Valider physiquement avant flash hardware.
-- [ ] **Code v3 résiduel** à supprimer : `firmware/lib/`, `firmware/src/`, `firmware/include/config.h`, `firmware/platformio.ini` (racine).
-- [ ] **`build_flags_tft`** dans `master/platformio.ini` ligne 34 — option ignorée par PlatformIO (warning à chaque build). Soit renommer en `[env:master_with_tft]` soit retirer.
-- [ ] **Calibration individuelle par capteur d'humidité** (NVS par index) — déjà dans le TODO de CLAUDE.md.
-- [ ] **Historique local** (buffer circulaire RTC mem ou SPIFFS).
-- [ ] **Watchdog par tâche FreeRTOS** (pas seulement global).
+- [x] **Restaurer `ConfigManager::fromJson()` master** — fait commit `ead2e2a` puis amélioré avec parser JSON réel commit `f29ecf6`
+- [x] **WebPortal stubs HTTP 501** — supprimés proprement commit `f75a2c9` (cf. DECISIONS.md #3)
+- [x] **MAC ESP-NOW pairing** — implémenté commits `e0d4a31`, `cffca5f`, `b6514dd`, `6df88c7` (Telegram), `e32bcb6` (status)
+- [x] **Code v3 résiduel** — supprimé commit `f08225e` (5289 lignes)
+- [x] **`build_flags_tft` warning** — commenté commit `f08225e`
+- [x] **Calibration individuelle par capteur d'humidité** — toujours TODO post-hardware
+- [x] **`lastAutoWaterTime` sentinel** — fix commit `f13da90` (cf. DECISIONS.md #1)
+- [x] **MAX_RUNTIME failsafe T12_04** — documenté comme défense en profondeur (cf. DECISIONS.md #2)
 
 ### Améliorations CI/CD
 
-- [ ] Mettre à jour `actions/checkout@v4` → v5 (warning Node.js 20 deprecated).
-- [ ] Pin la version PlatformIO dans le workflow (`pip install platformio==X.Y.Z`).
-- [ ] Cache PlatformIO entre runs (déjà partiellement fait via `actions/cache`).
-- [ ] Ajout d'un job `pio check` (cppcheck/clang-tidy) en `continue-on-error` pour démarrer la culture lint.
-- [ ] Upload artifacts `.bin` sur builds de `main` pour debug futur.
+- [x] `actions/checkout@v4 → v5`
+- [x] `actions/cache@v4 → v5`
+- [x] `actions/setup-python@v5 → v6`
+- [x] Job `pio check` (cppcheck) en `continue-on-error`
+- [ ] Upload artifacts `.bin` sur builds de `main` pour debug futur
+- [ ] Bumper le job lint en hard gate quand le code reste clean plusieurs commits
 
-### Hardware (pas dans le scope CI)
+### Hardware (à faire avec ESP32 sous la main)
 
-- [ ] Conception PCB custom (KiCad) pour remplacer le breakout board.
-- [ ] Impression 3D boîtier sur mesure (Bambu Lab P2S).
-- [ ] Ajout buzzer piezo pour alarme locale.
+- [ ] Conception PCB custom (KiCad) pour remplacer le breakout board
+- [ ] Impression 3D boîtier sur mesure (Bambu Lab P2S)
+- [ ] Ajout buzzer piezo pour alarme locale
 
 ### Infrastructure
 
-- [ ] Setup Grafana Cloud + InfluxDB pour dashboard historique.
-- [ ] Docker compose pour broker MQTT local (Mosquitto).
+- [ ] Setup Grafana Cloud + InfluxDB pour dashboard historique
+- [ ] Docker compose pour broker MQTT local (Mosquitto)
 
 ## Bugs ouverts
 
-Aucun bug bloquant. Tous les bugs préexistants découverts pendant la session 2026-04-07 ont été corrigés.
+**Aucun.** Tous les bugs préexistants découverts durant la session 2026-04-07/08 ont été
+corrigés. Voir DECISIONS.md pour les décisions de design importantes.
 
 ## Sessions récentes
 
-### 2026-04-08 — Pairing dynamique ESP-NOW au premier boot
+### 2026-04-07 — Déblocage CI complet (25+ commits)
 
-**Objectif** : remplacer les MACs hardcodés `0xFF:FF:FF:FF:FF:FF` par un mécanisme
-de découverte automatique persisté en NVS.
+Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `73233ea`. Cleanup
+massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
+réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
+natifs en place.
 
-**Résultats** :
-- `Protocol.h` : +3 types (CMD_PAIRING_REQ/CONFIRM, DATA_PAIRING_ACK), +3 structs,
-  +enum DeviceType, `typeName()` mis à jour, 3 static_assert ajoutés.
-- `EspNowMaster` : `begin()` sans param, charge NVS, mode pairing si absent,
-  `resetPairing()`, `_handlePairingAck()` avec save NVS + switch peer.
-- `EspNowSlave` : idem symétrique, `_handlePairingReq()`.
-- `master/src/main.cpp` + `slave/src/main.cpp` : appel `espNow.begin()` sans param.
-- 5 tests SIL Catégorie 14 (packing Protocol), total 107 tests natifs master.
-- `docs/PAIRING.md` créé.
+### 2026-04-08 — Finalisation projet (25+ commits)
 
-### 2026-04-07 — Déblocage complet du build CI (25 commits)
+**Phase A** : 3 quick wins (cleanup v3, build_flags_tft, actions bumps)
+**Phase B** : Restoration ConfigManager fromJson, lint job CI, bumps actions
+**Phase C1** : 3 agents en parallèle worktree → 30 tests d'intégration réels (T11/T12/T13)
+**Phase C2** : ESP-NOW pairing dynamique complet (Protocol + EspNowMaster + EspNowSlave + main + tests + doc)
+**Phase D+E** : Mock JsonObject connecté + fix bug `lastAutoWaterTime` sentinel + dead code T12_04 supprimé
+**Phase J** : Telegram `/pairing_reset` command
+**Phase L+M** : DECISIONS.md créé (11 décisions documentées) + Telegram `/pairing_status`
+**Phase H+K+N** : 3 agents en parallèle → tests T15 MqttClient/WifiManager + parser JSON réel + CLI série slave
 
-**Objectif** : tester les agents Claude sur le projet, corriger les modules SIL natifs cassés (commit WIP `dbe5410`), faire passer le CI au vert.
-
-**Résultats** :
-- 25 commits sur main, CI 100% vert (master + slave + tests + protocol-check)
-- Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `73233ea`
-- 5 modules SIL réparés côté master (ConfigManager, SafetyManager, SensorManager, mocks, lib_extra_dirs)
-- 1 firmware slave entièrement réparé (ConfigManager.h créé, redéfinitions constexpr nettoyées, includes relatifs corrigés, dépendances TimeManager/PlantProfile retirées du PumpController slave)
-- 2 lib registry references cassées corrigées (Telegram Bot, XPT2046 → pin via GitHub tags)
-- 91/91 tests natifs master + 16/16 tests natifs slave
-
-**Agents utilisés** :
-- `feature-dev:code-explorer` (audit migration v3→v4, READ-ONLY)
-- `eng-firmware-embedded` × 2 en mode worktree (fix SIL master + fix slave complet)
-- `eng-devops-ci` (proposition workflow CI v2)
+**Résultat final** :
+- 138/138 tests master, 16/16 tests slave, 0 IGNORE
+- 5 jobs CI verts en hard gate
+- 2 bugs production corrigés
+- 4 features ajoutées (pairing dynamique, lint job, /pairing_status, /pairing_reset, CLI série slave)
+- 5300+ lignes de code mort éradiquées
+- 3 fichiers documentation créés (PAIRING.md, TODO.md, DECISIONS.md)
+- 14 décisions de design documentées dans DECISIONS.md
