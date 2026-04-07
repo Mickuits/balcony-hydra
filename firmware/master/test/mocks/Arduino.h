@@ -98,6 +98,8 @@ class String{public:
     String substring(unsigned int f,unsigned int t=0xFFFF)const{if(t>=0xFFFF)return String(_s.substr(f).c_str());return String(_s.substr(f,t-f).c_str());}
     bool startsWith(const char*p)const{return _s.substr(0,strlen(p))==p;}
     int indexOf(char c,unsigned int from=0)const{auto p=_s.find(c,from);return p==std::string::npos?-1:(int)p;}
+    int indexOf(const char* s,unsigned int from=0)const{if(!s)return -1;auto p=_s.find(s,from);return p==std::string::npos?-1:(int)p;}
+    int indexOf(const String& s,unsigned int from=0)const{auto p=_s.find(s._s,from);return p==std::string::npos?-1:(int)p;}
     int toInt()const{return atoi(_s.c_str());}
     float toFloat()const{return(float)atof(_s.c_str());}
     void trim(){auto a=_s.find_first_not_of(" \t\r\n");auto b=_s.find_last_not_of(" \t\r\n");if(a==std::string::npos)_s="";else _s=_s.substr(a,b-a+1);}
