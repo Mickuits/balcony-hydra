@@ -15,8 +15,11 @@ intervention manuelle post-flash.
    champ libre).
 3. Attendre ~5 secondes.
 4. Vérifier les LEDs :
-   - Esclave : passe de jaune clignotant (attente maître) à vert fixe (connecté).
-   - Maître  : log série `[ESPNOW] Pairing OK avec esclave XX:XX:XX:XX:XX:XX`.
+   - Esclave : passe de **bleu fixe** (attente maître, état `AP_MODE`) à vert fixe (connecté).
+     Le **jaune clignotant** n'apparaît que plus tard, si le maître se déconnecte *après*
+     pairing (état `WARNING` / `isMasterLost()`).
+   - Maître  : log série `[ESPNOW] Pairing OK avec esclave XX:XX:XX:XX:XX:XX`
+     (cf. `EspNowMaster.cpp:200`).
 5. Les MACs sont persistés en NVS — les boots suivants sont directs (pas de
    nouveau handshake).
 
@@ -57,9 +60,9 @@ Si l'un des ESP32 est remplacé physiquement (ex : nouveau slave après panne) :
 - Permet de re-pairer depuis Cogolin sans rentrer physiquement à Mougins.
 
 **Via port série (debug) — maître** :
-```
-reset    — efface tout le NVS maître (factory reset complet) + reboot
-```
+Pas de CLI série implémenté côté maître à ce jour (voir `master/src/main.cpp`).
+Pour un reset du maître, passer par Telegram (`/pairing_reset`) ou par le bouton
+physique GPIO 5 (appui long 10s — factory reset).
 
 **Via port série (debug) — esclave** :
 Connecter un câble USB au slave, ouvrir un terminal 115200 baud :
@@ -74,14 +77,14 @@ help            — liste toutes les commandes disponibles
 Note : le CLI serie slave est non bloquant (timeout 50ms). Il ne perturbe pas
 le watchdog 30s ni la boucle 10Hz.
 
-**Via Telegram (maître) — factory reset complet** :
-```
-/factory_reset — efface NVS maître complet (config + pairing) + reboot
-```
+**Factory reset complet (maître)** :
+Commande Telegram `/factory_reset` **non implémentée** à ce jour (voir TODO.md).
+Le factory reset passe par le bouton physique (appui long 10s) ou par appel
+programmatique à `configMgr.factoryReset()` via une version de debug du firmware.
 
-Pour l'esclave, le factory reset doit passer par le port série ou par appel
-programmatique à `espNow.resetPairing()` depuis le firmware (pas de Telegram
-sur le slave).
+Pour l'esclave, le factory reset se fait via le port série (`pairing_reset`) ou
+par appel programmatique à `espNow.resetPairing()` depuis le firmware (pas de
+Telegram sur le slave).
 
 **Via code** :
 ```cpp
@@ -95,7 +98,7 @@ La sécurité repose uniquement sur le magic byte `0xBA` (PROTOCOL_MAGIC) dans
 chaque header : tout paquet ESP-NOW sans ce magic est rejeté silencieusement.
 Cela filtre les devices ESP-NOW d'autres projets au voisinage.
 
-Pas de chiffrement PMK/LMK implémenté à ce stade (TODO dans EspNowMaster.cpp).
+Pas de chiffrement PMK/LMK implémenté à ce stade (voir TODO.md §Sécurité).
 Suffisant pour un usage personnel en appartement (1 paire maître+esclave).
 
 ## Limitations connues

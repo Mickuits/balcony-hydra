@@ -68,9 +68,9 @@
 - Protocole peer-to-peer Espressif, 2.4GHz
 - Pas besoin du routeur WiFi — fonctionne même si Internet est coupé
 - Latence <5ms, portée ~50m en intérieur (largement suffisant balcon↔appart)
-- Chiffré (PMK + LMK)
+- Filtrage par magic byte `0xBA` (pas de chiffrement PMK/LMK à ce stade — voir PAIRING.md §Sécurité)
 - Bidirectionnel: maître envoie commandes, esclave remonte données
-- Pas de TCP/IP overhead — très léger, idéal pour deep sleep esclave
+- Pas de TCP/IP overhead — très léger, faible empreinte CPU
 
 ### MQTT fallback (secondaire)
 - Si ESP-NOW échoue (interférences, distance), bascule sur MQTT via routeur WiFi
@@ -96,17 +96,17 @@ DATA_SENSORS      { moisture[10], tank_level, tank_cm, temperature, humidity, pr
 DATA_PUMP_STATUS  { state, running_for_s, total_cycles, failsafe }
 DATA_ACK          { cmd_id, success }
 DATA_ALERT        { type, message }
-DATA_PONG         { uptime_s, battery_v, rssi }
+DATA_PONG         { uptime_s, vbus_v, rssi }
 ```
 
 ### Intervalle communication
 - Esclave envoie DATA_SENSORS toutes les 30s (quand actif)
 - Maître envoie CMD_PING toutes les 60s (heartbeat)
-- Si 3 PONG manqués → maître alerte "Esclave balcon non-responsive"
+- Si 3 CMD_PING envoyés sans DATA_PONG en retour (180s) → maître alerte "Esclave balcon non-responsive"
 
-## Mode dégradé esclave (WiFi perdu)
+## Mode dégradé esclave (lien maître perdu)
 
-Si l'esclave perd la communication avec le maître :
+Si l'esclave perd la communication avec le maître (ESP-NOW ET MQTT fallback absents) :
 1. Continue d'arroser selon le dernier schedule/config reçu (stocké en NVS)
 2. LED jaune clignotant
 3. Tente de reconnecter ESP-NOW toutes les 30s
@@ -166,8 +166,8 @@ Si l'esclave perd la communication avec le maître :
 4. **Écran sécurité**
    - État SafetyManager
    - Bouton unlock (si hard lockout)
-   - T° batterie esclave
-   - Compteur boot crashes
+   - T° interne boîtier esclave (BME280)
+   - Compteur boot crashes (maître + esclave)
 
 5. **Écran capteurs détail**
    - Liste des 20 capteurs avec valeur individuelle
@@ -227,22 +227,22 @@ balcony-hydra/
 ├── README.md
 ├── LICENSE
 ├── docs/
-│   ├── BOM_v4_distributed.xlsx
+│   ├── BOM_v4_secteur.xlsx
 │   ├── architecture_v4.md          (ce fichier)
 │   ├── safety_analysis.md
-│   ├── schema_hydraulique.svg
+│   ├── PAIRING.md
+│   ├── test_matrix.md
 │   ├── wiring_master.svg
 │   ├── wiring_slave.svg
-│   └── system_architecture_v4.svg
+│   ├── firmware_architecture.svg
+│   └── legacy/                     # v2/v3 archivés
 ├── hardware/
 │   ├── pin_assignment_master.md
 │   └── pin_assignment_slave.md
 ├── firmware/
 │   ├── common/                     # Code partagé maître+esclave
-│   │   ├── Protocol.h              # Messages ESP-NOW, structs
-│   │   ├── Protocol.cpp
-│   │   ├── config_common.h         # Constantes partagées
-│   │   └── SafetyCommon.h          # Failsafes communs
+│   │   ├── Protocol.h              # Messages ESP-NOW, CmdType/DataType, structs packed
+│   │   └── config_common.h         # Constantes partagées (seuils, timing, coords)
 │   ├── master/                     # Firmware maître (intérieur)
 │   │   ├── platformio.ini
 │   │   ├── src/main.cpp
@@ -261,6 +261,7 @@ balcony-hydra/
 │   │       ├── TimeManager/
 │   │       ├── PlantProfile/       # Profil hydrique par plante (NVS)
 │   │       ├── AutonomyCalculator/ # Prédiction consommation / autonomie
+│   │       ├── WiFiGeolocation/    # Géoloc par scan WiFi → lat/lon NVS
 │   │       ├── StatusLED/
 │   │       └── SleepManager/
 │   └── slave/                      # Firmware esclave (balcon)
@@ -299,9 +300,7 @@ balcony-hydra/
 | 15 | TOUCH CS | SPI |
 | VSPI | TFT MOSI/MISO/CLK | SPI default (18,19,23 — CONFLIT LED!) |
 
-**⚠ CONFLIT SPI/LED:** Les pins SPI par défaut (18,19,23) entrent en conflit avec la LED RGB. Solutions:
-- Option A: LED RGB sur GPIO 16, 17, 2 (libérer 19,23 pour SPI)
-- Option B: Utiliser HSPI au lieu de VSPI pour le TFT
+**⚠ CONFLIT SPI/LED résolu (Option A) :** côté maître, la LED RGB est déplacée sur GPIO 16, 17, 2 pour libérer les pins VSPI par défaut (18, 19, 23) utilisés par le TFT. Le GPIO 18 est réassigné au relay sécurité côté maître uniquement (voir table maître ci-dessus) — **conflit restant à lever** entre relay (GPIO 18) et SPI CLK (GPIO 18) : déplacer le relay sur un GPIO libre (candidat : GPIO 26 si MUX S3 libérable), voir TODO.md.
 
 ### ESP32 Esclave (balcon)
 

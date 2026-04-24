@@ -35,7 +35,7 @@
   <!-- Right pins -->
   <text x="540" y="145" class="pin">G21</text><text x="498" y="145" class="label" text-anchor="end">SDA I2C →</text>
   <text x="540" y="165" class="pin">G22</text><text x="498" y="165" class="label" text-anchor="end">SCL I2C →</text>
-  <text x="540" y="185" class="pin">G18</text><text x="498" y="185" class="label" text-anchor="end">Relay sécu →</text>
+  <text x="540" y="185" class="pin">G18</text><text x="498" y="185" class="label" text-anchor="end" fill="#c00" font-weight="bold">⚠ Relay sécu → (CONFLIT SPI CLK)</text>
   <text x="540" y="205" class="pin">G5</text><text x="498" y="205" class="label" text-anchor="end">← Bouton</text>
   <text x="540" y="225" class="pin">G16</text><text x="498" y="225" class="label" text-anchor="end">LED R →</text>
   <text x="540" y="245" class="pin">G17</text><text x="498" y="245" class="label" text-anchor="end">LED G →</text>
@@ -109,4 +109,6 @@
   <line x1="40" y1="530" x2="80" y2="530" class="wire-gnd"/><text x="85" y="534" class="note">GND</text>
   <text x="180" y="489" class="note">⚠ LED RGB déplacée sur G16/G17/G2</text>
   <text x="180" y="504" class="note">pour éviter conflit SPI (G18/G19/G23)</text>
+  <text x="180" y="519" class="note" fill="#c00" font-weight="bold">⚠ CONFLIT RESTANT : G18 = Relay ET SPI CLK</text>
+  <text x="180" y="534" class="note" fill="#c00">→ déplacer Relay sur GPIO 26 (libérer MUX S3) ou passer TFT en HSPI — voir TODO.md</text>
 </svg>

@@ -9,7 +9,7 @@
 
 | ID | Test | Préconditions | Étapes | Résultat attendu | Status |
 |----|------|---------------|--------|-------------------|--------|
-| T1.01 | Pairing ESP-NOW au boot | 2 ESP32 flashés, MAC configuré | Boot maître → boot esclave → CMD_PING | DATA_PONG reçu <5s, RSSI affiché | 🔲 |
+| T1.01 | Pairing ESP-NOW au boot | 2 ESP32 flashés, NVS vides | Boot maître (broadcast CMD_PAIRING_REQ) → boot esclave → DATA_PAIRING_ACK → CMD_PAIRING_CONFIRM → ensuite CMD_PING | Pairing OK <5s, DATA_PONG reçu, RSSI affiché | 🔲 |
 | T1.02 | Cycle capteurs normal 30s | Comm ESP-NOW établie | Attendre 60s | ≥2 DATA_SENSORS reçus, JSON valide | 🔲 |
 | T1.03 | Heartbeat PING/PONG 60s | Comm établie | Attendre 3 min | ≥3 PING envoyés, ≥3 PONG reçus | 🔲 |
 | T1.04 | Commande pompe distante | Comm établie | Maître → CMD_PUMP_START {60s} | Esclave démarre pompe A, DATA_ACK reçu | 🔲 |
@@ -17,15 +17,19 @@
 | T1.06 | Fallback MQTT quand ESP-NOW échoue | Routeur WiFi actif | Brouiller ESP-NOW (distance/obstacle) | Bascule MQTT, commandes passent via broker | 🔲 |
 | T1.07 | Double perte (ESP-NOW + MQTT) | Les deux comm coupées | Couper routeur + éloigner esclave | Maître alerte Telegram "non-responsive" | 🔲 |
 | T1.08 | Recovery après perte comm | Mode dégradé actif | Rétablir ESP-NOW | DATA_PONG reçu, données accumulées sync | 🔲 |
-| T1.09 | Chiffrement ESP-NOW | Comm établie | Sniffer WiFi 2.4GHz | Payload chiffré, pas lisible en clair | 🔲 |
-| T1.10 | Latence ESP-NOW | Comm établie | Mesurer RTT PING→PONG ×100 | Moyenne <10ms, max <50ms | 🔲 |
+| T1.09 | Filtrage magic byte `0xBA` | Comm établie | Sniffer WiFi 2.4GHz + envoyer trame ESP-NOW sans magic | Paquets sans magic rejetés silencieusement (chiffrement PMK/LMK non implémenté — voir PAIRING.md §Sécurité) | 🔲 |
+| T1.10 | Latence ESP-NOW | Comm établie, WiFi STA actif simultanément | Mesurer RTT PING→PONG ×100 | Moyenne <30ms, max <100ms (coexistence WiFi+ESP-NOW) | 🔲 |
+| T1.11 | Re-pairing via /pairing_reset | Pairing OK, Telegram actif | Envoyer `/pairing_reset` Telegram | Maître efface NVS pairing, reboot, redémarre en broadcast CMD_PAIRING_REQ | 🔲 |
+| T1.12 | CLI slave pairing_status | Slave flashé, USB | Connecter terminal 115200, taper `pairing_status` | Affiche `paired=YES/NO + MAC maître` | 🔲 |
+| T1.13 | CLI slave pairing_reset | Slave pairé | Taper `pairing_reset` dans CLI série | NVS pairing slave effacée, reboot, repart en mode pairing | 🔲 |
+| T1.14 | DATA_ACK commande | Comm établie | Maître → CMD_PUMP_START {60s} | DATA_ACK reçu avec `success=true` dans délai <500ms | 🔲 |
 
 ## T2 — Mode Dégradé Esclave
 > Source: diagramme Séq. Dégradé (seq-degrade) + STM Safety (stm-safety)
 
 | ID | Test | Préconditions | Étapes | Résultat attendu | Status |
 |----|------|---------------|--------|-------------------|--------|
-| T2.01 | Entrée mode dégradé | Comm active | Couper maître (débrancher) | Après 3 PING manqués (180s), LED jaune clignotant | 🔲 |
+| T2.01 | Entrée mode dégradé | Comm active, pairing OK | Couper maître (débrancher) | Après 3 CMD_PING sans DATA_PONG (180s), `isMasterLost()=true`, LED jaune clignotant (état `WARNING`) | 🔲 |
 | T2.02 | Arrosage local NVS | Mode dégradé, config NVS valide | Sol sec (humidité < seuil NVS) | Pompe A s'active selon config NVS | 🔲 |
 | T2.03 | Cooldown respecté en dégradé | Mode dégradé | 2 arrosages consécutifs | 2ème arrosage refusé si <2h | 🔲 |
 | T2.04 | Max cycles en dégradé | Mode dégradé | Déclencher 5 cycles | 5ème cycle refusé (max 4/24h) | 🔲 |
@@ -78,7 +82,7 @@
 | T5.06 | Dry-run hard lockout | Pompe en marche, pas d'eau | Réservoir vide + pas de tube | <50mA après 3s → STOP + hard lockout | 🔲 |
 | T5.07 | Remote unlock Telegram | Hard lockout actif | Envoyer /unlock | Lockout levé, Telegram ✅ Déverrouillé | 🔲 |
 | T5.08 | Remote unlock refusé si auto | Lockout AUTO (thermal) | Envoyer /unlock | "Lockout auto-recovery en cours" | 🔲 |
-| T5.09 | Boot crash detection | ESP32 opérationnel | Reset 3× en 30s (bouton reset) | Safe mode, LED rouge clignotant rapide | 🔲 |
+| T5.09 | Boot crash detection | ESP32 opérationnel | Reset 3× avant 60s de boot stable (bouton reset) — seuil `SAFETY_MAX_BOOT_CRASHES=3`, `SAFETY_STABLE_BOOT_MS=60000` | Safe mode, LED rouge clignotant rapide | 🔲 |
 | T5.10 | Safe mode WiFi+TG actifs | Safe mode | Vérifier WiFi + envoyer /status | WiFi connecté, Telegram répond | 🔲 |
 | T5.11 | Safe mode unlock distant | Safe mode | Envoyer /unlock | Sort du safe mode, pompes opérationnelles | 🔲 |
 | T5.12 | Boot stable reset compteur | Boot normal | Laisser tourner 60s | Compteur crash NVS remis à 0 | 🔲 |
@@ -92,7 +96,7 @@
 | ID | Test | Préconditions | Étapes | Résultat attendu | Status |
 |----|------|---------------|--------|-------------------|--------|
 | T6.01 | Pull-down 10kΩ au boot | MOSFET wired avec pull-down | Power cycle ESP32 | Pompe reste OFF pendant boot (0V gate) | 🔲 |
-| T6.02 | Fusible 3A pompe | Pompe branchée | Court-circuiter sortie pompe | Fusible 3A grille, pompe coupée | 🔲 |
+| T6.02 | Fusible 3A pompe | Pompe branchée sur **alimentation de labo à limitation de courant** (PAS via USB secteur, risque de griller MOSFET avant fusible) | Court-circuiter sortie pompe | Fusible 3A grille, pompe coupée | 🔲 |
 | T6.03 | ~~SUPPRIMÉ~~ (pas de batterie) | — | — | — | ⏭ |
 | T6.04 | ~~SUPPRIMÉ~~ (pas de batterie) | — | — | — | ⏭ |
 | T6.05 | Boîtier IP65 étanchéité | Boîtier esclave fermé | Arroser au jet (simulation pluie) | Pas d'infiltration d'eau | 🔲 |
@@ -110,7 +114,7 @@
 | T7.03 | Navigation tactile entre écrans | TFT actif | Swipe ou boutons navigation | 5 écrans accessibles sans bug | 🔲 |
 | T7.04 | Portail web accessible | WiFi STA connecté | Naviguer http://hydra.local | Dashboard web s'affiche, données live | 🔲 |
 | T7.05 | API REST /api/sensors | WiFi connecté | GET /api/sensors | JSON 200 OK, données 2 zones | 🔲 |
-| T7.06 | API REST /api/safety | WiFi connecté | GET /api/safety/status | JSON SafetyManager complet | 🔲 |
+| T7.06 | API REST /api/safety | WiFi connecté | GET /api/safety/status | ⏭ route non implémentée dans WebPortal — à créer (voir TODO.md) ou passer par `/api/status` qui inclut le bloc safety | ⏭ |
 | T7.07 | API POST /api/safety/unlock | Hard lockout actif | POST /api/safety/unlock | Lockout levé, 200 OK | 🔲 |
 | T7.08 | Telegram /status | Bot configuré | Envoyer /status | Réponse complète 2 zones + sécurité | 🔲 |
 | T7.09 | Telegram /safety | Bot configuré | Envoyer /safety | JSON SafetyManager détaillé | 🔲 |
@@ -208,7 +212,7 @@
 
 | Catégorie | Tests | Criticité |
 |-----------|-------|-----------|
-| T1 Communication M↔S | 10 | 🔴 Critique |
+| T1 Communication M↔S | 14 | 🔴 Critique |
 | T2 Mode dégradé | 7 | 🔴 Critique |
 | T3 Arrosage AUTO | 10 | 🟡 Haute |
 | T4 SCHEDULED/SOLAR/MANUAL | 10 | 🟡 Haute |
@@ -220,7 +224,7 @@
 | T10 Profils hydriques & cycle | 16 | 🟡 Haute |
 | T11 Autonomie & prédiction | 10 | 🟢 Moyenne |
 | T12 Géolocalisation WiFi | 9 | 🟢 Moyenne |
-| **TOTAL** | **128** | |
+| **TOTAL** | **132** | |
 
 ### Ordre d'exécution recommandé
 1. **T6** Hardware (avant firmware — vérifier le câblage)

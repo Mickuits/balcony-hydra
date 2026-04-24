@@ -32,7 +32,7 @@
   <text x="348" y="265" class="pin">G27</text><text x="390" y="265" class="label">→ MOSFET Pompe A</text>
   <text x="348" y="285" class="pin">G14</text><text x="390" y="285" class="label">→ US TRIGGER</text>
   <text x="348" y="305" class="pin">G4</text><text x="390" y="305" class="label">→ MUX EN</text>
-  <text x="348" y="325" class="pin">G35</text><text x="390" y="325" class="label">← BATT ADC (div)</text>
+  <text x="348" y="325" class="pin">G35</text><text x="390" y="325" class="label">(libre)</text>
 
   <!-- Right pins -->
   <text x="540" y="145" class="pin">G21</text><text x="498" y="145" class="label" text-anchor="end">SDA I2C →</text>
