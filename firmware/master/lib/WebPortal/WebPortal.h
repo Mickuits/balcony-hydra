@@ -12,6 +12,8 @@
 #include "PumpController.h"
 #include "WifiManager.h"
 
+class SafetyManager;  // Forward-declared — injected via setSafetyManager()
+
 class WebPortal {
 public:
     WebPortal(ConfigManager& configMgr, SensorManager& sensorMgr,
@@ -20,12 +22,16 @@ public:
     void begin();
     void stop();
 
+    // Optional: enable /api/safety/* routes (status + unlock)
+    void setSafetyManager(SafetyManager* safetyMgr) { _safetyMgr = safetyMgr; }
+
 private:
     AsyncWebServer _server;
     ConfigManager&  _configMgr;
     SensorManager&  _sensorMgr;
     PumpController& _pumpCtrl;
     WifiManager&    _wifiMgr;
+    SafetyManager*  _safetyMgr = nullptr;  // Optional dependency
 
     void _setupRoutes();
     void _servePage(AsyncWebServerRequest* req);
@@ -38,6 +44,8 @@ private:
     void _handleApiResetFailsafe(AsyncWebServerRequest* req);
     void _handleApiReboot(AsyncWebServerRequest* req);
     void _handleApiFactoryReset(AsyncWebServerRequest* req);
+    void _handleApiSafetyStatus(AsyncWebServerRequest* req);
+    void _handleApiSafetyUnlock(AsyncWebServerRequest* req);
     void _handleCaptivePortal(AsyncWebServerRequest* req);
 
     static const char _html[] PROGMEM;

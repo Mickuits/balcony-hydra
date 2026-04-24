@@ -427,6 +427,7 @@ void setup() {
 
     // 11/12 — Web + MQTT + Telegram
     Serial.println("[BOOT] 11/12 — WebPortal + MQTT + Telegram...");
+    webPortal.setSafetyManager(&safetyMgr);  // expose /api/safety/status + /api/safety/unlock
     webPortal.begin();
     // Note: PlantProfile et AutonomyCalculator ne sont PAS injectés dans
     // WebPortal — ces fonctionnalités sont exposées uniquement via Telegram

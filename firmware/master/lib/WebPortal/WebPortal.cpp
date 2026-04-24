@@ -5,6 +5,7 @@
 #include "WebPortal.h"
 #include "PlantProfile.h"
 #include "AutonomyCalculator.h"
+#include "SafetyManager.h"  // concrete type needed for _safetyMgr->toJson()/remoteUnlock()
 #include <ArduinoJson.h>
 
 // ---- Embedded HTML/CSS/JS (PROGMEM) ----
@@ -313,6 +314,10 @@ void WebPortal::_setupRoutes() {
     _server.on("/api/reboot", HTTP_POST, [this](AsyncWebServerRequest* req) { _handleApiReboot(req); });
     _server.on("/api/factory-reset", HTTP_POST, [this](AsyncWebServerRequest* req) { _handleApiFactoryReset(req); });
 
+    // API: safety (SafetyManager status + remote unlock)
+    _server.on("/api/safety/status", HTTP_GET, [this](AsyncWebServerRequest* req) { _handleApiSafetyStatus(req); });
+    _server.on("/api/safety/unlock", HTTP_POST, [this](AsyncWebServerRequest* req) { _handleApiSafetyUnlock(req); });
+
     // 404 → redirect to main page (captive portal)
     //
     // TODO: Plant profiles & autonomy REST API.
@@ -459,4 +464,29 @@ void WebPortal::_handleApiFactoryReset(AsyncWebServerRequest* req) {
     req->send(200, "application/json", "{\"message\":\"Reset usine — redémarrage...\"}");
     delay(500);
     ESP.restart();
+}
+
+void WebPortal::_handleApiSafetyStatus(AsyncWebServerRequest* req) {
+    if (_safetyMgr == nullptr) {
+        req->send(503, "application/json",
+                  "{\"message\":\"SafetyManager non injecté — setSafetyManager() non appelé\"}");
+        return;
+    }
+    req->send(200, "application/json", _safetyMgr->toJson());
+}
+
+void WebPortal::_handleApiSafetyUnlock(AsyncWebServerRequest* req) {
+    if (_safetyMgr == nullptr) {
+        req->send(503, "application/json",
+                  "{\"message\":\"SafetyManager non injecté\"}");
+        return;
+    }
+    if (_safetyMgr->remoteUnlock("web")) {
+        req->send(200, "application/json",
+                  "{\"message\":\"Lockout déverrouillé via portail web\"}");
+        Serial.println("[WEB] Remote unlock via /api/safety/unlock");
+    } else {
+        req->send(409, "application/json",
+                  "{\"message\":\"Unlock refusé — auto-recovery en cours ou pas de lockout actif\"}");
+    }
 }

@@ -1,6 +1,6 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-04-08
+> Dernière MAJ : 2026-04-24
 
 ## État du sprint
 
@@ -99,9 +99,18 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 
 ### Hardware (à faire avec ESP32 sous la main)
 
+- [ ] **Résolution conflit GPIO 18 (Relay + VSPI CLK)** — décision retenue : passer TFT en HSPI (voir DECISIONS.md 2026-04-24). Action : reconfig `platformio.ini` master avec `-DTFT_SCLK=14 -DTFT_MISO=12 -DTFT_MOSI=13 -DTFT_CS=15 -DTFT_DC=2` et re-câbler le proto. À faire lors du premier flash avec TFT branché.
 - [ ] Conception PCB custom (KiCad) pour remplacer le breakout board
 - [ ] Impression 3D boîtier sur mesure (Bambu Lab P2S)
 - [ ] Ajout buzzer piezo pour alarme locale
+
+### Firmware — suivi audit docs 2026-04-24
+
+- [x] Route `GET /api/safety/status` + `POST /api/safety/unlock` implémentées dans `WebPortal` (SafetyManager injecté via setter)
+- [x] Documentation `docs/` alignée v4 (voir commit `docs: align with v4 architecture...`)
+- [x] Retrait de la promesse "divergence US > 15%" de `CLAUDE.md` (non applicable en v4 = 1 US par zone)
+- [ ] Chiffrement PMK/LMK ESP-NOW (PAIRING.md §Sécurité le signale comme non-implémenté) — optionnel, sécurité actuelle = magic byte `0xBA`
+- [ ] Telegram `/factory_reset` (PAIRING.md le marque non-implémenté) — optionnel, factory reset disponible via bouton GPIO 5 appui 10s
 
 ### Infrastructure
 

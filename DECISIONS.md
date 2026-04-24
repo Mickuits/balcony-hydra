@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI
+
+**Décision** : le conflit `GPIO 18 = Relay sécurité ET VSPI CLK` côté maître sera résolu en passant le TFT ILI9341 + XPT2046 sur le bus **HSPI** (GPIO 14 CLK, 12 MISO, 13 MOSI — remappables). Le Relay reste sur GPIO 18. Décision **non encore implémentée** dans le firmware (pas de `TftDashboard` branché sur vrai hardware à ce jour).
+
+**Contexte** : l'audit docs 2026-04-24 (4 agents en parallèle) a identifié que la table de pins du maître utilise GPIO 18 pour 2 fonctions simultanées — impossible physiquement. Le SVG `wiring_master.svg` a été annoté avec un warning rouge. Sur ESP32 DevKit 30 pins, une fois TFT + MUX + pompe + bouton + I2C + LED + US posés, il ne reste **aucun GPIO output libre** pour déplacer le Relay. Le seul levier est de libérer VSPI.
+
+**Alternatives évaluées** :
+- **A — Déplacer le Relay** : aucun GPIO output libre côté maître (GPIO 35, 39 sont input-only ; GPIO 0, 1, 3 sont strapping / UART ; tous les autres déjà pris). **Rejeté** faute de pins.
+- **B — Supprimer le Relay** (protection uniquement MOSFET + fusible + firmware, alignement avec l'esclave) : réduit la défense en profondeur côté maître. Le relay est la COUCHE 3 de l'architecture de sécurité — sa suppression casse la symétrie du tableau safety. **Rejeté** pour conservation du double verrou.
+- **C — TFT en HSPI** : libère VSPI (18, 19, 23) pour le Relay et d'autres usages futurs. ESP32 expose 2 SPI utilisables. TFT_eSPI supporte HSPI via `#define TFT_MISO/MOSI/SCLK` dans `User_Setup.h`. Demande uniquement un rebranchement (Wago) et une reconfig de `platformio.ini`. **Retenu**.
+
+**Choix** : Option C — TFT sur HSPI.
+
+**Conséquences** :
+- Action firmware : configurer `TFT_eSPI` sur HSPI dans `platformio.ini` master (`-DTFT_SCLK=14 -DTFT_MISO=12 -DTFT_MOSI=13 -DTFT_CS=15 -DTFT_DC=2`). Attention GPIO 12 est strapping (flash voltage) — vérifier que le niveau au boot ne perturbe pas. Sinon utiliser un des autres DevKit pins sortables.
+- Action hardware : sur le proto, câbler le TFT sur HSPI au lieu de VSPI. `wiring_master.svg` à mettre à jour une fois le prototype validé.
+- Impact tests : aucun test SIL impacté (pas de vrai TFT instancié en natif, `TftDashboard` n'a pas de tests SIL).
+- Le pin assignment `config_master.h` devra être révisé : `PIN_TFT_CS`, `PIN_TFT_DC`, `PIN_TOUCH_CS` à relocaliser, potentiellement réutiliser `PIN_US1_TRIG=14` en partageant — à bien analyser. Cette tâche est **en attente hardware réel**, pas de changement code tant qu'on ne flash pas.
+- Conflit GPIO 18 documenté dans `wiring_master.svg` (warning rouge visible) jusqu'à résolution hardware.
+
+Voir `docs/architecture_v4.md` §Pin assignments et `TODO.md` §Hardware.
+
+---
+
 ## 2026-04-08 — `lastAutoWaterTime` sentinel `UINT32_MAX` au lieu de `0`
 
 **Décision** : `PumpController` initialise `_zones[z].lastAutoWaterTime = UINT32_MAX` dans le constructeur, et `_isAutoCooldownOk()` teste `== UINT32_MAX` pour le cas "jamais arrosé" — au lieu de tester `== 0`.

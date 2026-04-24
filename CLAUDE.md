@@ -140,99 +140,105 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 
 **Règle critique:** Le WiFi utilise le Core 0 par défaut sur ESP32. Ne jamais mettre de tâche WiFi-intensive sur Core 1.
 
-## Pin assignment (ESP32)
+## Pin assignment (ESP32) — scindé Maître / Esclave
 
-### Entrées analogiques (ADC1 uniquement — ADC2 incompatible WiFi)
-- `GPIO 36 (VP)` → MUX1 SIG (ADC1_CH0) — 16 capteurs humidité
-- `GPIO 39 (VN)` → MUX2 SIG (ADC1_CH3) — 4 capteurs humidité
+> Architecture v4 = 2 ESP32 distincts. Chaque MCU a sa propre table de pins.
+> Les valeurs font foi : voir `firmware/master/include/config_master.h` et
+> `firmware/slave/include/config_slave.h`.
 
-### Entrées digitales (input only)
-- `GPIO 34` → US#1 ECHO (bidon 3, principal)
-- `GPIO 35` → US#2 ECHO (bidon 1, redondance)
+### Contraintes communes (ADC2 interdit avec WiFi actif, pins input-only)
+- Entrées analogiques possibles (ADC1) : `GPIO 32-39` (sauf 37, 38 absents du DevKit 30p)
+- Input only (pas de pull-up/down interne) : `GPIO 34, 35, 36, 39`
+- Strapping pins à manipuler avec précaution : `GPIO 0, 2, 12, 15`
 
-### Contrôle MUX (S0-S3 partagés entre MUX1 et MUX2)
-- `GPIO 32` → S0, `GPIO 33` → S1, `GPIO 25` → S2, `GPIO 26` → S3
-- `GPIO 4` → MUX1 EN (active LOW)
-- `GPIO 16` → MUX2 EN (active LOW)
+### Table Maître (intérieur, zone B)
 
-### Actionneurs
-- `GPIO 27` → MOSFET Gate (pompe 12V) — **pull-down 10kΩ obligatoire**
-- `GPIO 14` → US#1 TRIGGER
-- `GPIO 12` → US#2 TRIGGER
+| GPIO | Fonction | Notes |
+|------|----------|-------|
+| 36 (VP) | MUX1 SIG | ADC1_CH0, 10 capteurs humidité zone B |
+| 34 | US#1 ECHO | Réservoir intérieur (input only) |
+| 14 | US#1 TRIGGER | — |
+| 32,33,25,26 | MUX S0-S3 | Adresse partagée |
+| 4 | MUX EN | Active LOW |
+| 27 | MOSFET Pompe B | Pull-down 10kΩ obligatoire |
+| 18 | Relay sécurité | ⚠ **CONFLIT SPI CLK** — voir TODO.md (décision : TFT en HSPI) |
+| 21, 22 | I2C SDA/SCL | DS3231 0x68, pull-up 4.7kΩ |
+| 5 | Bouton poussoir | INPUT_PULLUP, ISR FALLING, anti-rebond 300ms |
+| 16, 17, 2 | LED RGB (R, G, B) | LEDC PWM ch4/5/6 — déplacée pour éviter SPI |
+| 13 | TFT CS | ILI9341 |
+| 12 | TFT DC | (strapping — forcer état safe au boot) |
+| 15 | TOUCH CS | XPT2046 |
+| 23, 19, 18 | VSPI MOSI/MISO/CLK | TFT + Touch — **CLK en conflit avec Relay** |
 
-### Bouton physique
-- `GPIO 5` → Bouton poussoir (INPUT_PULLUP, appui = LOW, ISR FALLING)
-- Anti-rebond logiciel 300ms
-- **Appui 1× pompe OFF** → démarre un cycle (durée config)
-- **Appui 1× pompe ON** → arrête la pompe
-- **Appui si failsafe** → 3 blinks LED rouge (erreur, pompe bloquée)
-- Fonctionne dans TOUS les modes, même sans WiFi
+### Table Esclave (balcon, zone A)
 
-### LED RGB (common cathode)
-- `GPIO 17` → Rouge (LEDC PWM ch4)
-- `GPIO 19` → Vert (LEDC PWM ch5)
-- `GPIO 23` → Bleu (LEDC PWM ch6)
+| GPIO | Fonction | Notes |
+|------|----------|-------|
+| 36 (VP) | MUX SIG | ADC1_CH0, 10 capteurs humidité zone A |
+| 34 | US ECHO | Réservoir balcon (input only) |
+| 14 | US TRIGGER | — |
+| 32,33,25,26 | MUX S0-S3 | Adresse partagée |
+| 4 | MUX EN | Active LOW |
+| 27 | MOSFET Pompe A | Pull-down 10kΩ obligatoire |
+| 21, 22 | I2C SDA/SCL | BME280 0x76 + INA219 0x40, pull-up 4.7kΩ |
+| 17, 19, 23 | LED RGB (R, G, B) | LEDC PWM — pas de conflit (pas de TFT) |
+| 2 | LED onboard | Heartbeat |
+| 35, 39 | Libres | Input only, disponibles pour extensions |
 
-Code couleur :
+### LED RGB — code couleur (commun maître/esclave)
+
 | Couleur | Pattern | Signification |
 |---------|---------|---------------|
 | Vert fixe | Continu | Système OK |
-| Vert respiration | Pulse 2s | OK, deep sleep imminent |
-| Bleu fixe | Continu | WiFi AP mode (config) |
+| Vert respiration | Pulse 2s | OK, idle |
+| Bleu fixe | Continu | WiFi AP (config) OU esclave en attente de pairing |
 | Bleu clignotant | 500ms | Connexion WiFi en cours |
 | Cyan fixe | Continu | Arrosage en cours |
-| Jaune clignotant | 1s | Alerte (réservoir bas, T° haute) |
+| Jaune clignotant | 1s | Alerte (réservoir bas, T° 50°C, lien maître perdu côté esclave) |
 | Rouge fixe | Continu | Failsafe pompe actif |
-| Rouge clignotant rapide | 200ms | Erreur critique (T° critique, lockout) |
+| Rouge clignotant rapide | 200ms | Erreur critique (T° > 58°C, hard lockout, 3+ boot crashes) |
 | Blanc flash ×3 | 100ms | Feedback bouton pressé |
 
-### Relais de sécurité
-- `GPIO 18` → Relais sécurité pompe (normalement OUVERT)
+### Relais de sécurité (MAÎTRE uniquement — pas d'équivalent côté esclave)
+- `GPIO 18` → Relay sécurité pompe B, normalement OUVERT
 - HIGH = relay fermé = pompe peut fonctionner
 - LOW / MCU mort / reset = relay ouvert = pompe coupée
 - **Indépendant du PumpController** — géré par SafetyManager
-- Le PumpController commande le MOSFET, le SafetyManager commande le relais
-- La pompe ne tourne QUE si les deux sont actifs (relay ET MOSFET)
+- Double verrou : pompe ON ssi relay ET MOSFET actifs
+- **Côté esclave : pas de relay.** La pompe A est protégée uniquement par MOSFET + fusible 3A + pull-down + firmware `SafetyLocal`.
 
-### Sécurité hardware (indépendant du firmware)
+### Sécurité hardware (maître ET esclave, indépendant du firmware)
 - **Fusible 3A** sur ligne pompe 12V (protection pompe bloquée)
 - **Pull-down 10kΩ** sur Gate MOSFET (pompe OFF si MCU crash/reset)
-
-### I2C
-- `GPIO 21` → SDA (BME280 0x76 + INA219 0x40) — pull-up 4.7kΩ
-- `GPIO 22` → SCL — pull-up 4.7kΩ
-
-### Status
-- `GPIO 2` → LED onboard
 
 ## Architecture dual-zone
 
 Le système gère **2 zones indépendantes** avec chacune sa pompe, son réservoir et ses capteurs :
 
-### Zone A — Balcon (extérieur)
+### Zone A — Balcon (extérieur) — gérée par l'ESCLAVE
 - 10 pots (citronnier, aromates, méditerranéennes)
-- 2 réservoirs 25L en vases communicants (50L)
-- Pompe péristaltique 12V via MOSFET GPIO 27
-- Capteur US#1 (GPIO 14/34)
-- Capteurs humidité MUX1 C0-C9
-- BME280 environnement
+- 2 réservoirs 25 L en vases communicants (50 L effectifs)
+- Pompe péristaltique 12 V via MOSFET **GPIO 27 de l'esclave**
+- Capteur US sur le bidon de tête (GPIO 14 TRIG, GPIO 34 ECHO de l'esclave)
+- 10 capteurs humidité via MUX unique (GPIO 36 SIG)
+- BME280 environnement extérieur + INA219 courant pompe
 - Goutteurs 4-8 L/h
 
-### Zone B — Intérieur
+### Zone B — Intérieur — gérée par le MAÎTRE
 - 10 pots (plantes vertes, tropicales)
-- 1 réservoir 25L dédié
-- Pompe péristaltique 12V via MOSFET GPIO 15
-- Capteur US#2 (GPIO 12/35)
-- Capteurs humidité MUX1 C10-C15 + MUX2 C0-C3
+- 1 réservoir 25 L dédié
+- Pompe péristaltique 12 V via MOSFET **GPIO 27 du maître**
+- Capteur US intérieur (GPIO 14 TRIG, GPIO 34 ECHO du maître)
+- 10 capteurs humidité via MUX unique (GPIO 36 SIG)
 - Goutteurs 2-4 L/h
-- Tube 4/6mm passe par porte/fenêtre balcon
+- Tube 4/6 mm passe par porte/fenêtre balcon
 
 ### Indépendance des zones
 - Chaque zone a sa moyenne d'humidité séparée
 - En mode AUTO, une zone peut arroser sans l'autre
 - Cooldown et max cycles par zone (pas global)
-- Tank failsafe par zone (US#1 → zone A, US#2 → zone B)
-- Le relay sécurité coupe les DEUX pompes (sécurité globale)
+- Tank failsafe par zone (US esclave → zone A, US maître → zone B)
+- Le relay sécurité maître coupe **uniquement la pompe B intérieur**. La pompe A balcon est protégée par MOSFET + fusible + firmware (pas de relay côté esclave).
 - Telegram indique la zone dans chaque alerte
 
 ## Architecture de sécurité (défense en profondeur)
@@ -368,8 +374,9 @@ struct PumpStatus {
 
 **Alertes push automatiques:**
 - Réservoir critique (<10%)
-- Niveaux US divergents (raccord obstrué)
-- Pompe failsafe (surintensité, dry-run)
+- Pompe failsafe (surintensité, dry-run, runtime max)
+- Thermal warning / lockout / recovery
+- Esclave non-responsive (3 PING sans PONG)
 - Heartbeat toutes les 12h (rapport complet Markdown)
 
 ## Logique d'arrosage
@@ -407,12 +414,13 @@ struct PumpStatus {
 | MANUAL | Commande | NON (monitoring) | NON |
 
 ### Failsafes (toujours actifs, quel que soit le mode)
-1. **Tank <10%** → STOP pompe + BLOCK + alerte Telegram
+1. **Tank <10%** → STOP pompe + BLOCK + alerte Telegram (auto-recovery si niveau remonte)
 2. **Runtime >300s** → STOP (anti-inondation)
-3. **Courant >3A** → STOP + BLOCK (pompe bloquée mécaniquement)
-4. **Courant <50mA après 3s** → STOP + BLOCK (marche à sec)
-5. **Niveaux US divergent >15%** → ALERTE (raccord obstrué possible)
-6. **Pull-down HW 10kΩ** → pompe OFF au boot/reset (hardware, pas firmware)
+3. **Courant >3A** → STOP + hard lockout (pompe bloquée mécaniquement, nécessite `/unlock`)
+4. **Courant <50mA après 3s** → STOP + hard lockout (marche à sec, nécessite `/unlock`)
+5. **Pull-down HW 10kΩ** → pompe OFF au boot/reset (hardware, pas firmware)
+
+> Architecture v4 = 1 capteur US par zone (Zone A balcon 2×25 L vases communicants → 1 seul US sur le bidon de tête, Zone B intérieur 1×25 L → 1 US). La détection "divergence US >15%" du firmware v3 n'est plus applicable et a été retirée.
 
 ## Hardware — Rappels importants
 
@@ -501,13 +509,16 @@ help     — Liste des commandes
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/BOM_v3_plug_and_play.xlsx` | Bill of Materials (41 composants, prix, sources) |
-| `docs/schema_hydraulique.svg` | Schéma hydraulique (bidons, pompe, manifold, goutteurs) |
-| `docs/wiring_diagram.svg` | Wiring électrique complet (3 rails, tous GPIO) |
+| `docs/BOM_v4_secteur.xlsx` | Bill of Materials v4 (43 lignes, ~204 € + 15 % marge = 234,60 €) |
+| `docs/architecture_v4.md` | Architecture v4 distribuée (ESP-NOW + MQTT fallback) |
+| `docs/safety_analysis.md` | Analyse de sécurité v4 (défense en profondeur, seuils chiffrés) |
+| `docs/PAIRING.md` | Procédure d'appairage ESP-NOW maître ↔ esclave |
+| `docs/test_matrix.md` | Matrice de tests hardware (132 tests T1-T12) |
+| `docs/wiring_master.svg` + `wiring_slave.svg` | Wiring électrique par MCU |
 | `docs/firmware_architecture.svg` | Architecture firmware (modules, tâches FreeRTOS) |
-| `docs/system_architecture_complete.svg` | Architecture système complète (hardware + firmware + cloud, tous flux) |
-| `docs/architecture.md` | Notes d'architecture texte |
-| `hardware/pin_assignment.md` | Table d'assignation GPIO détaillée |
+| `docs/hydra-sysml-diagrams.pdf` | Diagrammes SysML/UML système |
+| `docs/protocole_mise_en_service.pdf` | Protocole de mise en service terrain |
+| `docs/legacy/` | Documents v2/v3 archivés (obsolètes, traçabilité historique) |
 
 ## TODO / Prochaines étapes
 
