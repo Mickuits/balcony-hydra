@@ -49,7 +49,12 @@ private:
     uint32_t _lastCheck;
     uint32_t _lastHeartbeat;
     bool     _enabled;
-    
+
+    // /factory_reset arming window — millis() expiry. 0 = non armé.
+    // Pattern 2-step pour éviter un reset accidentel par tap sur l'historique chat.
+    uint32_t _factoryResetArmedUntil = 0;
+    static constexpr uint32_t FACTORY_RESET_WINDOW_MS = 30000;  // 30s pour confirmer
+
     void _handleMessages(int numNew);
     String _buildStatusMessage();
     String _chatId() const;

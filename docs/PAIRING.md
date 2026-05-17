@@ -78,9 +78,26 @@ Note : le CLI serie slave est non bloquant (timeout 50ms). Il ne perturbe pas
 le watchdog 30s ni la boucle 10Hz.
 
 **Factory reset complet (maître)** :
-Commande Telegram `/factory_reset` **non implémentée** à ce jour (voir TODO.md).
-Le factory reset passe par le bouton physique (appui long 10s) ou par appel
-programmatique à `configMgr.factoryReset()` via une version de debug du firmware.
+Commande Telegram `/factory_reset` **implémentée** depuis 2026-05-18 avec un
+flow 2-step pour éviter les resets accidentels :
+
+1. Premier envoi : `/factory_reset`
+   - Bot répond avec un avertissement détaillé (config + pairing + profils
+     effacés, reboot en mode AP)
+   - Une fenêtre de confirmation de **30 secondes** est armée
+2. Confirmation dans la fenêtre : `/factory_reset CONFIRM`
+   - Exécute `EspNowMaster::resetPairing()` puis `ConfigManager::reset()`
+   - Reboot immédiat → master en mode AP pour reconfig WiFi
+3. Toute autre commande envoyée entre 1) et 2) abandonne silencieusement
+   l'armement (le timestamp expire seul ou est ignoré)
+
+Si la fenêtre expire, le second message renvoie une erreur explicite et le
+user doit recommencer depuis l'étape 1.
+
+Le factory reset est aussi accessible :
+- Bouton physique GPIO 5 (appui long 10s)
+- HTTP `POST /api/factory-reset` (depuis le réseau local)
+- Appel programmatique `configMgr.reset()` (debug only)
 
 Pour l'esclave, le factory reset se fait via le port série (`pairing_reset`) ou
 par appel programmatique à `espNow.resetPairing()` depuis le firmware (pas de

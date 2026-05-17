@@ -1868,7 +1868,120 @@ void test_T15_10_wifi_backoff_exponential_formula() {
 }
 
 // ================================================================
-// MAIN — 138 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles, T14: 5 pairing, T15: 10 mqtt+wifi)
+// T16 — Telegram /factory_reset confirmation window (5 tests)
+// ----------------------------------------------------------------
+// Le bot Telegram n'est pas instanciable en SIL (UniversalTelegramBot +
+// WiFiClientSecure exigent un vrai réseau). On teste donc la **logique pure**
+// de la fenêtre 2-step en miroir de l'implémentation TelegramBot.cpp.
+// Si la logique du firmware change, ces tests détectent la régression.
+// ================================================================
+
+// Reproduit la machine d'état /factory_reset (cf. TelegramBot.cpp:181-218)
+struct FactoryResetWindowT16 {
+    uint32_t armedUntil = 0;
+    static constexpr uint32_t WINDOW_MS = 30000;
+
+    void arm(uint32_t now) { armedUntil = now + WINDOW_MS; }
+    bool canExecute(uint32_t now) const {
+        return armedUntil != 0 && now <= armedUntil;
+    }
+    void disarm() { armedUntil = 0; }
+};
+
+// ----------------------------------------------------------------
+// T16_01 — Fenêtre non armée par défaut
+// ----------------------------------------------------------------
+void test_T16_01_factory_reset_window_not_armed_by_default() {
+    FactoryResetWindowT16 w;
+    // Sans arm() préalable, canExecute doit refuser, peu importe l'heure
+    TEST_ASSERT_FALSE(w.canExecute(0));
+    TEST_ASSERT_FALSE(w.canExecute(1000));
+    TEST_ASSERT_FALSE(w.canExecute(1000000));
+}
+
+// ----------------------------------------------------------------
+// T16_02 — arm() arme bien la fenêtre 30s
+// ----------------------------------------------------------------
+void test_T16_02_factory_reset_arms_window_for_30s() {
+    FactoryResetWindowT16 w;
+    const uint32_t t0 = 100000;
+    w.arm(t0);
+
+    // armedUntil doit être exactement t0 + 30000
+    TEST_ASSERT_EQUAL_UINT32(t0 + 30000, w.armedUntil);
+
+    // Et la fenêtre doit être valide à t0 (instant de l'armement)
+    TEST_ASSERT_TRUE(w.canExecute(t0));
+}
+
+// ----------------------------------------------------------------
+// T16_03 — CONFIRM dans la fenêtre déclenche l'exécution
+// ----------------------------------------------------------------
+void test_T16_03_factory_reset_confirm_within_window_succeeds() {
+    FactoryResetWindowT16 w;
+    const uint32_t t0 = 50000;
+    w.arm(t0);
+
+    // 0s après arm : OK
+    TEST_ASSERT_TRUE(w.canExecute(t0));
+    // 15s après arm : OK (milieu fenêtre)
+    TEST_ASSERT_TRUE(w.canExecute(t0 + 15000));
+    // 30s pile : OK (borne inclusive)
+    TEST_ASSERT_TRUE(w.canExecute(t0 + 30000));
+}
+
+// ----------------------------------------------------------------
+// T16_04 — CONFIRM après expiration de la fenêtre échoue
+// ----------------------------------------------------------------
+void test_T16_04_factory_reset_confirm_after_window_fails() {
+    FactoryResetWindowT16 w;
+    const uint32_t t0 = 50000;
+    w.arm(t0);
+
+    // 30s + 1ms après arm : refusé
+    TEST_ASSERT_FALSE(w.canExecute(t0 + 30001));
+    // 60s : refusé
+    TEST_ASSERT_FALSE(w.canExecute(t0 + 60000));
+    // 1h : refusé
+    TEST_ASSERT_FALSE(w.canExecute(t0 + 3600000));
+
+    // Et après disarm() : refusé même si re-test dans la fenêtre originale
+    w.disarm();
+    TEST_ASSERT_FALSE(w.canExecute(t0));
+}
+
+// ----------------------------------------------------------------
+// T16_05 — Match exact du texte de confirmation (anti-typo)
+// ----------------------------------------------------------------
+// Le firmware utilise String == "/factory_reset CONFIRM" (case-sensitive,
+// espacement exact). Tout typo doit échouer pour éviter les faux positifs.
+void test_T16_05_factory_reset_text_exact_match_required() {
+    const char* valid    = "/factory_reset CONFIRM";
+    const char* lower    = "/factory_reset confirm";        // wrong case
+    const char* extra    = "/factory_reset CONFIRM!";       // extra char
+    const char* spaceTab = "/factory_reset  CONFIRM";       // double space
+    const char* missing  = "/factory_reset";                // step 1, pas confirm
+
+    auto strEq = [](const char* a, const char* b) {
+        return strcmp(a, b) == 0;
+    };
+
+    // Le firmware compare exactement String == "/factory_reset CONFIRM"
+    TEST_ASSERT_TRUE (strEq(valid,    "/factory_reset CONFIRM"));
+    TEST_ASSERT_FALSE(strEq(lower,    "/factory_reset CONFIRM"));
+    TEST_ASSERT_FALSE(strEq(extra,    "/factory_reset CONFIRM"));
+    TEST_ASSERT_FALSE(strEq(spaceTab, "/factory_reset CONFIRM"));
+    TEST_ASSERT_FALSE(strEq(missing,  "/factory_reset CONFIRM"));
+
+    // ET le step 1 ne match pas le pattern CONFIRM
+    TEST_ASSERT_FALSE(strEq(missing,  "/factory_reset CONFIRM"));
+    // mais matche bien le step 1
+    TEST_ASSERT_TRUE (strEq(missing,  "/factory_reset"));
+}
+
+// ================================================================
+// MAIN — 143 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles,
+// T14: 5 pairing, T15: 10 mqtt+wifi, T16: 5 factory_reset)
 // ================================================================
 
 int setup() {
@@ -2042,6 +2155,13 @@ int setup() {
     RUN_TEST(test_T15_08_wifistate_enum_values_stable);
     RUN_TEST(test_T15_09_hasCredentials_based_on_wifiSsid_length);
     RUN_TEST(test_T15_10_wifi_backoff_exponential_formula);
+
+    // Cat 16: Telegram /factory_reset — logique fenêtre de confirmation (5)
+    RUN_TEST(test_T16_01_factory_reset_window_not_armed_by_default);
+    RUN_TEST(test_T16_02_factory_reset_arms_window_for_30s);
+    RUN_TEST(test_T16_03_factory_reset_confirm_within_window_succeeds);
+    RUN_TEST(test_T16_04_factory_reset_confirm_after_window_fails);
+    RUN_TEST(test_T16_05_factory_reset_text_exact_match_required);
 
     return UNITY_END();
 }

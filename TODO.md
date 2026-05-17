@@ -1,12 +1,12 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-05-18
+> Dernière MAJ : 2026-05-18 (session 2)
 
 ## État du sprint
 
 **Projet logiciellement complet.** ✅ Le firmware est prêt à recevoir le hardware.
 **CI 100% vert sur 5 jobs hard gate** : build-master + build-slave + Lint × 2 + protocol-check.
-**138/138 tests Unity natifs pass, zéro IGNORE.**
+**143/143 tests Unity natifs pass** (138 + 5 T16 factory_reset window logic).
 
 Session 2026-04-07/08 : 50+ commits, refactoring massif, ESP-NOW pairing dynamique implémenté
 de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais modules), CLI série
@@ -94,7 +94,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] `actions/cache@v4 → v5`
 - [x] `actions/setup-python@v5 → v6`
 - [x] Job `pio check` (cppcheck) en `continue-on-error`
-- [ ] Upload artifacts `.bin` sur builds de `main` pour debug futur
+- [x] Upload artifacts `.bin` sur builds de `main` pour debug futur (master+slave, retention 30j, 2026-05-18)
 - [ ] Bumper le job lint en hard gate quand le code reste clean plusieurs commits
 
 ### Hardware (à faire avec ESP32 sous la main)
@@ -110,7 +110,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] Documentation `docs/` alignée v4 (voir commit `docs: align with v4 architecture...`)
 - [x] Retrait de la promesse "divergence US > 15%" de `CLAUDE.md` (non applicable en v4 = 1 US par zone)
 - [ ] Chiffrement PMK/LMK ESP-NOW (PAIRING.md §Sécurité le signale comme non-implémenté) — optionnel, sécurité actuelle = magic byte `0xBA`
-- [ ] Telegram `/factory_reset` (PAIRING.md le marque non-implémenté) — optionnel, factory reset disponible via bouton GPIO 5 appui 10s
+- [x] Telegram `/factory_reset` — implémenté 2026-05-18 avec confirmation 2-step (`/factory_reset` puis `/factory_reset CONFIRM` dans 30s), efface NVS + pairing + reboot. +5 tests SIL T16 (logique fenêtre)
 
 ### Infrastructure
 
@@ -169,6 +169,51 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-18 (session 2) — Phase 1 docs + PWA + firmware /factory_reset + CI artifacts
+
+Suite logique de la session 1 du même jour. Stabilisation complète de
+Phase 1 mobile + clôture de 2 TODOs firmware/CI.
+
+**Mobile docs (Phase 2 préparation)**
+- `docs/mobile_api_contract.md` (358 lignes) : enumeration exhaustive des
+  10 routes REST exposées par WebPortal + 6 routes TODO firmware, JSON
+  schemas réels extraits du code source (avec n° de ligne), MQTT topics
+  pub/sub, pattern hybride REST+MQTT, sécurité v4.2.1 + roadmap Phase 2
+  (token X-Hydra-Token), exemples code JS (fetch wrapper + mqtt.js)
+- `docs/mobile_screens.md` (390 lignes) : storyboard 16 écrans avec
+  rôle/sections/source-data/render-fns/états/actions, mapping écran →
+  onglet, state management global, pattern mutation→render, animations
+  CSS, roadmap Phase 2+3
+
+**PWA setup (Phase 3 distribution)**
+- `mobile/manifest.webmanifest` : standalone, theme #0b0b0b, 2 icônes
+  SVG (any + maskable), 3 shortcuts (Dash / Arroser / Système)
+- `mobile/sw.js` : service worker avec 3 stratégies (cache-first shell,
+  network-first API, passthrough autres), offline fallback HTML, message
+  channel pour SKIP_WAITING et clear cache
+- `mobile/icons/icon.svg` + `icon-maskable.svg` : monogramme BH dans
+  goutte d'eau, gradient vert + halo, safe-zone 80% pour maskable
+- Meta tags Apple+Android dans le HTML, register SW au load
+- Validation Playwright + static server : manifest parsé, SW activé,
+  0 erreur, 2 icônes + 3 shortcuts détectés
+
+**Firmware**
+- `TelegramBot.cpp` : commande `/factory_reset` avec confirmation 2-step
+  (fenêtre 30s armée par premier message, exécution sur
+  `/factory_reset CONFIRM`). Efface pairing ESP-NOW puis NVS config
+  puis reboot. Cohérent avec `POST /api/factory-reset` côté REST
+- `test_functional.cpp` : 5 tests T16 sur la logique pure de la fenêtre
+  (default not armed, arm 30s, confirm in window, confirm after expiry,
+  exact text match anti-typo)
+- `docs/PAIRING.md` : passage de "non implémenté" à "implémenté" avec
+  flow détaillé du 2-step
+
+**CI/CD**
+- `.github/workflows/ci.yml` : ajout de 2 steps `upload-artifact@v4` sur
+  builds de main (master + slave), retention 30j, inclut .bin/.elf/
+  partitions/bootloader. Permet de re-flasher une release passée sans
+  rebuild
 
 ### 2026-05-18 — Mobile : 8 écarts firmware v4 résolus
 

@@ -42,6 +42,21 @@ jobs:
           cd firmware/master
           pio run -e master -t size
 
+      # Upload firmware.bin sur builds de main → permet de re-flasher
+      # une release passée sans rebuild. Retention 30j.
+      - name: Upload master .bin artifact
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-master-${{ github.sha }}
+          path: |
+            firmware/master/.pio/build/master/firmware.bin
+            firmware/master/.pio/build/master/firmware.elf
+            firmware/master/.pio/build/master/partitions.bin
+            firmware/master/.pio/build/master/bootloader.bin
+          retention-days: 30
+          if-no-files-found: warn
+
   build-slave:
     runs-on: ubuntu-latest
     steps:
@@ -74,6 +89,21 @@ jobs:
         run: |
           cd firmware/slave
           pio run -e slave -t size
+
+      # Upload firmware.bin sur builds de main → permet de re-flasher
+      # une release passée sans rebuild. Retention 30j.
+      - name: Upload slave .bin artifact
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-slave-${{ github.sha }}
+          path: |
+            firmware/slave/.pio/build/slave/firmware.bin
+            firmware/slave/.pio/build/slave/firmware.elf
+            firmware/slave/.pio/build/slave/partitions.bin
+            firmware/slave/.pio/build/slave/bootloader.bin
+          retention-days: 30
+          if-no-files-found: warn
 
   # ----------------------------------------------------------------
   # lint — pio check (cppcheck) on both firmwares.

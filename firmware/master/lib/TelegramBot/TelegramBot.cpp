@@ -183,6 +183,48 @@ void TelegramBot::_handleMessages(int numNew) {
             delay(500);
             ESP.restart();
         }
+        else if (text == "/factory_reset") {
+            // Première étape : arme la fenêtre de confirmation 30s.
+            // Le user doit envoyer "/factory_reset CONFIRM" dans la fenêtre
+            // pour exécuter. Évite un reset accidentel par tap sur l'historique
+            // chat ou auto-complete.
+            _factoryResetArmedUntil = millis() + FACTORY_RESET_WINDOW_MS;
+            String warn = "⚠ *FACTORY RESET — DANGER*\n\n";
+            warn += "Cette action va :\n";
+            warn += "• Effacer toute la configuration (WiFi, MQTT, Telegram, seuils)\n";
+            warn += "• Effacer le pairing ESP-NOW (slave)\n";
+            warn += "• Reset les profils plantes au défaut\n";
+            warn += "• Redémarrer en mode AP (config WiFi à refaire)\n\n";
+            warn += "Pour confirmer, envoie dans les *30 secondes* :\n";
+            warn += "`/factory_reset CONFIRM`\n\n";
+            warn += "Pour annuler : ignore ce message ou envoie n'importe quelle autre commande.";
+            _bot->sendMessage(chatId, warn, "Markdown");
+        }
+        else if (text == "/factory_reset CONFIRM") {
+            // Deuxième étape : exécute si la fenêtre est encore valide.
+            if (_factoryResetArmedUntil == 0 || millis() > _factoryResetArmedUntil) {
+                _bot->sendMessage(chatId,
+                    "❌ Fenêtre de confirmation expirée ou non armée.\n"
+                    "Envoie d'abord `/factory_reset` puis confirme dans les 30s.",
+                    "Markdown");
+            } else {
+                _bot->sendMessage(chatId,
+                    "💥 Factory reset en cours...\n"
+                    "• NVS effacé\n"
+                    "• Pairing ESP-NOW effacé\n"
+                    "• Redémarrage en mode AP\n\n"
+                    "Reconnecte-toi au réseau `Hydra-Setup` pour reconfigurer le WiFi.",
+                    "Markdown");
+                delay(500);
+                // Ordre : pairing d'abord (slave ne saura plus qui est master mais
+                // c'est OK puisque le master va perdre sa config), puis config.
+                if (_espNowMaster) _espNowMaster->resetPairing();
+                _configMgr.reset();
+                _factoryResetArmedUntil = 0;
+                delay(500);
+                ESP.restart();
+            }
+        }
         else if (text == "/help" || text == "/start") {
             String help = "🌱 *Hydra v" HYDRA_VERSION "*\n\n";
             help += "📊 /status — État complet\n";
@@ -196,6 +238,7 @@ void TelegramBot::_handleMessages(int numNew) {
             help += "🔗 /pairing_status — État pairing ESP-NOW\n";
             help += "🔗 /pairing_reset — Re-pairer le slave ESP-NOW\n";
             help += "🔄 /reboot — Redémarrer système\n";
+            help += "💥 /factory_reset — Reset usine (NVS+pairing, confirmation 2-step)\n";
             _bot->sendMessage(chatId, help, "Markdown");
         }
     }
