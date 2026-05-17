@@ -1,15 +1,27 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-05-18 (session 2)
+> Dernière MAJ : 2026-05-17 (session refactor mobile-app v4.3)
 
 ## État du sprint
 
-**Projet logiciellement complet.** ✅ Le firmware est prêt à recevoir le hardware.
-**CI 100% vert sur 5 jobs hard gate** : build-master + build-slave + Lint × 2 + protocol-check.
-**154/154 tests Unity natifs** (138 base + T16 factory_reset×5 + T17 PMK/LMK×5 + T18 api_token×6).
-**ESP-NOW chiffré AES-128-CCM** sur unicast post-pairing (PMK/LMK 16 bytes).
-**REST API auth** : header `X-Hydra-Token` requis sur tous les POST `/api/*` (token 32 hex généré au 1er boot, persisté NVS).
-**App mobile Phase 2 complète** : MQTT.js + REST + auth token + actions UI câblées.
+**Projet logiciellement complet + app mobile v4.3 production-grade.** ✅
+**Firmware** : CI 100% vert sur 5 jobs (build-master + build-slave + Lint × 2 + protocol-check), 154/154 tests Unity natifs, ESP-NOW AES-128-CCM, REST API auth X-Hydra-Token.
+**App mobile v4.3 (`mobile-app/`)** : refactor production-grade complet. **459/459 tests Vitest passing**, TypeScript strict 0 erreur, ESLint 0 erreur, build PWA 96kB main + lazy chunks, build standalone single-file. 16 screens portés + wizards + a11y + sécurité CSP + export/import config + error tracking + update checker.
+
+### Refactor mobile-app v4.3 — VAGUES réalisées (2026-05-17)
+- ✅ VAGUE 1 : Inventaire codebase + architecture cible
+- ✅ VAGUE 2 : Setup tooling (Vite + TS + Vitest + Playwright + ESLint + Prettier)
+- ✅ VAGUE 2.B : Types + data + utils + stores + services (169 tests)
+- ✅ VAGUE 2.C : Router + components + dashboard ref (238 tests)
+- ✅ VAGUE 2.D : 15 screens portés + wizards (376 tests)
+- ✅ VAGUE 4 : Sécurité CSP + sanitize MQTT + bundle mqtt.js (392 tests)
+- ✅ VAGUE 4.B : Export/import config (anti-SPOF localStorage) (414 tests)
+- ✅ VAGUE 4.C : Error boundary + crash log persistant (432 tests)
+- ✅ VAGUE 5 : A11y pass (focus trap + announcer + sr-only + skip link) (449 tests)
+- ✅ VAGUE 5.B : Asset versioning + cache-bust + update checker (459 tests)
+- ✅ VAGUE 6 : Documentation dev (mobile-app/README.md + DECISIONS.md)
+- ⏳ VAGUE 3.B : Tests E2E Playwright cross-browser (reporté — nécessite infrastructure CI runners)
+- ⏳ VAGUE 5.C : Lighthouse audit + perf optimization (reporté — nécessite déploiement)
 
 Session 2026-04-07/08 : 50+ commits, refactoring massif, ESP-NOW pairing dynamique implémenté
 de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais modules), CLI série

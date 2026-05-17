@@ -44,7 +44,7 @@ INTÉRIEUR (maître USB secteur)          BALCON (esclave USB secteur)
 └──────────────────────┘
 ```
 
-> **Couche client mobile** : le prototype `mobile/balcony-hydra-mobile.html` est un mock UI/UX (14 écrans, données simulées). Roadmap d'intégration : remplacer le mock `startLiveUpdates()` par un client MQTT.js + brancher les actions sur l'API REST du master. Cible : **PWA** (Phase 3, voir `mobile/README.md`).
+> **Couche client mobile v4.3** : `mobile-app/` — PWA TypeScript stricte (Vite 6 + Vitest + Playwright). 16 screens portés, 459 tests passing, MQTT bridge + REST client + ErrorTracking + ConfigBackup + UpdateChecker. Le prototype legacy `mobile/balcony-hydra-mobile.html` reste en parallèle comme référence UI/UX. Voir `mobile-app/README.md` pour la doc dev complète.
 
 Voir `docs/architecture_v4.md` pour l'architecture détaillée (incluant la couche client mobile).
 
@@ -532,6 +532,9 @@ help     — Liste des commandes
 | `docs/legacy/` | Documents v2/v3 archivés (obsolètes, traçabilité historique) |
 | `mobile/balcony-hydra-mobile.html` | Prototype mobile haute fidélité (HTML autonome, 14 écrans, mock UI/UX). Voir `mobile/README.md`. |
 | `mobile/README.md` | Inventaire des écrans, écarts vs firmware, roadmap PWA Phase 1/2/3 |
+| `mobile-app/` | **App PWA production v4.3** — Vite + TypeScript strict + 459 tests. Voir `mobile-app/README.md`. |
+| `docs/refactor/01_inventaire.md` | Inventaire codebase legacy (VAGUE 1.A) |
+| `docs/refactor/02_architecture.md` | Architecture cible refactor (VAGUE 1.B) |
 
 ## TODO / Prochaines étapes
 
