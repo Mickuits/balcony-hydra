@@ -1,0 +1,64 @@
+/*
+ * Accessibilité — utilitaires partagés.
+ *
+ * .sr-only         : visuellement caché mais lu par les screen readers
+ * .skip-link       : lien "skip to main" visible uniquement au focus clavier
+ * focus-visible    : outline contrasté sur tous les éléments interactifs
+ * prefers-reduced  : désactive les animations en respect du système OS
+ */
+
+/* Screen reader only — pattern HTML5 Boilerplate */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Skip link visible au focus */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--accent, #0a7);
+  color: var(--bg-0, #000);
+  padding: 12px 16px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Focus visible — outline contrasté minimal */
+:focus-visible {
+  outline: 2px solid var(--accent, #0a7);
+  outline-offset: 2px;
+}
+
+/* Respecte prefers-reduced-motion (désactive les animations) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch targets — minimum 44x44 px pour WCAG 2.5.5 */
+button,
+[role='button'],
+.nav-item,
+.filter-chip {
+  min-height: 44px;
+}

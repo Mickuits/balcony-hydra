@@ -18,6 +18,7 @@ import './styles/reset.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/nav.css';
+import './styles/a11y.css';
 import './styles/animations.css';
 
 import { hardwareStore, configStore, uiStore, statsStore, liveLogStore } from './stores';
@@ -33,7 +34,8 @@ import { BindingEngine, ModalManager, BottomNav, MqttBanner } from './components
 import { Router, buildScreenRegistry } from './router';
 import { buildScreenFactories } from './screens';
 import { INITIAL_PROFILES, INITIAL_WEATHER } from './data';
-import type { NavId, ScreenId } from './types';
+import { createAnnouncer } from './utils/a11y';
+import type { NavId, ScreenId, MqttBridgeState } from './types';
 
 const BUILD_ID = '__BUILD__';
 
@@ -75,6 +77,20 @@ function main(): void {
   const bindings = new BindingEngine();
   const modalMgr = new ModalManager();
   modalMgr.attachKeyboard();
+  const announcer = createAnnouncer(document.body);
+
+  // Annonce les changements de connexion MQTT (a11y)
+  bridge.addEventListener('statechange', (e) => {
+    const state = (e as CustomEvent<MqttBridgeState>).detail;
+    if (state === 'connected') announcer.polite('Connexion MQTT établie');
+    else if (state === 'error') announcer.assertive('Connexion MQTT perdue');
+  });
+
+  // Annonce les erreurs capturées
+  errorTracking.addEventListener('capture', (e) => {
+    const entry = (e as CustomEvent<{ severity: string; message: string }>).detail;
+    if (entry.severity === 'error') announcer.assertive(`Erreur : ${entry.message}`);
+  });
 
   // ─── Screens + router ────────────────────────────────────
   // Forward-decl pour pouvoir référencer router dans les callbacks

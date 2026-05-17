@@ -57,7 +57,10 @@
     />
   </head>
   <body>
-    <div class="app" id="app">
+    <!-- Skip link a11y — visible uniquement au focus clavier -->
+    <a href="#mainContent" class="skip-link">Aller au contenu principal</a>
+
+    <div class="app" id="app" role="application" aria-label="Balcony Hydra contrôle">
       <!-- MQTT connection banner (caché par défaut) -->
       <div id="mqttBanner" class="mqtt-banner" hidden>
         <span id="mqttBannerDot" class="mqtt-dot" aria-hidden="true"></span>
@@ -66,22 +69,24 @@
       </div>
 
       <!-- 16 screen containers — contenu injecté par les screen handlers au mount -->
-      <div class="screen-wrap active" id="dashboard" data-screen="dashboard"></div>
-      <div class="screen-wrap" id="pots" data-screen="pots"></div>
-      <div class="screen-wrap" id="detail" data-screen="detail"></div>
-      <div class="screen-wrap" id="stats" data-screen="stats"></div>
-      <div class="screen-wrap" id="profiles" data-screen="profiles"></div>
-      <div class="screen-wrap" id="system" data-screen="system"></div>
-      <div class="screen-wrap" id="tanks" data-screen="tanks"></div>
-      <div class="screen-wrap" id="tankDetail" data-screen="tankDetail"></div>
-      <div class="screen-wrap" id="tankConfig" data-screen="tankConfig"></div>
-      <div class="screen-wrap" id="addTank" data-screen="addTank"></div>
-      <div class="screen-wrap" id="tankEdit" data-screen="tankEdit"></div>
-      <div class="screen-wrap" id="vacation" data-screen="vacation"></div>
-      <div class="screen-wrap" id="configurator" data-screen="configurator"></div>
-      <div class="screen-wrap" id="addPot" data-screen="addPot"></div>
-      <div class="screen-wrap" id="editPot" data-screen="editPot"></div>
-      <div class="screen-wrap" id="addPairing" data-screen="addPairing"></div>
+      <main id="mainContent" tabindex="-1">
+        <div class="screen-wrap active" id="dashboard" data-screen="dashboard"></div>
+        <div class="screen-wrap" id="pots" data-screen="pots"></div>
+        <div class="screen-wrap" id="detail" data-screen="detail"></div>
+        <div class="screen-wrap" id="stats" data-screen="stats"></div>
+        <div class="screen-wrap" id="profiles" data-screen="profiles"></div>
+        <div class="screen-wrap" id="system" data-screen="system"></div>
+        <div class="screen-wrap" id="tanks" data-screen="tanks"></div>
+        <div class="screen-wrap" id="tankDetail" data-screen="tankDetail"></div>
+        <div class="screen-wrap" id="tankConfig" data-screen="tankConfig"></div>
+        <div class="screen-wrap" id="addTank" data-screen="addTank"></div>
+        <div class="screen-wrap" id="tankEdit" data-screen="tankEdit"></div>
+        <div class="screen-wrap" id="vacation" data-screen="vacation"></div>
+        <div class="screen-wrap" id="configurator" data-screen="configurator"></div>
+        <div class="screen-wrap" id="addPot" data-screen="addPot"></div>
+        <div class="screen-wrap" id="editPot" data-screen="editPot"></div>
+        <div class="screen-wrap" id="addPairing" data-screen="addPairing"></div>
+      </main>
 
       <!-- Bottom nav -->
       <nav class="nav" aria-label="Navigation principale">
