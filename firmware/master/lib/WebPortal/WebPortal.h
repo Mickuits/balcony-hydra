@@ -35,6 +35,12 @@ private:
 
     void _setupRoutes();
     void _servePage(AsyncWebServerRequest* req);
+
+    // Vérifie le header X-Hydra-Token. Retourne true si valide.
+    // Si invalide ou absent : envoie 401 et retourne false (l'appelant
+    // doit immédiatement return sans répondre). Pattern :
+    //   if (!_authorized(req)) return;
+    bool _authorized(AsyncWebServerRequest* req);
     void _handleApiStatus(AsyncWebServerRequest* req);
     void _handleApiSensors(AsyncWebServerRequest* req);
     void _handleApiConfig(AsyncWebServerRequest* req);

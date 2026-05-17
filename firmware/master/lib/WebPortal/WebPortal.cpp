@@ -280,6 +280,12 @@ void WebPortal::stop() {
 }
 
 void WebPortal::_setupRoutes() {
+    // Headers à collecter (par défaut ESPAsyncWebServer ne garde que les
+    // headers standards HTTP — il faut déclarer les headers custom pour
+    // que req->getHeader("X-Hydra-Token") fonctionne).
+    static const char* const collectedHeaders[] = { "X-Hydra-Token" };
+    _server.collectHeaders(collectedHeaders, 1);
+
     // Main page
     _server.on("/", HTTP_GET, [this](AsyncWebServerRequest* req) { _servePage(req); });
 
@@ -339,6 +345,34 @@ void WebPortal::_servePage(AsyncWebServerRequest* req) {
 
 void WebPortal::_handleCaptivePortal(AsyncWebServerRequest* req) {
     req->redirect("http://" + _wifiMgr.localIP() + "/");
+}
+
+bool WebPortal::_authorized(AsyncWebServerRequest* req) {
+    // Récupère le token attendu (persisté NVS, généré au 1er boot).
+    // ConfigManager garantit qu'un token valide existe toujours après le
+    // premier appel (lazy creation).
+    String expected = _configMgr.getOrCreateApiToken();
+
+    // Récupère le header envoyé par le client
+    if (!req->hasHeader("X-Hydra-Token")) {
+        req->send(401, "application/json",
+                  "{\"message\":\"Header X-Hydra-Token requis\",\"hint\":\"Récupère le token via log série au boot du master\"}");
+        Serial.printf("[WEB] 401 sur %s — header X-Hydra-Token absent\n", req->url().c_str());
+        return false;
+    }
+
+    const AsyncWebHeader* h = req->getHeader("X-Hydra-Token");
+    String provided = h->value();
+
+    if (!ConfigManager::constantTimeEquals(provided.c_str(), expected.c_str())) {
+        req->send(401, "application/json",
+                  "{\"message\":\"Token invalide\"}");
+        Serial.printf("[WEB] 401 sur %s — token invalide (len=%d)\n",
+                      req->url().c_str(), provided.length());
+        return false;
+    }
+
+    return true;
 }
 
 void WebPortal::_handleApiStatus(AsyncWebServerRequest* req) {
@@ -425,6 +459,7 @@ void WebPortal::_handleApiConfig(AsyncWebServerRequest* req) {
 }
 
 void WebPortal::_handleApiConfigUpdate(AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
+    if (!_authorized(req)) return;
     String body = String((char*)data).substring(0, len);
     if (_configMgr.fromJson(body)) {
         _configMgr.save();
@@ -436,6 +471,7 @@ void WebPortal::_handleApiConfigUpdate(AsyncWebServerRequest* req, uint8_t* data
 }
 
 void WebPortal::_handleApiPumpStart(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     if (_pumpCtrl.start()) {
         req->send(200, "application/json", "{\"message\":\"Pompe démarrée\"}");
     } else {
@@ -444,22 +480,26 @@ void WebPortal::_handleApiPumpStart(AsyncWebServerRequest* req) {
 }
 
 void WebPortal::_handleApiPumpStop(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     _pumpCtrl.stop();
     req->send(200, "application/json", "{\"message\":\"Pompe arrêtée\"}");
 }
 
 void WebPortal::_handleApiResetFailsafe(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     _pumpCtrl.resetFailsafe();
     req->send(200, "application/json", "{\"message\":\"Failsafe réinitialisé\"}");
 }
 
 void WebPortal::_handleApiReboot(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     req->send(200, "application/json", "{\"message\":\"Redémarrage...\"}");
     delay(500);
     ESP.restart();
 }
 
 void WebPortal::_handleApiFactoryReset(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     _configMgr.reset();
     req->send(200, "application/json", "{\"message\":\"Reset usine — redémarrage...\"}");
     delay(500);
@@ -476,6 +516,7 @@ void WebPortal::_handleApiSafetyStatus(AsyncWebServerRequest* req) {
 }
 
 void WebPortal::_handleApiSafetyUnlock(AsyncWebServerRequest* req) {
+    if (!_authorized(req)) return;
     if (_safetyMgr == nullptr) {
         req->send(503, "application/json",
                   "{\"message\":\"SafetyManager non injecté\"}");

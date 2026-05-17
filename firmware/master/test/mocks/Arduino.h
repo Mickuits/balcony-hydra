@@ -32,9 +32,13 @@ namespace MockHW {
     inline uint8_t pinStates[40]={};
     inline uint16_t adcValues[40]={};
     inline uint32_t _millis=0;
+    // esp_random() mock — counter incrémental pour tests déterministes.
+    // setRandomSeed() permet de réinitialiser entre les tests.
+    inline uint32_t _randomCounter=0x12345678;
+    inline void setRandomSeed(uint32_t seed){_randomCounter=seed;}
     struct GpioEvent{uint8_t pin;uint8_t value;uint32_t ts;};
     inline std::vector<GpioEvent> gpioLog;
-    inline void reset(){memset(pinModes,0,40);memset(pinStates,0,40);memset(adcValues,0,80);_millis=0;gpioLog.clear();}
+    inline void reset(){memset(pinModes,0,40);memset(pinStates,0,40);memset(adcValues,0,80);_millis=0;gpioLog.clear();_randomCounter=0x12345678;}
     inline void advanceMillis(uint32_t ms){_millis+=ms;}
     inline void setMillis(uint32_t ms){_millis=ms;}
     inline void setADC(uint8_t p,uint16_t v){if(p<40)adcValues[p]=v;}
@@ -50,6 +54,11 @@ inline uint32_t millis(){return MockHW::_millis;}
 inline uint32_t micros(){return MockHW::_millis*1000;}
 inline void delay(uint32_t ms){MockHW::_millis+=ms;}
 inline void delayMicroseconds(uint32_t us){MockHW::_millis+=us/1000;}
+
+// esp_random() mock : retourne un PRNG simple (LCG) pour tests déterministes.
+// Pas crypto-secure mais suffit pour valider que ConfigManager::getOrCreateApiToken
+// génère bien des 32 chars hex différents à chaque appel.
+inline uint32_t esp_random(){MockHW::_randomCounter=MockHW::_randomCounter*1103515245u+12345u;return MockHW::_randomCounter;}
 inline void yield(){}
 // pulseIn: mock returns ~17cm equivalent (1000us at 343m/s)
 // Tests can override via MockHW if precise distance simulation is needed.

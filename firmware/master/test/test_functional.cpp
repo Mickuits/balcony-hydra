@@ -2040,8 +2040,92 @@ void test_T17_05_pmk_lmk_constants_stable() {
 }
 
 // ================================================================
-// MAIN — 148 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles,
-// T14: 5 pairing, T15: 10 mqtt+wifi, T16: 5 factory_reset, T17: 5 PMK/LMK)
+// T18 — API token X-Hydra-Token (6 tests)
+// ----------------------------------------------------------------
+// Validation de ConfigManager::getOrCreateApiToken (format + persist)
+// et ConfigManager::constantTimeEquals (timing attack resistance).
+// ================================================================
+
+void test_T18_01_token_generation_32_hex_chars() {
+    // Force NVS clean pour partir d'un token vide
+    Preferences::resetAll();
+    MockHW::setRandomSeed(0xDEADBEEF);
+
+    ConfigManager cfg;
+    cfg.loadDefaults();
+    String token = cfg.getOrCreateApiToken();
+
+    // 32 caractères hexadécimaux (16 bytes * 2)
+    TEST_ASSERT_EQUAL(32, (int)token.length());
+
+    // Tous les caractères doivent être hex (0-9, a-f)
+    for (size_t i = 0; i < token.length(); i++) {
+        char c = token.charAt(i);
+        bool isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+        TEST_ASSERT_TRUE_MESSAGE(isHex, "Token contient un caractère non-hex");
+    }
+}
+
+void test_T18_02_token_persists_across_calls() {
+    // Le 2e appel doit retourner le MÊME token (lecture NVS, pas de
+    // re-génération). C'est critique : si on regénère à chaque call,
+    // les clients verraient leur token invalidé à chaque GET /api/*.
+    Preferences::resetAll();
+    MockHW::setRandomSeed(0xCAFEBABE);
+
+    ConfigManager cfg;
+    cfg.loadDefaults();
+    String tok1 = cfg.getOrCreateApiToken();
+    String tok2 = cfg.getOrCreateApiToken();
+    String tok3 = cfg.getOrCreateApiToken();
+
+    TEST_ASSERT_EQUAL_STRING(tok1.c_str(), tok2.c_str());
+    TEST_ASSERT_EQUAL_STRING(tok2.c_str(), tok3.c_str());
+}
+
+void test_T18_03_constant_time_equals_identical() {
+    // Strings identiques → true
+    TEST_ASSERT_TRUE(ConfigManager::constantTimeEquals(
+        "abcdef1234567890abcdef1234567890",
+        "abcdef1234567890abcdef1234567890"));
+    TEST_ASSERT_TRUE(ConfigManager::constantTimeEquals("", ""));
+    TEST_ASSERT_TRUE(ConfigManager::constantTimeEquals("a", "a"));
+}
+
+void test_T18_04_constant_time_equals_different() {
+    // Strings de même longueur mais différents → false
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals(
+        "abcdef1234567890abcdef1234567890",
+        "abcdef1234567890abcdef1234567891"));  // dernier char différent
+
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals(
+        "abcdef1234567890abcdef1234567890",
+        "Xbcdef1234567890abcdef1234567890"));  // premier char différent
+
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("abc", "abd"));
+}
+
+void test_T18_05_constant_time_equals_different_length() {
+    // Longueurs différentes → false (ne fait pas une fuite : la longueur
+    // attendue du token est publique = 32, donc rejeter immédiatement
+    // une longueur différente est OK)
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("abc", "abcd"));
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("abcd", "abc"));
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("", "a"));
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("abc", ""));
+}
+
+void test_T18_06_constant_time_equals_null_safe() {
+    // Garde-fou : null pointers → false (pas de segfault)
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals(nullptr, "abc"));
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals("abc", nullptr));
+    TEST_ASSERT_FALSE(ConfigManager::constantTimeEquals(nullptr, nullptr));
+}
+
+// ================================================================
+// MAIN — 154 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles,
+// T14: 5 pairing, T15: 10 mqtt+wifi, T16: 5 factory_reset, T17: 5 PMK/LMK,
+// T18: 6 api_token)
 // ================================================================
 
 int setup() {
@@ -2229,6 +2313,14 @@ int setup() {
     RUN_TEST(test_T17_03_pmk_and_lmk_are_distinct);
     RUN_TEST(test_T17_04_keys_are_non_zero);
     RUN_TEST(test_T17_05_pmk_lmk_constants_stable);
+
+    // Cat 18: API token X-Hydra-Token (6)
+    RUN_TEST(test_T18_01_token_generation_32_hex_chars);
+    RUN_TEST(test_T18_02_token_persists_across_calls);
+    RUN_TEST(test_T18_03_constant_time_equals_identical);
+    RUN_TEST(test_T18_04_constant_time_equals_different);
+    RUN_TEST(test_T18_05_constant_time_equals_different_length);
+    RUN_TEST(test_T18_06_constant_time_equals_null_safe);
 
     return UNITY_END();
 }

@@ -6,9 +6,10 @@
 
 **Projet logiciellement complet.** ✅ Le firmware est prêt à recevoir le hardware.
 **CI 100% vert sur 5 jobs hard gate** : build-master + build-slave + Lint × 2 + protocol-check.
-**148/148 tests Unity natifs** (138 base + T16 factory_reset×5 + T17 PMK/LMK×5).
+**154/154 tests Unity natifs** (138 base + T16 factory_reset×5 + T17 PMK/LMK×5 + T18 api_token×6).
 **ESP-NOW chiffré AES-128-CCM** sur unicast post-pairing (PMK/LMK 16 bytes).
-**App mobile Phase 2 ready** : bridge MQTT.js réel + Mosquitto docker-compose.
+**REST API auth** : header `X-Hydra-Token` requis sur tous les POST `/api/*` (token 32 hex généré au 1er boot, persisté NVS).
+**App mobile Phase 2 complète** : MQTT.js + REST + auth token + actions UI câblées.
 
 Session 2026-04-07/08 : 50+ commits, refactoring massif, ESP-NOW pairing dynamique implémenté
 de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais modules), CLI série
@@ -112,7 +113,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] Route `GET /api/safety/status` + `POST /api/safety/unlock` implémentées dans `WebPortal` (SafetyManager injecté via setter)
 - [x] Documentation `docs/` alignée v4 (voir commit `docs: align with v4 architecture...`)
 - [x] Retrait de la promesse "divergence US > 15%" de `CLAUDE.md` (non applicable en v4 = 1 US par zone)
-- [ ] **Vérification header `X-Hydra-Token` côté master** (WebPortal) — actuellement les routes /api/* sont ouvertes sur le LAN. L'app mobile envoie déjà le header, le firmware doit le valider. Pattern : token persisté NVS, généré au premier boot, affiché sur LCD + log série. Sans ce check, l'auth Phase 2 est cosmétique
+- [x] **Vérification header `X-Hydra-Token` côté master** (WebPortal) — implémenté 2026-05-18 : `ConfigManager::getOrCreateApiToken` (32 hex via `esp_random`, persisté NVS clé `apiToken`), `WebPortal::_authorized` avec `collectHeaders("X-Hydra-Token")` + comparaison constant-time via `ConfigManager::constantTimeEquals`, 401 si manquant/invalide. Tous les POST sensibles protégés (pump/start|stop|reset, config, reboot, factory-reset, safety/unlock). GET libres. Token affiché 1× au boot série pour copie dans l'app. 6 tests SIL T18 (format hex, persistance, constant-time identical/different/length/null-safe)
 - [x] Chiffrement PMK/LMK ESP-NOW — implémenté 2026-05-18 : AES-128-CCM sur unicast post-pairing, PMK/LMK 16 bytes dans `config_common.h`, `esp_now_set_pmk` au boot, `peer.encrypt=true` + `peer.lmk` sur unicast (broadcast pairing reste en clair). +5 tests SIL T17. Doc PAIRING.md §Sécurité étendue (modèle de menace couvert/non couvert + procédure rotation)
 - [x] Telegram `/factory_reset` — implémenté 2026-05-18 avec confirmation 2-step (`/factory_reset` puis `/factory_reset CONFIRM` dans 30s), efface NVS + pairing + reboot. +5 tests SIL T16 (logique fenêtre)
 
@@ -173,6 +174,55 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-18 (session 5) — Token X-Hydra-Token check firmware
+
+Fermeture du dernier gap Phase 2 sécurité : le firmware master valide
+maintenant le header X-Hydra-Token sur tous les POST sensibles. L'auth
+n'est plus cosmétique.
+
+**ConfigManager**
+- `getOrCreateApiToken()` : lit token NVS clé `apiToken`, si vide
+  génère 16 bytes via `esp_random()` → 32 chars hex et persiste.
+  Stable entre reboots, régénéré au factory reset (clear NVS)
+- `constantTimeEquals(a, b)` : comparaison à temps constant (volatile
+  uint8_t diff XOR-accumulé), évite timing attacks. Static pour
+  accès tests SIL. Null-safe + early-fail sur longueurs différentes
+  (la longueur publique 32 ne fuite rien)
+- Include conditionnel `<esp_random.h>` sur firmware (mocké par
+  test/mocks/Arduino.h en SIL via PRNG LCG déterministe)
+
+**WebPortal**
+- `_authorized(req)` : extraction header X-Hydra-Token, comparaison
+  constant-time avec token NVS. 401 explicite si manquant (avec
+  hint pour log série) ou invalide. Log serveur pour audit
+- `collectHeaders("X-Hydra-Token", 1)` dans `_setupRoutes()` car
+  ESPAsyncWebServer filtre les headers custom par défaut
+- Insertion `if (!_authorized(req)) return;` au début des handlers
+  POST : pump/start, pump/stop, pump/reset, config (update),
+  reboot, factory-reset, safety/unlock
+- GET reste libre : /api/status, /api/sensors, /api/config,
+  /api/safety/status (monitoring, pas de risque)
+
+**main.cpp**
+- Appel `configMgr.getOrCreateApiToken()` après ConfigManager::begin()
+  pour forcer la génération au 1er boot et afficher le token en
+  log série encadré (banner ============) pour facilité copie
+
+**Tests SIL T18 (6 nouveaux, 154 total)**
+- T18_01 : token format 32 chars hex valides
+- T18_02 : persistance entre appels (NVS roundtrip)
+- T18_03/04/05 : constantTimeEquals identique/différent/longueurs ≠
+- T18_06 : null-safe (pas de segfault sur nullptr)
+- Mock `esp_random()` ajouté dans test/mocks/Arduino.h (LCG
+  déterministe + setRandomSeed pour seed control)
+
+**Documentation**
+- `docs/mobile_api_contract.md` §Sécurité réécrite : passage de
+  "TODO Phase 2" à "implémenté", procédure d'obtention du token
+  (log série au boot), routes protégées vs libres, tableau état
+  global v4.2.1 (REST/MQTT/ESP-NOW), roadmap durcissement (HTTPS,
+  rate limiting, renewal, MFA Telegram)
 
 ### 2026-05-18 (session 4) — Phase 2 mobile finalisée + lint bump medium
 

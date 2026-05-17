@@ -357,6 +357,16 @@ void setup() {
     Serial.println("[BOOT] 2/12 — ConfigManager...");
     configMgr.begin();
 
+    // Lazy-create + display API token (1er boot = nouveau token, sinon
+    // existing). Affiché 1 fois ici pour que le user puisse le copier
+    // dans l'app mobile. Pas de re-log dans WebPortal pour ne pas spammer.
+    String apiTok = configMgr.getOrCreateApiToken();
+    Serial.println("============================================");
+    Serial.print  ("[BOOT] API TOKEN (X-Hydra-Token) : ");
+    Serial.println(apiTok);
+    Serial.println("[BOOT] À copier dans l'app mobile · Card REST API · MASTER");
+    Serial.println("============================================");
+
     // 3/12 — Geolocation
     Serial.println("[BOOT] 3/12 — WiFiGeolocation...");
     if (geoLoc.loadFromNVS()) {

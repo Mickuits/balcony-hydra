@@ -106,6 +106,17 @@ public:
     bool isTankCritical(uint8_t levelPct) const;
     bool isTankWarning(uint8_t levelPct) const;
 
+    // Token API REST (X-Hydra-Token header). 32 chars hex (16 bytes entropie).
+    // Lit le token NVS s'il existe, sinon en génère un nouveau via esp_random()
+    // et le persiste. Stable entre les reboots tant que NVS n'est pas effacé
+    // (factory reset → nouveau token au prochain boot).
+    String getOrCreateApiToken();
+
+    // Comparaison constant-time entre 2 strings. Évite les timing attacks
+    // sur la validation du token (un memcmp early-exit fuit la position du
+    // premier byte différent). Public pour permettre les tests SIL.
+    static bool constantTimeEquals(const char* a, const char* b);
+
 private:
     Preferences _prefs;
     SystemConfig _config;

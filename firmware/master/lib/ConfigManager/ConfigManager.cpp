@@ -4,6 +4,14 @@
 
 #include "ConfigManager.h"
 
+// esp_random() : entropie hardware via le RNG du SoC ESP32
+// (TRNG quand WiFi/BT actifs, sinon LCG). Header ESP-IDF disponible
+// quand le firmware tourne sur ESP32. En SIL natif, esp_random est
+// fourni par le mock dans test/mocks/Arduino.h.
+#if !defined(HYDRA_TEST)
+#include <esp_random.h>
+#endif
+
 ConfigManager::ConfigManager() {}
 
 void ConfigManager::begin() {
@@ -137,6 +145,59 @@ void ConfigManager::reset() {
 
 SystemConfig& ConfigManager::config() { return _config; }
 const SystemConfig& ConfigManager::config() const { return _config; }
+
+String ConfigManager::getOrCreateApiToken() {
+    // Lit le token persisté en NVS, sinon en génère un nouveau.
+    // Format : 32 caractères hexadécimaux (16 bytes d'entropie esp_random).
+    // Persistance : namespace NVS_NAMESPACE (= "hydra"), clé "apiToken".
+    _prefs.begin(NVS_NAMESPACE, false);
+    String existing = _prefs.getString("apiToken", "");
+
+    if (existing.length() == 32) {
+        _prefs.end();
+        return existing;
+    }
+
+    // Génération : 16 bytes random → 32 chars hex
+    // esp_random() retourne uint32_t (4 bytes). On en prend 4 pour 16 bytes.
+    char token[33];
+    for (int i = 0; i < 4; i++) {
+        uint32_t r = esp_random();
+        snprintf(token + i * 8, 9, "%08x", r);
+    }
+    token[32] = '\0';
+
+    _prefs.putString("apiToken", token);
+    _prefs.end();
+
+    Serial.print("[CONFIG] API token généré : ");
+    Serial.println(token);
+    Serial.println("[CONFIG] Configurez ce token dans l'app mobile (Card REST API).");
+
+    return String(token);
+}
+
+bool ConfigManager::constantTimeEquals(const char* a, const char* b) {
+    // Comparaison à temps constant : pas de early-exit sur premier diff.
+    // Évite que la durée de la comparaison fuite la position du 1er byte
+    // différent (timing attack classique sur les checks de tokens/HMAC).
+    //
+    // L'algorithme : on parcourt jusqu'à la fin de la plus longue chaîne
+    // en XOR-accumulant les différences. Si les longueurs diffèrent ou si
+    // un byte diffère, le résultat final est non-zéro.
+    if (!a || !b) return false;
+    size_t lenA = strlen(a);
+    size_t lenB = strlen(b);
+    if (lenA != lenB) return false;  // longueur ≠ → fail immédiat (ce n'est
+                                      // pas une fuite : la longueur du token
+                                      // attendu est publique = 32)
+
+    volatile uint8_t diff = 0;
+    for (size_t i = 0; i < lenA; i++) {
+        diff |= (uint8_t)a[i] ^ (uint8_t)b[i];
+    }
+    return diff == 0;
+}
 
 void ConfigManager::_saveSchedule() {
     _prefs.putUChar("sH1", _config.schedule.hour1);

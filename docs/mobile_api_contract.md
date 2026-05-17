@@ -36,7 +36,9 @@ Le master expose le REST sur son IP locale (`http://hydra.local` via mDNS ou `ht
 ## 1 · REST API
 
 **Base URL** : `http://hydra.local/` (mDNS) ou `http://<masterIp>/`
-**Auth** : aucune dans v4.2.1 — réseau local privé (cf. §Sécurité). JWT à introduire en Phase 2.
+**Auth** : header `X-Hydra-Token: <32-hex>` requis sur **tous les POST**
+(écritures). Les GET (lectures) sont libres. Voir §4 pour la procédure
+d'obtention du token.
 **Content-Type** : `application/json` pour POST avec body.
 
 ### 1.1 — `GET /` — Dashboard HTML (legacy)
@@ -319,18 +321,66 @@ Si l'app reçoit `wifi.ap = true` dans `/api/status` → afficher un bandeau "Ma
 
 ## 4 · Sécurité
 
-### 4.1 — État actuel v4.2.1 (réseau local privé)
+### 4.1 — Auth REST : token X-Hydra-Token (implémenté 2026-05-18)
 
-- **Pas d'auth** sur REST ni MQTT (sauf si user/pass MQTT configurés).
-- **Pas de TLS** — HTTP nu + MQTT cleartext.
-- **Repose sur** : isolation réseau (LAN Mougins), WPA2 du routeur, magic byte ESP-NOW `0xBA`.
+Tous les POST `/api/*` exigent le header :
 
-### 4.2 — Roadmap Phase 2
+```
+X-Hydra-Token: <32 caractères hexadécimaux>
+```
 
-- [ ] Token statique partagé : header `X-Hydra-Token: <secret>` sur tous les POST. Secret généré au premier boot, lu par l'app via QR code affiché sur le LCD master.
-- [ ] HTTPS sur le master via certificat auto-signé (mDNS + cert lié au hostname `hydra.local`).
-- [ ] Auth MQTT mandatory (user/pass dans `network.mqttUser` au lieu d'optionnel).
-- [ ] Rotation du magic byte ESP-NOW + chiffrement PMK/LMK (cf. TODO firmware §Sécurité).
+**Obtention du token** :
+- Au **premier boot** du firmware master, un token est généré aléatoirement
+  via `esp_random()` (16 bytes d'entropie → 32 chars hex) et persisté en NVS
+  (namespace `hydra`, clé `apiToken`).
+- Le token s'affiche **dans le log série** au boot, encadré par des bannières
+  pour qu'il soit facile à repérer :
+  ```
+  ============================================
+  [BOOT] API TOKEN (X-Hydra-Token) : a3f9b8c2d1e4f5...
+  [BOOT] À copier dans l'app mobile · Card REST API · MASTER
+  ============================================
+  ```
+- Le **factory reset** (`/api/factory-reset`, `/factory_reset` Telegram,
+  bouton 10s) régénère un nouveau token au prochain boot.
+
+**Côté firmware (`WebPortal::_authorized`)** :
+- Extraction du header via `req->getHeader("X-Hydra-Token")`. Le serveur
+  doit déclarer le header avec `collectHeaders` (sinon ESPAsyncWebServer
+  filtre les headers custom).
+- Comparaison **constant-time** via `ConfigManager::constantTimeEquals`
+  pour éviter les timing attacks (early-exit memcmp fuiterait la position
+  du premier byte différent).
+- Réponse `401 Unauthorized` si header absent ou invalide.
+
+**Routes protégées** (toutes en POST) :
+- `/api/pump/start`, `/api/pump/stop`, `/api/pump/reset`
+- `/api/config`
+- `/api/reboot`, `/api/factory-reset`
+- `/api/safety/unlock`
+
+**Routes libres** (GET, lecture seule, monitoring) :
+- `/api/status`, `/api/sensors`, `/api/config`, `/api/safety/status`
+
+### 4.2 — État global v4.2.1
+
+| Couche | Auth | TLS | Notes |
+|---|---|---|---|
+| REST master | ✅ X-Hydra-Token | ❌ HTTP nu | TLS auto-signé recommandé pour exposition hors LAN |
+| MQTT broker | ✅ user/pass (Mosquitto) | ❌ MQTT cleartext | Activer TLS via reverse proxy ou directives Mosquitto |
+| ESP-NOW master ↔ slave | ✅ magic 0xBA + AES-128-CCM | n/a | Unicast post-pairing chiffré (cf. PAIRING.md §Sécurité) |
+| Pairing initial ESP-NOW | ⚠ broadcast en clair | n/a | Limité dans le temps (manuel), portée < 100m |
+
+### 4.3 — Roadmap durcissement supplémentaire
+
+- [ ] **HTTPS** sur le master via certificat auto-signé + pinning côté app
+- [ ] **Rate limiting** sur `/api/*` (max N req/min par IP) pour bloquer
+  bruteforce du token
+- [ ] **Renouvellement du token** via commande dédiée (préserve les
+  pairings, change seulement le secret REST)
+- [ ] **MFA Telegram** : pour les actions critiques (`/factory_reset`,
+  `/unlock`), exiger une confirmation OTP par message Telegram en plus du
+  token REST
 
 ---
 
