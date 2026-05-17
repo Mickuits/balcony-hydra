@@ -26,3 +26,6 @@ export type { ConfigBackup, ConfigBackupServiceDeps } from './config-backup';
 
 export { ErrorTracking } from './error-tracking';
 export type { ErrorEntry, ErrorSeverity, ErrorTrackingDeps } from './error-tracking';
+
+export { UpdateChecker } from './update-checker';
+export type { UpdateCheckerDeps, UpdateAvailableDetail } from './update-checker';

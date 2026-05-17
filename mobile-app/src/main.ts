@@ -29,6 +29,7 @@ import {
   MockService,
   ConfigBackupService,
   ErrorTracking,
+  UpdateChecker,
 } from './services';
 import { BindingEngine, ModalManager, BottomNav, MqttBanner } from './components';
 import { Router, buildScreenRegistry } from './router';
@@ -37,7 +38,10 @@ import { INITIAL_PROFILES, INITIAL_WEATHER } from './data';
 import { createAnnouncer } from './utils/a11y';
 import type { NavId, ScreenId, MqttBridgeState } from './types';
 
-const BUILD_ID = '__BUILD__';
+// `__BUILD__` est remplacé au build par Vite (define) avec un timestamp + SHA.
+// En dev (ts-check), on déclare un fallback pour que le typecheck passe.
+declare const __BUILD__: string;
+const BUILD_ID = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
 
 const NAV_TO_SCREEN: Record<NavId, ScreenId> = {
   dashboard: 'dashboard',
@@ -213,6 +217,17 @@ function main(): void {
 
   // ─── Service Worker (PWA) ────────────────────────────────
   registerServiceWorker();
+
+  // ─── Update checker (poll /version.json) ─────────────────
+  const updateChecker = new UpdateChecker({ currentBuildId: BUILD_ID });
+  updateChecker.addEventListener('updateAvailable', () => {
+    announcer.assertive('Nouvelle version disponible. Rechargez la page pour mettre à jour.');
+    console.warn('[update] new version available — please reload');
+  });
+  // Skip checker en dev (le BUILD_ID dev ne matche jamais ce qui est servi)
+  if (location.protocol !== 'file:' && !import.meta.env?.DEV) {
+    updateChecker.start();
+  }
 
   // Expose pour debug en dev (jamais en prod)
   if (import.meta.env?.DEV) {

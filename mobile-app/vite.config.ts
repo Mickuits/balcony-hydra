@@ -3,11 +3,23 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
+// Build ID = timestamp ISO + git short SHA (si dispo)
+function getBuildId(): string {
+  const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const sha = process.env['GITHUB_SHA']?.slice(0, 7) ?? process.env['BUILD_SHA']?.slice(0, 7) ?? 'dev';
+  return `${ts}-${sha}`;
+}
+
+const BUILD_ID = getBuildId();
+
 export default defineConfig({
   root: 'src',
   publicDir: '../public',
   resolve: {
     alias: { '@': resolve(__dirname, 'src') }
+  },
+  define: {
+    '__BUILD__': JSON.stringify(BUILD_ID)
   },
   build: {
     outDir: '../dist',
@@ -16,6 +28,10 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
+        // Asset versioning via hash : [name]-[hash].ext (déjà default Vite)
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks: {
           mqtt: ['mqtt']
         }
