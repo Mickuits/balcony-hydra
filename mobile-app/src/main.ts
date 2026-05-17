@@ -27,6 +27,7 @@ import {
   MqttBridge,
   MockService,
   ConfigBackupService,
+  ErrorTracking,
 } from './services';
 import { BindingEngine, ModalManager, BottomNav, MqttBanner } from './components';
 import { Router, buildScreenRegistry } from './router';
@@ -51,6 +52,10 @@ function main(): void {
 
   // ─── Services ────────────────────────────────────────────
   const storage = new StorageService();
+  // ErrorTracking installé en premier pour capturer les erreurs du boot lui-même.
+  const errorTracking = new ErrorTracking({ storage, buildId: BUILD_ID });
+  errorTracking.install();
+
   const rest = new RestClient(storage);
   rest.init();
 
@@ -156,6 +161,10 @@ function main(): void {
     screens,
     resolveContainer: (id) => document.getElementById(id),
     uiStore,
+    onError: (err, context) => {
+      errorTracking.captureException(err, `router:${context}`);
+      console.error(`[router] ${context}`, err);
+    },
   });
 
   // ─── Bottom nav ──────────────────────────────────────────
@@ -193,7 +202,7 @@ function main(): void {
   if (import.meta.env?.DEV) {
     (globalThis as Record<string, unknown>)['__hydra'] = {
       stores: { hardwareStore, configStore, uiStore, statsStore, liveLogStore },
-      services: { rest, bridge, mockService, storage },
+      services: { rest, bridge, mockService, storage, backup, errorTracking },
       router,
       modalMgr,
     };

@@ -19,24 +19,32 @@ import type { UiStore } from '@/stores/ui.store';
 
 export type ContainerResolver = (id: ScreenId) => HTMLElement | null;
 
+export interface RouterErrorHandler {
+  (err: unknown, context: string): void;
+}
+
 export interface RouterDeps {
   screens: Map<ScreenId, Screen>;
   resolveContainer: ContainerResolver;
   uiStore: UiStore;
   /** Premier screen à afficher au boot (par défaut dashboard). */
   initialScreen?: ScreenId;
+  /** Capture les exceptions levées par les screens (mount/activate/etc). */
+  onError?: RouterErrorHandler;
 }
 
 export class Router {
   private readonly screens: Map<ScreenId, Screen>;
   private readonly resolveContainer: ContainerResolver;
   private readonly uiStore: UiStore;
+  private readonly onError: RouterErrorHandler | null;
   private currentScreen: ScreenId | null = null;
 
   constructor(deps: RouterDeps) {
     this.screens = deps.screens;
     this.resolveContainer = deps.resolveContainer;
     this.uiStore = deps.uiStore;
+    this.onError = deps.onError ?? null;
   }
 
   /** Navigue vers le screen demandé. Sync UiStore. */
@@ -46,15 +54,16 @@ export class Router {
     }
     if (this.currentScreen === id) {
       // Re-activate avec nouveaux props (utile pour wizards)
-      this.screens.get(id)?.activate(props);
+      this.safeCall(`activate:${id}`, () => this.screens.get(id)?.activate(props));
       return;
     }
 
     // Désactivation de l'écran courant
     if (this.currentScreen !== null) {
-      const prev = this.screens.get(this.currentScreen);
-      prev?.deactivate();
-      const prevContainer = this.resolveContainer(this.currentScreen);
+      const prevId = this.currentScreen;
+      const prev = this.screens.get(prevId);
+      this.safeCall(`deactivate:${prevId}`, () => prev?.deactivate());
+      const prevContainer = this.resolveContainer(prevId);
       if (prevContainer) prevContainer.hidden = true;
     }
 
@@ -65,13 +74,30 @@ export class Router {
       throw new Error(`Router: container HTML manquant pour "${id}"`);
     }
     if (!screen.isMounted) {
-      screen.mount(container);
+      this.safeCall(`mount:${id}`, () => screen.mount(container));
     }
     container.hidden = false;
-    screen.activate(props);
+    this.safeCall(`activate:${id}`, () => screen.activate(props));
 
     this.currentScreen = id;
     this.uiStore.setScreen(id);
+  }
+
+  /**
+   * Wrap un appel de cycle de vie screen avec un handler d'erreur.
+   * Si onError est fourni, l'erreur est capturée et le router continue.
+   * Sinon, l'erreur remonte (legacy behavior).
+   */
+  private safeCall(context: string, fn: () => void): void {
+    if (!this.onError) {
+      fn();
+      return;
+    }
+    try {
+      fn();
+    } catch (err) {
+      this.onError(err, context);
+    }
   }
 
   /** ID du screen actif (null tant que `navigate()` n'a pas été appelé). */

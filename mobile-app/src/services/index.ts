@@ -23,3 +23,6 @@ export type { WeatherCoefficient, WeatherReferences } from './weather';
 
 export { ConfigBackupService } from './config-backup';
 export type { ConfigBackup, ConfigBackupServiceDeps } from './config-backup';
+
+export { ErrorTracking } from './error-tracking';
+export type { ErrorEntry, ErrorSeverity, ErrorTrackingDeps } from './error-tracking';

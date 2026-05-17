@@ -167,6 +167,72 @@ describe('Router', () => {
   });
 });
 
+describe('Router error handling (onError handler)', () => {
+  class ThrowingScreen extends FakeScreen {
+    public throwOnMount = false;
+    public throwOnActivate = false;
+    public throwOnDeactivate = false;
+
+    protected override onMount(): void {
+      super.onMount();
+      if (this.throwOnMount) throw new Error(`mount-${this.id}`);
+    }
+    protected override onActivate(): void {
+      if (this.throwOnActivate) throw new Error(`activate-${this.id}`);
+    }
+    protected override onDeactivate(): void {
+      super.onDeactivate();
+      if (this.throwOnDeactivate) throw new Error(`deactivate-${this.id}`);
+    }
+  }
+
+  it('catches mount errors when onError handler is provided', () => {
+    const screen = new ThrowingScreen('dashboard');
+    screen.throwOnMount = true;
+    const onError = vi.fn();
+    const container = document.createElement('div');
+    container.hidden = true;
+    const router = new Router({
+      screens: new Map([['dashboard', screen]]),
+      resolveContainer: () => container,
+      uiStore: new UiStore(),
+      onError,
+    });
+
+    expect(() => router.navigate('dashboard')).not.toThrow();
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'mount:dashboard');
+  });
+
+  it('catches activate errors', () => {
+    const screen = new ThrowingScreen('pots');
+    screen.throwOnActivate = true;
+    const onError = vi.fn();
+    const container = document.createElement('div');
+    container.hidden = true;
+    const router = new Router({
+      screens: new Map([['pots', screen]]),
+      resolveContainer: () => container,
+      uiStore: new UiStore(),
+      onError,
+    });
+
+    expect(() => router.navigate('pots')).not.toThrow();
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'activate:pots');
+  });
+
+  it('rethrows when no onError handler', () => {
+    const screen = new ThrowingScreen('pots');
+    screen.throwOnMount = true;
+    const container = document.createElement('div');
+    const router = new Router({
+      screens: new Map([['pots', screen]]),
+      resolveContainer: () => container,
+      uiStore: new UiStore(),
+    });
+    expect(() => router.navigate('pots')).toThrow(/mount-pots/);
+  });
+});
+
 describe('screen-registry helpers', () => {
   it('NAV_OF_SCREEN covers every ScreenId', () => {
     for (const id of ALL_SCREEN_IDS) {
