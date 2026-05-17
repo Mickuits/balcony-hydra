@@ -295,3 +295,30 @@ https://github.com/PaulStoffregen/XPT2046_Touchscreen.git#v1.4
 **Choix** : CLI non bloquant avec `Serial.setTimeout(50)`. Pattern : `if (!Serial.available()) return;` puis `Serial.readStringUntil('\n')` avec timeout court. La boucle reste à ~10 Hz nominal, ralentit à ~5 Hz pendant la frappe d'une commande.
 
 **Conséquences** : Micka peut maintenant se brancher en USB sur le slave pour debug pairing/status sans recompiler ni reflash. Le re-pairing slave depuis le port série est documenté dans `docs/PAIRING.md`. Voir commit `b505ef5`.
+
+---
+
+## 2026-05-17 — Mobile app v4.3 : Politique de sécurité (CSP + sanitization)
+
+**Contexte** : l'app mobile reçoit des payloads MQTT du firmware master ET expose un dashboard accessible via Wi-Fi local. Surfaces d'attaque : XSS via payloads MQTT poisoned, prototype pollution via JSON.parse, DoS via parse-bomb, captation de credentials si CSP relâchée.
+
+**Choix** :
+1. **CSP strict** dans `index.html` via `<meta http-equiv>` :
+   - `script-src 'self'` (pas de CDN scripts)
+   - `style-src 'self' 'unsafe-inline'` (jauges utilisent `style="height:X%"`)
+   - `connect-src 'self' http: https: ws: wss:` (master en LAN, pas de domaine fixe)
+   - `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`
+2. **Sanitization à 3 niveaux** :
+   - `escapeHtml()` sur tout user/MQTT content avant insertion DOM (déjà appliqué dans tous les screens)
+   - `sanitizeMqttString()` strip control chars + truncate 256 chars (anti log spam)
+   - `isSafePayload()` rejette les payloads MQTT avec `__proto__`/`constructor`/`prototype`, nesting > 5 niveaux, ou > 50 clés
+3. **Hard cap MQTT payload size** : 1 MB max dans `mqtt-bridge.ts:onMessage`
+4. **mqtt.js bundlé via npm** (déjà fait en VAGUE 2.B) — pas de CDN unpkg
+5. **Type guards stricts** sur tous les payloads MQTT (`isSensorsPayload`, `isPumpPayload`, `isAlertPayload`)
+
+**Alternatives** :
+- CSP nonce-based pour styles inline : nécessite refactor de toutes les jauges (~12 endroits) vers CSS vars custom properties. Reporté à VAGUE 5.B.
+- DOMPurify pour sanitization HTML : 22 kB en plus dans le bundle pour un cas d'usage où `escapeHtml()` suffit. Refusé.
+- `Trusted Types` API : non supporté Firefox/Safari → fallback silencieux acceptable mais pas obligatoire.
+
+**Conséquences** : 28 tests sanitize + 4 tests MQTT bridge dédiés sécurité (oversize, prototype pollution, control chars, truncation). Bundle main 88 kB inchangé. Le firmware reste source de vérité (X-Hydra-Token pour POST déjà en place).

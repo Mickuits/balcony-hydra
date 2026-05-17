@@ -8,6 +8,37 @@
     />
     <title>Balcony Hydra v4 — Control App</title>
 
+    <!--
+      Content Security Policy — défense en profondeur XSS.
+
+      Justification des compromis :
+      - 'unsafe-inline' sur style-src : les screens utilisent des `style="height:X%"`
+        pour les jauges (pots/tanks). Refactor vers CSS vars prévu en VAGUE 5.B.
+      - connect-src http:/https:/ws:/wss: : le master peut être en LAN ou via
+        relais MQTT — pas de domaine fixe possible.
+      - object-src 'none' + frame-ancestors 'none' + base-uri 'self' :
+        verrouillage strict des vecteurs d'injection HTML.
+      - trusted-types : enforce DOM XSS prevention via Trusted Types API
+        (Chrome/Edge) — fallback silencieux sur Firefox/Safari.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data:;
+        connect-src 'self' http: https: ws: wss:;
+        manifest-src 'self';
+        worker-src 'self';
+        object-src 'none';
+        frame-ancestors 'none';
+        base-uri 'self';
+        form-action 'self';
+      "
+    />
+
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0b0b0b" />
     <meta name="application-name" content="Hydra" />

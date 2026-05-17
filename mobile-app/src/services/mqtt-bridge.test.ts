@@ -267,6 +267,42 @@ describe('MqttBridge', () => {
       fakeClient.emit('message', 'hydra/sensors', bytes);
       expect(hardware.get().master.avgHum).toBe(42);
     });
+
+    it('rejects oversize payload (>1 MB) — DoS protection', () => {
+      const initialAvg = hardware.get().master.avgHum;
+      const huge = 'x'.repeat(2 * 1024 * 1024);
+      fakeClient.emit('message', 'hydra/sensors', huge);
+      expect(hardware.get().master.avgHum).toBe(initialAvg);
+      const last = liveLog.get().entries.at(-1);
+      expect(last?.msg).toMatch(/trop volumineux/);
+    });
+
+    it('rejects __proto__ pollution attempt', () => {
+      const initialAvg = hardware.get().master.avgHum;
+      const evil =
+        '{"__proto__":{"polluted":true},"avgMoisture":99,"tankLevel":50,"temperature":20,"humidity":50,"pressure":1000}';
+      fakeClient.emit('message', 'hydra/sensors', evil);
+      expect(hardware.get().master.avgHum).toBe(initialAvg);
+      const last = liveLog.get().entries.at(-1);
+      expect(last?.msg).toMatch(/structurellement non-sûr/);
+    });
+
+    it('sanitizes alert message (strips control chars)', () => {
+      const payload = { alert: 'tank\x00\x07low\x1Fcrit', timestamp: Date.now() };
+      fakeClient.emit('message', 'hydra/alerts', JSON.stringify(payload));
+      const last = liveLog.get().entries.at(-1);
+      expect(last?.msg).toContain('tanklowcrit');
+      expect(last?.msg).not.toContain('\x00');
+    });
+
+    it('truncates alert message to 200 chars max', () => {
+      const longAlert = 'A'.repeat(500);
+      const payload = { alert: longAlert, timestamp: Date.now() };
+      fakeClient.emit('message', 'hydra/alerts', JSON.stringify(payload));
+      const last = liveLog.get().entries.at(-1);
+      // 'Alerte: ' (8 chars) + 200 chars max
+      expect((last?.msg ?? '').length).toBeLessThanOrEqual(8 + 200);
+    });
   });
 
   describe('stop()', () => {

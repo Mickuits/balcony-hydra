@@ -16,6 +16,7 @@
 import type { HardwareStore } from '@/stores/hardware.store';
 import type { LiveLogStore } from '@/stores/live-log.store';
 import { StorageService, STORAGE_KEYS } from './storage';
+import { isSafePayload, sanitizeMqttString } from '@/utils/sanitize';
 import type {
   MqttBridgeState,
   MqttConfig,
@@ -27,6 +28,9 @@ import type {
 
 /** Backoff schedule en secondes (clamp progressif). */
 const BACKOFF_SCHEDULE_S = [2, 4, 8, 16, 30] as const;
+
+/** Cap dur sur la taille d'un payload MQTT (anti DoS / parse-bomb). */
+const MAX_PAYLOAD_BYTES = 1 * 1024 * 1024; // 1 MB
 
 const TOPICS: readonly MqttTopicName[] = ['hydra/sensors', 'hydra/pump', 'hydra/alerts'] as const;
 
@@ -324,6 +328,13 @@ export class MqttBridge extends EventTarget {
 
   private onMessage(topic: string, raw: Uint8Array | string): void {
     this._lastMessageAt = Date.now();
+    // Hard cap sur la taille pour éviter parse-bomb (1 MB suffit largement).
+    const bytes = typeof raw === 'string' ? raw.length : raw.byteLength;
+    if (bytes > MAX_PAYLOAD_BYTES) {
+      this.log('warn', `${topic}: payload trop volumineux (${bytes}o)`);
+      return;
+    }
+
     let parsed: unknown;
     try {
       const text = typeof raw === 'string' ? raw : new TextDecoder('utf-8').decode(raw);
@@ -331,6 +342,13 @@ export class MqttBridge extends EventTarget {
     } catch (err) {
       this.log('warn', `${topic}: JSON invalide`);
       console.warn('[mqtt] parse failed', topic, err);
+      return;
+    }
+
+    // Sanity check structurel — rejette les payloads avec __proto__ pollution,
+    // nesting excessif (DoS recursion), ou trop de clés.
+    if (!isSafePayload(parsed)) {
+      this.log('warn', `${topic}: payload structurellement non-sûr`);
       return;
     }
 
@@ -351,7 +369,7 @@ export class MqttBridge extends EventTarget {
         break;
       case 'hydra/alerts':
         if (isAlertPayload(parsed)) {
-          this.log('warn', `Alerte: ${parsed.alert}`);
+          this.log('warn', `Alerte: ${sanitizeMqttString(parsed.alert, 200)}`);
         } else {
           this.log('warn', 'hydra/alerts: payload invalide');
         }
