@@ -1,0 +1,53 @@
+{
+  "name": "Balcony Hydra — Plant Monitor",
+  "short_name": "Hydra",
+  "description": "Système d'arrosage automatique distribué — monitoring temps réel des 20 pots, 2 réservoirs et 2 zones depuis le mobile.",
+  "version": "4.2.1",
+  "id": "/balcony-hydra/",
+  "start_url": "./balcony-hydra-mobile.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "orientation": "portrait-primary",
+  "theme_color": "#0b0b0b",
+  "background_color": "#0b0b0b",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "lang": "fr",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dash",
+      "description": "Vue d'ensemble système",
+      "url": "./balcony-hydra-mobile.html#dashboard",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Arroser maintenant",
+      "short_name": "Arroser",
+      "description": "Déclenche un cycle d'arrosage manuel",
+      "url": "./balcony-hydra-mobile.html#waterAll"
+    },
+    {
+      "name": "Système",
+      "short_name": "Système",
+      "description": "Safety + Pairing + Connectivité",
+      "url": "./balcony-hydra-mobile.html#system"
+    }
+  ]
+}

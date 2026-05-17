@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maskable version : safe zone 80% (icon vit dans le centre 410x410 du carré 512x512)
+     pour respecter la spec PWA maskable et tolérer le clipping rond / squircle Android -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0b0b0b"/>
+
+  <defs>
+    <radialGradient id="haloM" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#7cff5a" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7cff5a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="dropGradM" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a8ff7a"/>
+      <stop offset="100%" stop-color="#7cff5a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="240" r="260" fill="url(#haloM)"/>
+
+  <!-- Goutte réduite à la safe zone (centre 410×410) -->
+  <path d="M 256 140
+           C 256 140, 180 240, 180 308
+           C 180 356, 214 392, 256 392
+           C 298 392, 332 356, 332 308
+           C 332 240, 256 140, 256 140 Z"
+        fill="url(#dropGradM)"
+        stroke="#7cff5a"
+        stroke-width="2.5"/>
+  <ellipse cx="226" cy="262" rx="16" ry="34" fill="#ffffff" opacity="0.2"/>
+
+  <text x="256" y="346"
+        font-family="ui-monospace, 'SF Mono', Monaco, monospace"
+        font-size="60"
+        font-weight="700"
+        fill="#0b0b0b"
+        text-anchor="middle"
+        letter-spacing="-1.5">BH</text>
+</svg>

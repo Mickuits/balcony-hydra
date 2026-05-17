@@ -2,8 +2,20 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Balcony Hydra v4 — Control App</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0b0b0b">
+<meta name="application-name" content="Hydra">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hydra">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+<link rel="apple-touch-icon" href="./icons/icon.svg">
+
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -5593,6 +5605,17 @@ document.addEventListener('DOMContentLoaded', () => {
 if(document.readyState !== 'loading'){
   render();
   startLiveUpdates();
+}
+
+// ─── PWA · Service Worker registration ────────────────────────
+// Activé uniquement quand le proto est servi par HTTP/HTTPS (pas en file://).
+// Le SW gère cache-first du shell + network-first des API REST master + offline shell.
+if('serviceWorker' in navigator && location.protocol !== 'file:'){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => console.log('[PWA] SW registered · scope:', reg.scope))
+      .catch((err) => console.warn('[PWA] SW registration failed:', err.message));
+  });
 }
 </script>
 
