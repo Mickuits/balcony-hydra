@@ -337,6 +337,7 @@
   .modal-bg.active{display:flex;}
   .modal{width:100%;background:var(--bg-1);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:18px;animation:slideUp 0.25s ease-out;max-height:80vh;overflow-y:auto;}
   @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes pairingPulse{0%{transform:scale(0.6);opacity:1;}100%{transform:scale(2);opacity:0;}}
   .modal-handle{width:36px;height:4px;background:var(--line-bright);border-radius:2px;margin:0 auto 16px;}
   .modal-title{font-size:16px;font-weight:700;margin-bottom:4px;}
   .modal-sub{font-family:var(--mono);font-size:10px;color:var(--text-2);margin-bottom:18px;letter-spacing:0.1em;}
@@ -1433,7 +1434,141 @@
     <h1>SYSTEM<span>.</span></h1>
     <div class="meta">FW v4.2.1 · BUILD 318<br><b>HEALTHY</b> · last sync 4s</div>
   </div>
-  
+
+  <!-- ═══════ SAFETY MANAGER (mission-critical, top of screen) ═══════ -->
+  <div class="section-title"><span>SAFETY MANAGER</span><span class="more" id="safetyHeaderBadge" style="color:var(--accent);">● NORMAL</span></div>
+
+  <div class="profile-card" id="safetyCard" style="margin-bottom:12px;border-color:var(--line);">
+    <!-- État principal -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <div id="safetyStateIcon" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(124,255,90,0.1);color:var(--accent);flex-shrink:0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V5l8-3 8 3v8z"/><polyline points="9 12 11 14 15 10"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div id="safetyStateLabel" style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:0.05em;">NORMAL</div>
+        <div id="safetyStateReason" style="font-family:var(--mono);font-size:10px;color:var(--text-2);margin-top:2px;">double-verrou armé · pompes opérationnelles</div>
+      </div>
+    </div>
+
+    <!-- Détails techniques (toujours visibles) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:10px;border-top:1px solid var(--line);padding-top:10px;">
+      <div>
+        <div style="color:var(--text-2);">T° PCB</div>
+        <div id="safetyTempVal" style="color:var(--text-0);font-size:13px;font-weight:600;">38.2°C</div>
+      </div>
+      <div>
+        <div style="color:var(--text-2);">RELAY GPIO 18</div>
+        <div id="safetyRelayVal" style="color:var(--accent);font-size:13px;font-weight:600;">● ARMÉ</div>
+      </div>
+      <div>
+        <div style="color:var(--text-2);">BOOT CRASH</div>
+        <div id="safetyCrashVal" style="color:var(--text-0);font-size:13px;font-weight:600;">0 / 3</div>
+      </div>
+      <div>
+        <div style="color:var(--text-2);">DEPUIS LOCKOUT</div>
+        <div id="safetyDurationVal" style="color:var(--text-2);font-size:13px;font-weight:600;">—</div>
+      </div>
+    </div>
+
+    <!-- Cooling timer (visible uniquement si THERMAL_LOCKOUT) -->
+    <div id="safetyCoolingRow" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="color:var(--text-2);">AUTO-RECOVERY (T° &lt; 45°C stable 5 min)</span>
+        <span id="safetyCoolingRemain" style="color:var(--warn);font-weight:600;">—</span>
+      </div>
+      <div style="height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden;">
+        <div id="safetyCoolingBar" style="height:100%;background:var(--warn);width:0%;transition:width 0.5s;"></div>
+      </div>
+    </div>
+
+    <!-- Action unlock (visible uniquement si HARD_LOCKOUT ou SAFE_MODE) -->
+    <div id="safetyUnlockRow" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-2);margin-bottom:8px;line-height:1.4;">
+        Lockout permanent. Vérifie que la cause est résolue avant déverrouillage (pompe désobstruée, niveau d'eau OK, etc.).
+      </div>
+      <div class="btn primary" onclick="openModal('safetyUnlock')" style="background:var(--warn);color:#000;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6z"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+        DÉVERROUILLER
+      </div>
+    </div>
+  </div>
+
+  <!-- Dev helper : simuler états safety (visible uniquement en mock) -->
+  <div style="display:flex;gap:4px;margin-bottom:14px;font-family:var(--mono);font-size:9px;">
+    <div style="color:var(--text-2);padding:4px 0;">SIM →</div>
+    <div class="stat-tab" onclick="setSafetyState('NORMAL')">NORMAL</div>
+    <div class="stat-tab" onclick="setSafetyState('THERMAL_LOCKOUT')">THERMAL</div>
+    <div class="stat-tab" onclick="setSafetyState('HARD_LOCKOUT')">HARD</div>
+    <div class="stat-tab" onclick="setSafetyState('SAFE_MODE')">SAFE_MODE</div>
+  </div>
+
+  <!-- ═══════ PAIRING ESP-NOW ═══════ -->
+  <div class="section-title"><span>PAIRING ESP-NOW</span><span class="more" id="pairingBadge" style="color:var(--accent);">● PAIRED</span></div>
+
+  <div class="profile-card" id="pairingCard" style="margin-bottom:14px;">
+    <!-- État pairing -->
+    <div id="pairingPairedView">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:10px;margin-bottom:10px;">
+        <div>
+          <div style="color:var(--text-2);">MASTER MAC</div>
+          <div id="pairingMasterMac" style="color:var(--text-0);font-size:11px;font-weight:600;">24:6F:28:7C:1A:42</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">SLAVE MAC</div>
+          <div id="pairingSlaveMac" style="color:var(--text-0);font-size:11px;font-weight:600;">24:6F:28:8B:33:E1</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">LAST SEQ#</div>
+          <div id="pairingLastSeq" style="color:var(--accent);font-size:11px;font-weight:600;">4892</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">RSSI</div>
+          <div id="pairingRssi" style="color:var(--accent);font-size:11px;font-weight:600;">-42 dBm</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">PING RTT</div>
+          <div id="pairingPing" style="color:var(--accent);font-size:11px;font-weight:600;">87 ms</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">APPAIRÉ DEPUIS</div>
+          <div id="pairingSince" style="color:var(--text-0);font-size:11px;font-weight:600;">47j 14h</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line);padding-top:8px;font-family:var(--mono);font-size:9px;color:var(--text-2);margin-bottom:8px;">
+        Sécurité : magic byte <span id="pairingMagic" style="color:var(--text-1);">0xBA</span> · pas de chiffrement PMK/LMK · persisté en NVS namespace <span style="color:var(--text-1);">espnow:peerMac</span>
+      </div>
+
+      <div class="action-row">
+        <div class="btn" onclick="simulatePairingPing()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+          PING SLAVE
+        </div>
+        <div class="btn" style="color:var(--warn);" onclick="openModal('pairingReset')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          RESET PAIRING
+        </div>
+      </div>
+    </div>
+
+    <!-- Unpaired view (caché par défaut) -->
+    <div id="pairingUnpairedView" style="display:none;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,176,46,0.1);color:var(--warn);flex-shrink:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><line x1="3.27" y1="6.96" x2="12" y2="12.01"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--warn);">UNPAIRED</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-2);margin-top:2px;">aucun slave connu en NVS · lance le wizard pour appairer</div>
+        </div>
+      </div>
+      <div class="btn primary" style="width:100%;" onclick="switchScreen('addPairing')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        LANCER LE PAIRING
+      </div>
+    </div>
+  </div>
+
   <!-- CONNECTIVITY HEALTH (mission-critical for remote ops) -->
   <div class="sys-status" style="margin-bottom:12px;">
     <div class="pulse"></div>
@@ -1599,6 +1734,11 @@
       <div class="mode-name">PLANIFICATION</div>
       <div class="mode-desc">Heures fixes + quantité par cycle. Ignore l'humidité (monitoring seul).</div>
       <div class="mode-params">07:00 · <b>200 ml</b> · zones A+B</div>
+    </div>
+    <div class="mode-card" data-mode="SOLAR" onclick="setWateringMode('SOLAR')">
+      <div class="mode-name">SOLAIRE</div>
+      <div class="mode-desc">Calé sur lever/coucher (algo NOAA). Offset configurable par événement. Ignore l'humidité.</div>
+      <div class="mode-params">Coucher <b>+30 min</b> · zones A+B</div>
     </div>
     <div class="mode-card" data-mode="MANUAL" onclick="setWateringMode('MANUAL')">
       <div class="mode-name">MANUEL</div>
@@ -2304,8 +2444,8 @@
     <div class="edit-section-title"><span>HARDWARE</span><b>SLAVE · US#1 GPIO 14/34</b></div>
     <div class="review-row"><span class="k">CONTROLLER</span><span class="v">SLAVE · ZONE A BALCON</span></div>
     <div class="review-row"><span class="k">CAPTEUR NIVEAU</span><span class="v">JSN-SR04T · TRIG GPIO 14 / ECHO GPIO 34</span></div>
-    <div class="review-row"><span class="k">POMPE</span><span class="v">GPIO_13 · 12V 25ml/s</span></div>
-    <div class="review-row"><span class="k">POTS DESSERVIS</span><span class="v">12 (P01-P14)</span></div>
+    <div class="review-row"><span class="k">POMPE</span><span class="v">SLAVE GPIO 27 · péristaltique 12V · 25 ml/s</span></div>
+    <div class="review-row"><span class="k">POTS DESSERVIS</span><span class="v">10 (P01-P10)</span></div>
   </div>
   
   <div class="edit-section">
@@ -2924,8 +3064,154 @@
       <button class="danger-btn" onclick="openModal('deletePot')">DELETE</button>
     </div>
   </div>
-  
+
   <div style="height:16px;"></div>
+</div>
+
+
+<!-- ============ ADD PAIRING WIZARD (ESP-NOW) ============ -->
+<div class="screen-wrap" id="addPairing">
+  <div class="back" onclick="cancelPairingWizard()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    ANNULER
+  </div>
+
+  <div class="wizard-steps" id="pairingSteps">
+    <div class="wstep active" data-pstep="1"></div>
+    <div class="wstep" data-pstep="2"></div>
+    <div class="wstep" data-pstep="3"></div>
+  </div>
+
+  <!-- STEP 1 — PRÉREQUIS -->
+  <div class="wizard-step" data-pstep="1">
+    <div class="wizard-meta">ÉTAPE <b>1/3</b> · PRÉREQUIS</div>
+    <h2 class="wizard-h">Appairer le slave balcon</h2>
+    <p class="wizard-sub">Handshake ESP-NOW bidirectionnel : master broadcaste sa MAC toutes les 2s, le slave répond et les deux persistent en NVS.</p>
+
+    <div class="profile-card" style="margin-bottom:14px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-2);letter-spacing:0.1em;margin-bottom:10px;">CHECKLIST AVANT DE COMMENCER</div>
+      <div style="font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--text-1);">
+        <div><span style="color:var(--accent);">●</span> Master allumé · firmware v4.2.1+ flashé</div>
+        <div><span style="color:var(--accent);">●</span> Slave allumé · firmware v4.2.1+ flashé · LED bleue fixe</div>
+        <div><span style="color:var(--accent);">●</span> Les deux ESP32 dans la même pièce (portée ESP-NOW &lt; 10 m pour le 1er pairing)</div>
+        <div><span style="color:var(--accent);">●</span> Aucun autre projet ESP-NOW magic <span style="color:var(--text-0);">0xBA</span> au voisinage</div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:14px;font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--text-2);">
+      <div style="color:var(--text-1);font-weight:600;margin-bottom:6px;">⚠ ATTENTION</div>
+      <div>Le pairing efface l'éventuel pairing précédent en NVS. Si tu remplaces un slave, fais d'abord <span style="color:var(--text-0);">RESET PAIRING</span> côté master.</div>
+    </div>
+
+    <div class="wizard-nav">
+      <div class="action-row">
+        <div class="btn" onclick="cancelPairingWizard()">ANNULER</div>
+        <div class="btn primary" onclick="startPairingScan()">DÉMARRER →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 — SCAN / HANDSHAKE -->
+  <div class="wizard-step" data-pstep="2" style="display:none;">
+    <div class="wizard-meta">ÉTAPE <b>2/3</b> · HANDSHAKE</div>
+    <h2 class="wizard-h">Scan en cours…</h2>
+    <p class="wizard-sub">Master broadcaste <span style="color:var(--text-0);">CMD_PAIRING_REQ</span> toutes les 2s. Attente d'un <span style="color:var(--text-0);">DATA_PAIRING_ACK</span>.</p>
+
+    <div class="profile-card" style="margin-bottom:14px;">
+      <!-- Animation pulse -->
+      <div style="display:flex;justify-content:center;align-items:center;padding:24px 0;">
+        <div style="position:relative;width:80px;height:80px;">
+          <div id="pairingPulse1" style="position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;animation:pairingPulse 1.6s ease-out infinite;"></div>
+          <div id="pairingPulse2" style="position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;animation:pairingPulse 1.6s ease-out infinite;animation-delay:0.8s;"></div>
+          <div style="position:absolute;inset:24px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-family:var(--mono);font-size:10px;line-height:1.9;color:var(--text-1);border-top:1px solid var(--line);padding-top:12px;" id="pairingLog">
+        <div><span style="color:var(--text-2);">[T+0s]</span> [ESPNOW] mode pairing activé · broadcast 2Hz</div>
+        <div><span style="color:var(--text-2);">[T+1s]</span> [ESPNOW] CMD_PAIRING_REQ envoyé · seq=1</div>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <div class="action-row">
+        <div class="btn" onclick="cancelPairingWizard()">ANNULER</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 — CONFIRMATION -->
+  <div class="wizard-step" data-pstep="3" style="display:none;">
+    <div class="wizard-meta">ÉTAPE <b>3/3</b> · CONFIRMATION</div>
+    <h2 class="wizard-h">Pairing réussi</h2>
+    <p class="wizard-sub">MAC slave reçue · <span style="color:var(--text-0);">CMD_PAIRING_CONFIRM</span> envoyé · persistance NVS OK des deux côtés.</p>
+
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="width:56px;height:56px;background:var(--accent);color:#000;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+
+    <div class="profile-card" style="margin-bottom:14px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-2);letter-spacing:0.1em;margin-bottom:10px;">RÉSUMÉ DU PAIRING</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:10px;">
+        <div>
+          <div style="color:var(--text-2);">MASTER MAC</div>
+          <div id="confirmMasterMac" style="color:var(--text-0);font-size:11px;font-weight:600;">24:6F:28:7C:1A:42</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">SLAVE MAC</div>
+          <div id="confirmSlaveMac" style="color:var(--accent);font-size:11px;font-weight:600;">24:6F:28:8B:33:E1</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">RSSI INITIAL</div>
+          <div id="confirmRssi" style="color:var(--text-0);font-size:11px;font-weight:600;">-38 dBm</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2);">DURÉE HANDSHAKE</div>
+          <div id="confirmDuration" style="color:var(--text-0);font-size:11px;font-weight:600;">2.4s</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line);padding-top:8px;margin-top:10px;font-family:var(--mono);font-size:10px;line-height:1.8;color:var(--text-1);">
+        <div><span style="color:var(--accent);">→</span> NVS master · namespace <span style="color:var(--text-0);">espnow:peerMac</span> écrit</div>
+        <div><span style="color:var(--accent);">→</span> NVS slave · namespace <span style="color:var(--text-0);">espnow:peerMac</span> écrit</div>
+        <div><span style="color:var(--accent);">→</span> Boots suivants : pairing direct sans handshake</div>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <div class="btn primary" style="width:100%;" onclick="finishPairingWizard()">RETOUR · SYSTEM</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ MODAL · PAIRING RESET ============ -->
+<div class="modal-bg" id="modal-pairingReset">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="color:var(--warn);">⚠ Reset pairing ESP-NOW</div>
+    <div class="modal-sub">Efface le MAC du slave en NVS master et redémarre en mode pairing.</div>
+
+    <div style="background:var(--bg-2);border:1px solid var(--warn);border-radius:8px;padding:12px;margin-bottom:14px;font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--text-1);">
+      <div style="color:var(--warn);font-weight:600;margin-bottom:6px;">CONSÉQUENCES</div>
+      <div>→ Arrosage stoppé pendant ~10s (reboot)</div>
+      <div>→ Le slave doit être en mode pairing aussi (slave neuf OU <span style="color:var(--text-0);">pairing_reset</span> via CLI série)</div>
+      <div>→ NVS master <span style="color:var(--text-0);">espnow:peerMac</span> sera effacé · config non touchée</div>
+    </div>
+
+    <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:14px;font-family:var(--mono);font-size:10px;color:var(--text-2);">
+      Équivalent <span style="color:var(--text-1);">/pairing_reset</span> Telegram
+    </div>
+
+    <div class="action-row">
+      <div class="btn" onclick="closeModal()">ANNULER</div>
+      <div class="btn primary" style="background:var(--warn);color:#000;" onclick="confirmPairingReset()">CONFIRMER RESET</div>
+    </div>
+  </div>
 </div>
 
 
@@ -3414,6 +3700,32 @@
   </div>
 </div>
 
+<!-- MODAL: SAFETY UNLOCK CONFIRMATION -->
+<div class="modal-bg" id="modal-safetyUnlock">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="color:var(--warn);">⚠ Déverrouiller SafetyManager</div>
+    <div class="modal-sub">Lockout : <span id="unlockReasonText" style="color:var(--warn);">overcurrent &gt; 3A</span></div>
+
+    <div style="background:var(--bg-2);border:1px solid var(--warn);border-radius:8px;padding:12px;margin-bottom:14px;font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--text-1);">
+      <div style="color:var(--warn);font-weight:600;margin-bottom:6px;">AVANT DE DÉVERROUILLER</div>
+      <div>→ Vérifie que la cause physique est résolue</div>
+      <div>→ Inspecte la pompe (obstruction, tuyau plié)</div>
+      <div>→ Vérifie le niveau d'eau réservoir</div>
+      <div>→ Le double-verrou se réarmera automatiquement</div>
+    </div>
+
+    <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:14px;font-family:var(--mono);font-size:10px;color:var(--text-2);">
+      Équivalent <span style="color:var(--text-1);">/unlock</span> Telegram ou <span style="color:var(--text-1);">POST /api/safety/unlock</span>
+    </div>
+
+    <div class="action-row">
+      <div class="btn" onclick="closeModal()">ANNULER</div>
+      <div class="btn primary" style="background:var(--warn);color:#000;" onclick="confirmSafetyUnlock()">CONFIRMER UNLOCK</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ╔═══════════════════════════════════════════════════════════╗
 // ║  BALCONY HYDRA v4 — UNIFIED DATA STORE                    ║
@@ -3489,6 +3801,31 @@ const HARDWARE = {
     charge: 98,
     voltage: 13.4,
     runtimeRemain: 6 * 3600  // seconds
+  },
+  // ESP-NOW pairing state (mirrors EspNowMaster/EspNowSlave NVS namespace "espnow")
+  // status: PAIRED | UNPAIRED | PAIRING
+  pairing: {
+    status: 'PAIRED',
+    masterMac: '24:6F:28:7C:1A:42',  // affiché par /pairing_status Telegram
+    slaveMac:  '24:6F:28:8B:33:E1',  // persisté en NVS namespace espnow:peerMac
+    lastSeq: 4892,                    // dernier seq# reçu du slave
+    rssi: -42,                        // dBm
+    lastPingMs: 87,                   // RTT CMD_PING/DATA_PONG
+    pairedSince: 47 * 86400 + 14 * 3600,  // seconds since first pairing
+    magicByte: '0xBA'                 // PROTOCOL_MAGIC firmware
+  },
+  // SafetyManager state (mirrors firmware SafetyManager.h)
+  // state: NORMAL | THERMAL_LOCKOUT | HARD_LOCKOUT | SAFE_MODE
+  // reason: when locked, why (overcurrent / dry-run / thermal / boot-crash)
+  safety: {
+    state: 'NORMAL',
+    reason: null,
+    sinceLockoutS: 0,        // seconds since lockout (auto-incremented if state ≠ NORMAL)
+    tempPcb: 38.2,           // °C, from BME280 inside enclosure
+    bootCrashCount: 0,       // NVS counter, 3+ → SAFE_MODE
+    thermalCoolingRemainS: 0,// for THERMAL_LOCKOUT, time before auto-recovery (5 min stable < 45°C)
+    relayArmed: true,        // relay GPIO 18 armed = pump can run
+    pumpEnabled: true        // double-lock: relay armed + safety not locked
   },
   // Pots — 20 pots, P01-P10 = zone A balcon (SLAVE), P11-P20 = zone B intérieur (MASTER)
   // muxChannel : canal MUX 0-9 au sein de la zone. Pas de gpioPump (pompe unique par zone).
@@ -3836,6 +4173,8 @@ function render(){
   renderTopology();
   renderSlavePower();
   renderRanking();
+  renderSafety();
+  renderPairing();
   renderLiveLog();
   renderWanBars();
 }
@@ -4244,6 +4583,314 @@ function renderWanBars(){
   }
 }
 
+// ─── SAFETY MANAGER ──────────────────────────────────────────
+// Présentation des 4 états du SafetyManager firmware
+const SAFETY_PRESETS = {
+  NORMAL: {
+    label: 'NORMAL',
+    badge: '● NORMAL',
+    color: 'accent',
+    reason: 'double-verrou armé · pompes opérationnelles',
+    icon: '<path d="M20 13c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V5l8-3 8 3v8z"/><polyline points="9 12 11 14 15 10"/>',
+    showCooling: false,
+    showUnlock: false,
+    relay: '● ARMÉ', relayColor: 'accent'
+  },
+  THERMAL_LOCKOUT: {
+    label: 'THERMAL LOCKOUT',
+    badge: '▲ THERMAL',
+    color: 'warn',
+    reason: 'T° > 58°C détectée · pompes coupées · auto-recovery en cours',
+    icon: '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4 4 0 1 0 5 0z"/>',
+    showCooling: true,
+    showUnlock: false,
+    relay: '○ DÉSARMÉ', relayColor: 'warn'
+  },
+  HARD_LOCKOUT: {
+    label: 'HARD LOCKOUT',
+    badge: '■ HARD',
+    color: 'crit',
+    reason: 'overcurrent > 3A · pompe bloquée mécaniquement · unlock requis',
+    icon: '<path d="M12 2L1 21h22L12 2z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    showCooling: false,
+    showUnlock: true,
+    relay: '○ DÉSARMÉ', relayColor: 'crit'
+  },
+  SAFE_MODE: {
+    label: 'SAFE MODE',
+    badge: '■ SAFE_MODE',
+    color: 'crit',
+    reason: '3+ boot crashes · pompe désactivée · WiFi+Telegram actifs pour /unlock distant',
+    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    showCooling: false,
+    showUnlock: true,
+    relay: '○ DÉSARMÉ', relayColor: 'crit'
+  }
+};
+
+function renderSafety(){
+  const s = HARDWARE.safety;
+  const preset = SAFETY_PRESETS[s.state] || SAFETY_PRESETS.NORMAL;
+  const colorVar = `var(--${preset.color})`;
+
+  // Header badge
+  const badge = document.getElementById('safetyHeaderBadge');
+  if(badge){
+    badge.textContent = preset.badge;
+    badge.style.color = colorVar;
+  }
+
+  // State label + reason
+  const lbl = document.getElementById('safetyStateLabel');
+  if(lbl){ lbl.textContent = preset.label; lbl.style.color = colorVar; }
+  const rsn = document.getElementById('safetyStateReason');
+  if(rsn) rsn.textContent = s.reason || preset.reason;
+
+  // Icon
+  const iconBox = document.getElementById('safetyStateIcon');
+  if(iconBox){
+    iconBox.style.background = `rgba(124,255,90,0.1)`;
+    if(preset.color === 'warn') iconBox.style.background = 'rgba(255,176,46,0.1)';
+    if(preset.color === 'crit') iconBox.style.background = 'rgba(255,77,77,0.1)';
+    iconBox.style.color = colorVar;
+    iconBox.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${preset.icon}</svg>`;
+  }
+
+  // Détails techniques
+  const tempEl = document.getElementById('safetyTempVal');
+  if(tempEl){
+    tempEl.textContent = s.tempPcb.toFixed(1) + '°C';
+    tempEl.style.color = s.tempPcb > 50 ? 'var(--warn)' : s.tempPcb > 58 ? 'var(--crit)' : 'var(--text-0)';
+  }
+  const relayEl = document.getElementById('safetyRelayVal');
+  if(relayEl){
+    relayEl.textContent = preset.relay;
+    relayEl.style.color = `var(--${preset.relayColor})`;
+  }
+  const crashEl = document.getElementById('safetyCrashVal');
+  if(crashEl){
+    crashEl.textContent = `${s.bootCrashCount} / 3`;
+    crashEl.style.color = s.bootCrashCount >= 3 ? 'var(--crit)' : s.bootCrashCount > 0 ? 'var(--warn)' : 'var(--text-0)';
+  }
+  const durEl = document.getElementById('safetyDurationVal');
+  if(durEl){
+    durEl.textContent = s.state === 'NORMAL' ? '—' : fmtDuration(s.sinceLockoutS);
+    durEl.style.color = s.state === 'NORMAL' ? 'var(--text-2)' : colorVar;
+  }
+
+  // Cooling row (thermal only)
+  const coolingRow = document.getElementById('safetyCoolingRow');
+  if(coolingRow){
+    coolingRow.style.display = preset.showCooling ? 'block' : 'none';
+    if(preset.showCooling){
+      const remain = s.thermalCoolingRemainS || 300;
+      document.getElementById('safetyCoolingRemain').textContent = fmtDuration(remain);
+      const totalCool = 5 * 60;
+      const pct = Math.max(0, Math.min(100, ((totalCool - remain) / totalCool) * 100));
+      document.getElementById('safetyCoolingBar').style.width = pct + '%';
+    }
+  }
+
+  // Unlock row
+  const unlockRow = document.getElementById('safetyUnlockRow');
+  if(unlockRow) unlockRow.style.display = preset.showUnlock ? 'block' : 'none';
+
+  // Pre-fill unlock modal reason text
+  const reasonText = document.getElementById('unlockReasonText');
+  if(reasonText) reasonText.textContent = s.reason || preset.reason;
+}
+
+function fmtDuration(seconds){
+  if(seconds < 60) return seconds + 's';
+  if(seconds < 3600) return Math.floor(seconds/60) + 'min ' + (seconds%60).toString().padStart(2,'0') + 's';
+  const h = Math.floor(seconds/3600);
+  const m = Math.floor((seconds%3600)/60);
+  return h + 'h ' + m.toString().padStart(2,'0') + 'min';
+}
+
+function setSafetyState(state){
+  if(!SAFETY_PRESETS[state]) return;
+  HARDWARE.safety.state = state;
+  HARDWARE.safety.reason = SAFETY_PRESETS[state].reason;
+  if(state === 'NORMAL'){
+    HARDWARE.safety.sinceLockoutS = 0;
+    HARDWARE.safety.thermalCoolingRemainS = 0;
+    HARDWARE.safety.relayArmed = true;
+    HARDWARE.safety.pumpEnabled = true;
+    HARDWARE.safety.bootCrashCount = 0;
+  } else {
+    HARDWARE.safety.sinceLockoutS = state === 'THERMAL_LOCKOUT' ? 47 : 312;
+    HARDWARE.safety.thermalCoolingRemainS = state === 'THERMAL_LOCKOUT' ? 218 : 0;
+    HARDWARE.safety.relayArmed = false;
+    HARDWARE.safety.pumpEnabled = false;
+    HARDWARE.safety.tempPcb = state === 'THERMAL_LOCKOUT' ? 48.6 : 38.2;
+    HARDWARE.safety.bootCrashCount = state === 'SAFE_MODE' ? 3 : 0;
+  }
+  pushLogEvent(state === 'NORMAL' ? 'info' : 'warn', `SafetyManager → ${state}`);
+  renderSafety();
+}
+
+function confirmSafetyUnlock(){
+  const prevState = HARDWARE.safety.state;
+  setSafetyState('NORMAL');
+  closeModal();
+  pushLogEvent('info', `Unlock confirmé · ${prevState} → NORMAL · double-verrou réarmé`);
+}
+
+// ─── PAIRING ESP-NOW ─────────────────────────────────────────
+function fmtMacShort(mac){ return mac ? mac.toUpperCase() : '—'; }
+
+function renderPairing(){
+  const p = HARDWARE.pairing;
+  const paired = p.status === 'PAIRED';
+
+  const badge = document.getElementById('pairingBadge');
+  if(badge){
+    badge.textContent = paired ? '● PAIRED' : '○ UNPAIRED';
+    badge.style.color = paired ? 'var(--accent)' : 'var(--warn)';
+  }
+
+  document.getElementById('pairingPairedView').style.display = paired ? 'block' : 'none';
+  document.getElementById('pairingUnpairedView').style.display = paired ? 'none' : 'block';
+
+  if(!paired) return;
+
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  set('pairingMasterMac', fmtMacShort(p.masterMac));
+  set('pairingSlaveMac',  fmtMacShort(p.slaveMac));
+  set('pairingLastSeq',   p.lastSeq.toLocaleString());
+  set('pairingRssi',      p.rssi + ' dBm');
+  set('pairingPing',      p.lastPingMs + ' ms');
+  set('pairingMagic',     p.magicByte);
+
+  // Format paired-since
+  const days = Math.floor(p.pairedSince / 86400);
+  const hours = Math.floor((p.pairedSince % 86400) / 3600);
+  set('pairingSince', days + 'j ' + hours + 'h');
+
+  // Colorize RSSI/Ping selon qualité
+  const rssiEl = document.getElementById('pairingRssi');
+  if(rssiEl){
+    rssiEl.style.color = p.rssi > -60 ? 'var(--accent)' : p.rssi > -75 ? 'var(--warn)' : 'var(--crit)';
+  }
+  const pingEl = document.getElementById('pairingPing');
+  if(pingEl){
+    pingEl.style.color = p.lastPingMs < 100 ? 'var(--accent)' : p.lastPingMs < 300 ? 'var(--warn)' : 'var(--crit)';
+  }
+}
+
+function simulatePairingPing(){
+  const p = HARDWARE.pairing;
+  if(p.status !== 'PAIRED'){ pushLogEvent('warn', 'Ping impossible : slave non appairé'); return; }
+  // Simule un nouveau RTT + seq + jitter RSSI
+  p.lastPingMs = Math.round(60 + Math.random() * 80);
+  p.lastSeq += 1;
+  p.rssi = -40 - Math.round(Math.random() * 10);
+  pushLogEvent('info', `[ESPNOW] CMD_PING → DATA_PONG · RTT=${p.lastPingMs}ms · RSSI=${p.rssi}dBm · seq=${p.lastSeq}`);
+  renderPairing();
+}
+
+function confirmPairingReset(){
+  closeModal();
+  HARDWARE.pairing.status = 'UNPAIRED';
+  HARDWARE.pairing.slaveMac = null;
+  HARDWARE.pairing.lastSeq = 0;
+  HARDWARE.pairing.rssi = -127;
+  HARDWARE.pairing.pairedSince = 0;
+  HARDWARE.slaves['SLAVE'].online = false;
+  pushLogEvent('warn', '[ESPNOW] /pairing_reset · NVS effacé · reboot master en cours');
+  setTimeout(() => {
+    pushLogEvent('info', '[BOOT] master redémarré · mode pairing actif · broadcast 2Hz');
+    renderPairing();
+    render();
+  }, 1500);
+  renderPairing();
+}
+
+// Wizard state
+let _pairingStep = 1;
+let _pairingScanInterval = null;
+let _pairingScanStartTs = 0;
+
+function _setPairingStep(step){
+  _pairingStep = step;
+  document.querySelectorAll('#pairingSteps .wstep').forEach(w => {
+    const s = parseInt(w.dataset.pstep);
+    w.classList.toggle('active', s === step);
+    w.classList.toggle('done',   s <  step);
+  });
+  document.querySelectorAll('#addPairing .wizard-step').forEach(s => {
+    s.style.display = parseInt(s.dataset.pstep) === step ? 'block' : 'none';
+  });
+}
+
+function cancelPairingWizard(){
+  if(_pairingScanInterval){ clearInterval(_pairingScanInterval); _pairingScanInterval = null; }
+  _setPairingStep(1);
+  switchScreen('system');
+}
+
+function startPairingScan(){
+  _setPairingStep(2);
+  _pairingScanStartTs = Date.now();
+  const logEl = document.getElementById('pairingLog');
+
+  // Reset log
+  if(logEl){
+    logEl.innerHTML =
+      '<div><span style="color:var(--text-2);">[T+0s]</span> [ESPNOW] mode pairing activé · broadcast 2Hz</div>';
+  }
+
+  let tick = 0;
+  _pairingScanInterval = setInterval(() => {
+    tick++;
+    const elapsed = ((Date.now() - _pairingScanStartTs) / 1000).toFixed(1);
+    const seq = tick;
+
+    const append = (txt) => {
+      if(!logEl) return;
+      const div = document.createElement('div');
+      div.innerHTML = `<span style="color:var(--text-2);">[T+${elapsed}s]</span> ${txt}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    if(tick <= 2){
+      append(`[ESPNOW] CMD_PAIRING_REQ envoyé · seq=${seq}`);
+    } else if(tick === 3){
+      append('<span style="color:var(--accent);">[ESPNOW] DATA_PAIRING_ACK reçu · slave 24:6F:28:8B:33:E1</span>');
+      append('[ESPNOW] CMD_PAIRING_CONFIRM envoyé');
+      append('<span style="color:var(--accent);">[NVS] espnow:peerMac écrit (master + slave)</span>');
+      clearInterval(_pairingScanInterval);
+      _pairingScanInterval = null;
+
+      // Populate step 3
+      const dur = elapsed + 's';
+      document.getElementById('confirmDuration').textContent = dur;
+      document.getElementById('confirmSlaveMac').textContent = '24:6F:28:8B:33:E1';
+      document.getElementById('confirmRssi').textContent = '-38 dBm';
+
+      setTimeout(() => _setPairingStep(3), 800);
+    }
+  }, 800);
+}
+
+function finishPairingWizard(){
+  // Commit pairing to HARDWARE state
+  HARDWARE.pairing.status = 'PAIRED';
+  HARDWARE.pairing.slaveMac = '24:6F:28:8B:33:E1';
+  HARDWARE.pairing.lastSeq = 1;
+  HARDWARE.pairing.rssi = -38;
+  HARDWARE.pairing.lastPingMs = 92;
+  HARDWARE.pairing.pairedSince = 0;
+  HARDWARE.slaves['SLAVE'].online = true;
+  HARDWARE.slaves['SLAVE'].rssi = -38;
+  pushLogEvent('info', '[ESPNOW] pairing terminé · communication unicast active');
+  _setPairingStep(1);
+  switchScreen('system');
+  render();
+}
+
 // ─── STATS PERIOD FILTER ─────────────────────────────────────
 function setStatsPeriod(period){
   if(!STATS_PERIOD[period]) return;
@@ -4293,6 +4940,29 @@ function startLiveUpdates(){
     // Master clock
     HARDWARE.master.uptime += 3;
     HARDWARE.master.lastSync = (HARDWARE.master.lastSync + 3) % 30;
+
+    // Pairing : auto-increment pairedSince + seq drift si paired
+    if(HARDWARE.pairing.status === 'PAIRED'){
+      HARDWARE.pairing.pairedSince += 3;
+      if(tickCount % 3 === 0){
+        // Simule un PING périodique master→slave toutes les ~9s
+        HARDWARE.pairing.lastSeq += 1;
+      }
+    }
+
+    // Safety state evolution
+    const sf = HARDWARE.safety;
+    if(sf.state !== 'NORMAL'){
+      sf.sinceLockoutS += 3;
+      if(sf.state === 'THERMAL_LOCKOUT' && sf.thermalCoolingRemainS > 0){
+        sf.thermalCoolingRemainS = Math.max(0, sf.thermalCoolingRemainS - 3);
+        // Auto-recovery when timer reaches 0
+        if(sf.thermalCoolingRemainS === 0){
+          pushLogEvent('info', 'SafetyManager auto-recovery · T° < 45°C stable 5 min · réarmement');
+          setSafetyState('NORMAL');
+        }
+      }
+    }
     
     // Small random walk on humidity (drying down slowly)
     Object.values(HARDWARE.pots).forEach(p => {
@@ -4824,6 +5494,7 @@ function switchScreen(id){
   if(id === 'detail' || id === 'configurator' || id === 'addPot' || id === 'editPot') navId = 'pots';
   else if(id === 'tankDetail') navId = 'tanks';
   else if(id === 'profiles') navId = 'pots'; // profiles accessible via pots, no longer in nav
+  else if(id === 'addPairing') navId = 'system';
   const nav = document.querySelector(`.nav-item[data-nav="${navId}"]`);
   if(nav) nav.classList.add('active');
 }

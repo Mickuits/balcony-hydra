@@ -1,6 +1,6 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-05-17
+> Dernière MAJ : 2026-05-18
 
 ## État du sprint
 
@@ -124,16 +124,16 @@ Prototype mobile haute fidélité disponible dans `mobile/balcony-hydra-mobile.h
 
 **Statut** : prototype design, **non connecté** au firmware (données simulées).
 
-#### Écarts à résoudre vs firmware v4 (8)
+#### Écarts à résoudre vs firmware v4 (8) — ✅ TOUS RÉSOLUS
 
-- [ ] **Aligner le nombre de slaves** : proto = 3 (S01/S02/S03), firmware = 1 (balcon uniquement). Décider : aligner mock OU élargir firmware au pattern N-slaves.
-- [ ] **Capteurs MUX vs GPIO dédié** : refactoriser le wizard pot pour exposer le canal MUX (0-9) et non un GPIO.
-- [ ] **Pompes par zone vs par pot** : refactoriser le wizard pour choisir une zone (A balcon / B intérieur) au lieu d'un GPIO pompe.
-- [ ] **Ajouter selector mode arrosage** (AUTO / SCHEDULED / SOLAR / MANUAL) absent du proto.
-- [ ] **Ajouter écran safety** : état `SafetyManager` + bouton unlock confirmé (équivalent `/unlock` Telegram).
-- [ ] **Ajouter wizard pairing ESP-NOW** : flow premier setup + bouton `/pairing_reset`.
-- [ ] **Retirer l'option pompe submersible 5V** : seules les péristaltiques 12V sont supportées.
-- [ ] **Filtrer les pin-grids** selon les contraintes ESP32 réelles (ADC2 interdit avec WiFi, strapping pins, input-only).
+- [x] **Aligner le nombre de slaves** — data layer aligné en `fb968b4` (1 slave SLAVE)
+- [x] **Capteurs MUX vs GPIO dédié** — wizard pot étape 3 utilise `muxChannel 0-9` (`fb968b4`)
+- [x] **Pompes par zone vs par pot** — pompe unique par zone (SLAVE GPIO 27 / MASTER GPIO 27)
+- [x] **Selector mode arrosage** — 4 modes ajoutés (AUTO / SCHEDULED / SOLAR / MANUAL)
+- [x] **Écran safety** — section SAFETY MANAGER dans SYS, 4 états (NORMAL/THERMAL/HARD/SAFE_MODE), cooling timer animé, modal unlock confirmé
+- [x] **Wizard pairing ESP-NOW** — section PAIRING dans SYS + wizard 3 étapes (prérequis/scan/confirmation) + modal `/pairing_reset` + simulatePairingPing
+- [x] **Pompe submersible 5V** — déjà absente du code (HW block ne propose que péristaltique 12V) + correction tank edit GPIO_13 → GPIO 27
+- [x] **Pin-grid filter ESP32** — moot : la seule pin-grid restante est MUX channels (ch 0-9), pas de GPIO bruts exposés
 
 #### Intégration firmware (Phase 2)
 
@@ -169,6 +169,26 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-18 — Mobile : 8 écarts firmware v4 résolus
+
+Tous les écarts du prototype mobile vs firmware v4 sont fermés. Audit détaillé :
+
+**Déjà résolus à l'audit (data layer migré en `fb968b4`)** :
+- Slave unique 'SLAVE' (au lieu de S01/S02/S03)
+- `muxChannel` (0-9) au lieu de GPIO ADC
+- `controller` ('SLAVE'/'MASTER') au lieu de slave ID
+- Pompe par zone (pas par pot), seule péristaltique 12V exposée
+
+**Ajoutés cette session** :
+- Mode `SOLAR` dans le selector arrosage (4 modes complets : AUTO/SCHEDULED/SOLAR/MANUAL)
+- Section **SAFETY MANAGER** dans l'écran SYS : 4 états (NORMAL/THERMAL_LOCKOUT/HARD_LOCKOUT/SAFE_MODE), affichage T° PCB / relay armé / boot crash count / durée lockout, cooling timer animé avec progress bar (auto-recovery T° < 45°C stable 5 min), modal de confirmation unlock (équivalent `/unlock` Telegram + `POST /api/safety/unlock`), dev sim 4 boutons pour tester les états
+- Section **PAIRING ESP-NOW** dans SYS : MAC master / slave, last seq#, RSSI, ping RTT, paired since, magic byte 0xBA, bouton PING SLAVE (simule CMD_PING→DATA_PONG), bouton RESET PAIRING avec modal de confirmation (équivalent `/pairing_reset` Telegram)
+- Écran **wizard addPairing** 3 étapes : prérequis (checklist), scan/handshake (animation pulse ESP-NOW + live log CMD_PAIRING_REQ/DATA_PAIRING_ACK/CMD_PAIRING_CONFIRM/NVS write), confirmation (MAC slave reçue + RSSI initial + durée handshake)
+- Live update : auto-increment pairedSince, simulation ping périodique, auto-recovery thermal lockout
+- Fix incohérence : tank edit affichait `GPIO_13` pour la pompe → corrigé en `SLAVE GPIO 27 · péristaltique 12V`
+
+**Validation Playwright** : tests E2E sur les 4 états SafetyManager + flow complet pairing (paired → reset → wizard 3 étapes → re-paired). Screenshots 390×844 (iPhone 14).
 
 ### 2026-05-17 — Intégration prototype mobile + fix filtre stats
 

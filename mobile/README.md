@@ -5,9 +5,10 @@
 ## Statut
 
 **Prototype design** — pas encore connecté au firmware réel.
-- 14 écrans complets, 5 wizards, ~30 modaux
-- 4 834 lignes / ~243 KB, 100 % mobile-first
+- 15 écrans complets (dont addPairing), 6 wizards, ~32 modaux
+- ~5 200 lignes / ~260 KB, 100 % mobile-first
 - Données simulées par boucle JS (`startLiveUpdates`, tick 3 s)
+- Couvre SafetyManager (4 états + unlock) et pairing ESP-NOW (wizard + reset)
 - Sert de **référence UX** pour la future app native ou PWA
 
 ## Comment l'ouvrir
@@ -41,6 +42,7 @@ Inspecter le DOM = inspecter le state mock (objets globaux `HARDWARE`, `PROFILES
 | `system` | Connectivité WAN, contrôle distant, alim, topologie ESP-NOW, log MQTT | Bottom nav SYS |
 | `configurator` | Liste pots assignés par zone + CTA ajouter pot | CTA pots |
 | `addPot` / `editPot` | Wizard 5 étapes ajout/édition pot (identité → profil → hardware → calibration → review) | CTA configurator |
+| `addPairing` | Wizard 3 étapes pairing ESP-NOW (prérequis → scan/handshake → confirmation) | CTA system (pairing card si UNPAIRED) |
 
 Bottom nav : **DASH / POTS / TANKS / STATS / SYS**.
 
@@ -76,31 +78,31 @@ Bottom nav : **DASH / POTS / TANKS / STATS / SYS**.
 
 **Topics MQTT référencés** (textuel uniquement) : `/hydra/sensors`, `/hydra/state`, `/hydra/cmd/+`, `/hydra/alert`.
 
-## ⚠ Écarts vs firmware réel — à résoudre
+## ✅ Écarts vs firmware réel — RÉSOLUS (2026-05-18)
 
-Le proto reflète une **vision UX maximaliste**. Plusieurs hypothèses divergent du firmware v4 actuel :
+Les 8 écarts initialement identifiés sont tous fermés :
 
-| # | Proto | Firmware v4 réel | Décision attendue |
-|---|---|---|---|
-| 1 | **3 slaves** (S01 balcon, S02 salon, S03 offline) | **1 slave** unique (balcon). Master gère l'intérieur. | Aligner le mock sur 1 slave OU élargir le firmware au pattern N-slaves |
-| 2 | **1 capteur ADC par pot** (GPIO dédié par pot) | **1 MUX 16 canaux** par MCU (lecture multiplexée GPIO 36) | Ne pas exposer le GPIO par pot dans l'UI — exposer le canal MUX |
-| 3 | **1 pompe par pot** (`gpioPump`) | **2 pompes péristaltiques** uniquement (1 par zone, GPIO 27) | Refactoriser le wizard pot : choix de la zone (A/B), pas de pin pompe |
-| 4 | **Pas de modes** AUTO/SCHEDULED/SOLAR/MANUAL | Modes implémentés et exposés via API/Telegram | Ajouter un selector mode + paramètres de chaque mode (cooldown, créneaux, offset solaire) |
-| 5 | **Pas d'UI safety** (thermal lockout, hard lockout, `/unlock`) | `SafetyManager` complet avec lockout + remote unlock | Écran dédié sécurité avec état lockout + bouton unlock confirmé |
-| 6 | **Pas de wizard pairing ESP-NOW** | Pairing 3-way au premier boot, doc dans `PAIRING.md` | Ajouter écran de pairing au premier setup + bouton `/pairing_reset` |
-| 7 | Pompe **submersible 5V** dans le wizard | Pompe **péristaltique 12V** uniquement | Retirer l'option submersible 5V |
-| 8 | GPIO incohérents (ADC2, strapping, input-only) | Contraintes ESP32 strictes (voir CLAUDE.md) | Filtrer les pin-grids selon les contraintes ESP32 |
+| # | Écart initial | Résolution |
+|---|---|---|
+| 1 | Proto = 3 slaves, firmware = 1 | Data layer aligné en `fb968b4` : un seul slave `'SLAVE'` (zone A balcon) |
+| 2 | 1 capteur ADC par pot (GPIO dédié) | `muxChannel` (0-9) au lieu de GPIO ADC, wizard pot étape 3 refactorée |
+| 3 | 1 pompe par pot (`gpioPump`) | Pompe unique par zone, exposée via `controller` (SLAVE GPIO 27 / MASTER GPIO 27) |
+| 4 | Pas de selector mode arrosage | 4 modes (AUTO / SCHEDULED / SOLAR / MANUAL) avec paramètres dans l'écran SYS |
+| 5 | Pas d'UI SafetyManager | Section SAFETY MANAGER dans SYS : 4 états, cooling timer, modal unlock confirmé |
+| 6 | Pas de wizard pairing ESP-NOW | Section PAIRING dans SYS + wizard 3 étapes (prérequis/handshake/confirmation) + modal `/pairing_reset` |
+| 7 | Option pompe submersible 5V | Aucune trace dans le code (HW block n'expose que péristaltique 12V) |
+| 8 | GPIO bruts dans pin-grid | Moot : la seule pin-grid restante est MUX channels (ch 0-9), pas de GPIO exposé à l'utilisateur |
 
-Ces écarts ne sont **pas des bugs du proto** — ils traduisent une UX désirable qu'il faut soit aligner sur le firmware, soit faire évoluer le firmware pour y répondre. Voir TODO.md §Mobile App.
+Le proto est désormais 100 % cohérent avec le firmware v4. Prochaine étape : Phase 2 (intégration MQTT.js + REST API).
 
 ## Roadmap (à implémenter)
 
-### Phase 1 — Aligner le proto sur le firmware réel
-- [ ] Refactoriser le wizard pot pour la réalité MUX + 2 pompes
-- [ ] Ajouter selector de mode arrosage (AUTO / SCHEDULED / SOLAR / MANUAL)
-- [ ] Ajouter écran safety (thermal, hard lockout, unlock)
-- [ ] Ajouter écran pairing ESP-NOW
-- [ ] Filtrer les pin-grids selon les contraintes ESP32
+### Phase 1 — Aligner le proto sur le firmware réel ✅ TERMINÉ
+- [x] Refactoriser le wizard pot pour la réalité MUX + 2 pompes
+- [x] Ajouter selector de mode arrosage (AUTO / SCHEDULED / SOLAR / MANUAL)
+- [x] Ajouter écran safety (thermal, hard lockout, unlock)
+- [x] Ajouter écran pairing ESP-NOW
+- [x] Filtrer les pin-grids selon les contraintes ESP32 (moot — plus de GPIO bruts exposés)
 
 ### Phase 2 — Brancher sur le firmware
 - [ ] Remplacer `startLiveUpdates()` par un client MQTT.js (sub `hydra/sensors`, `hydra/pump`, `hydra/alerts`)
