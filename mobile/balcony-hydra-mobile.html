@@ -764,6 +764,17 @@
   .remote-action-text{flex:1;min-width:0;}
   .remote-action-title{font-size:12px;font-weight:600;line-height:1.2;}
   .remote-action-sub{font-family:var(--mono);font-size:8px;color:var(--text-2);margin-top:3px;letter-spacing:0.05em;line-height:1.3;}
+
+  /* ============ MODE SELECTOR ============ */
+  .mode-selector{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .mode-card{background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s;}
+  .mode-card:active{transform:scale(0.98);}
+  .mode-card.active{border-color:var(--accent);background:rgba(124,255,90,0.05);}
+  .mode-card .mode-name{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--accent);margin-bottom:4px;}
+  .mode-card:not(.active) .mode-name{color:var(--text-1);}
+  .mode-card .mode-desc{font-size:12px;color:var(--text-1);line-height:1.4;margin-bottom:6px;}
+  .mode-card .mode-params{font-family:var(--mono);font-size:9px;color:var(--text-2);}
+  .mode-card .mode-params b{color:var(--text-0);font-weight:500;}
 </style>
 </head>
 <body>
@@ -776,7 +787,7 @@
 <div class="screen-wrap active" id="dashboard">
   <div class="header">
     <h1>DASHBOARD<span>.</span></h1>
-    <div class="meta">MASTER · ESP32-S3<br><b data-bind="sys.masterId">NODE_M01</b> · <span data-bind="sys.masterIp">192.168.1.42</span></div>
+    <div class="meta">MASTER · ESP32<br><b data-bind="sys.masterId">NODE_M01</b> · MODE <span data-bind="watering.mode" style="color:var(--accent);">AUTO</span></div>
   </div>
   
   <div class="sys-status">
@@ -831,7 +842,7 @@
   <div class="zone" onclick="goToPotsWithFilter('balcon')">
     <div class="zone-head">
       <div class="zone-name"><span class="led"></span>BALCON MOUGINS</div>
-      <span class="zone-tag">S01 · <span data-bind="pots.totalBalcon">12</span> POTS</span>
+      <span class="zone-tag">BALCON · <span data-bind="pots.totalBalcon">10</span> POTS</span>
     </div>
     <div class="zone-metrics">
       <div class="zone-m"><div class="l">HUM AVG</div><div class="v" id="zoneBalconHum" data-bind="pots.avgHumBalcon">51%</div></div>
@@ -844,7 +855,7 @@
   <div class="zone" onclick="goToPotsWithFilter('interieur')">
     <div class="zone-head">
       <div class="zone-name"><span class="led warn"></span>INTÉRIEUR SALON</div>
-      <span class="zone-tag">S02 · <span data-bind="pots.totalInterieur">8</span> POTS</span>
+      <span class="zone-tag">INTÉRIEUR · <span data-bind="pots.totalInterieur">10</span> POTS</span>
     </div>
     <div class="zone-metrics">
       <div class="zone-m"><div class="l">HUM AVG</div><div class="v" id="zoneInterieurHum" data-bind="pots.avgHumInterieur">38%</div></div>
@@ -963,7 +974,7 @@
   </div>
   
   <div class="pot-hero">
-    <div class="pot-id-big" id="dt-meta">POT_07 · SLAVE_S01 · GPIO_22</div>
+    <div class="pot-id-big" id="dt-meta">POT_07 · SLAVE · MUX ch 6</div>
     <div class="pot-name" id="dt-name">Basilic Genovese</div>
     <div class="pot-species" id="dt-species">Ocimum basilicum · profile HERB_MED</div>
     
@@ -1008,7 +1019,7 @@
       <div class="tl-dot warn"></div>
       <div class="tl-content">
         <div class="t">Seuil DRY franchi</div>
-        <div class="d">22% &lt; 28% · alerte MQTT /hydra/alert</div>
+        <div class="d">22% &lt; 28% · alerte MQTT hydra/alerts</div>
       </div>
     </div>
     <div class="tl-item">
@@ -1576,8 +1587,28 @@
   <!-- Generated dynamically -->
   <div class="log-box" id="liveLog"></div>
   
+  <div class="section-title"><span>MODE D'ARROSAGE</span><span data-bind="watering.mode" style="color:var(--accent);font-family:var(--mono);font-size:9px;font-weight:700;">AUTO</span></div>
+
+  <div class="mode-selector">
+    <div class="mode-card active" data-mode="AUTO" onclick="setWateringMode('AUTO')">
+      <div class="mode-name">AUTO</div>
+      <div class="mode-desc">Thermostat humidité. Arrose si moyenne zone &lt; seuil.</div>
+      <div class="mode-params">Seuil <b>35%</b> · Cooldown <b>2h</b> · Max <b>4/jour</b></div>
+    </div>
+    <div class="mode-card" data-mode="SCHEDULED" onclick="setWateringMode('SCHEDULED')">
+      <div class="mode-name">PLANIFICATION</div>
+      <div class="mode-desc">Heures fixes + quantité par cycle. Ignore l'humidité (monitoring seul).</div>
+      <div class="mode-params">07:00 · <b>200 ml</b> · zones A+B</div>
+    </div>
+    <div class="mode-card" data-mode="MANUAL" onclick="setWateringMode('MANUAL')">
+      <div class="mode-name">MANUEL</div>
+      <div class="mode-desc">Déclenchement uniquement via bouton ARROSER par pot.</div>
+      <div class="mode-params">Pas de cycle automatique</div>
+    </div>
+  </div>
+
   <div class="section-title"><span>PARAMÈTRES</span></div>
-  
+
   <div class="setting-row">
     <div class="setting-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
@@ -1920,9 +1951,9 @@
   <div class="tank-card" id="tdCard" style="margin-bottom:14px;">
     <div class="tank-head">
       <div>
-        <div class="tank-id" id="tdId">TANK_01 · S01</div>
+        <div class="tank-id" id="tdId">TANK_01 · SLAVE</div>
         <div class="tank-name" id="tdName">Réservoir Balcon</div>
-        <div class="tank-zone" id="tdZone">ALIMENTE 12 POTS · S01</div>
+        <div class="tank-zone" id="tdZone">ALIMENTE 10 POTS · ZONE A</div>
       </div>
       <div class="tank-status" id="tdStatus">
         <span class="dot"></span>
@@ -1933,17 +1964,17 @@
     <div class="tank-body">
       <div class="tank-viz">
         <div class="tank-marks" id="tdMarks">
-          <div class="tank-mark" style="top:0%;"></div><div class="tank-mark-label" style="top:0%;">20L</div>
-          <div class="tank-mark" style="top:25%;"></div><div class="tank-mark-label" style="top:25%;">15L</div>
-          <div class="tank-mark" style="top:50%;"></div><div class="tank-mark-label" style="top:50%;">10L</div>
-          <div class="tank-mark" style="top:75%;"></div><div class="tank-mark-label" style="top:75%;">5L</div>
+          <div class="tank-mark" style="top:0%;"></div><div class="tank-mark-label" style="top:0%;">50L</div>
+          <div class="tank-mark" style="top:25%;"></div><div class="tank-mark-label" style="top:25%;">37L</div>
+          <div class="tank-mark" style="top:50%;"></div><div class="tank-mark-label" style="top:50%;">25L</div>
+          <div class="tank-mark" style="top:75%;"></div><div class="tank-mark-label" style="top:75%;">12L</div>
         </div>
         <div class="tank-viz-fill" id="tdFill" style="height:72%;"></div>
       </div>
       <div class="tank-stats">
         <div>
           <div class="tank-pct" id="tdPct">72<span class="small">%</span></div>
-          <div class="tank-vol" id="tdVol"><b>14.4 L</b> / 20 L</div>
+          <div class="tank-vol" id="tdVol"><b>36.0 L</b> / 50 L</div>
         </div>
         <div class="tank-mini-stats">
           <div class="tank-mini"><div class="l">CONSO 24H</div><div class="v" id="tdConso">2.4 L</div></div>
@@ -2011,7 +2042,7 @@
     <div class="kpi water">
       <div class="kpi-label">CONSO 24H</div>
       <div class="kpi-value">2.4<span class="unit">L</span></div>
-      <div class="kpi-trend">12 pots actifs</div>
+      <div class="kpi-trend">10 pots actifs</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">MOY 7J</div>
@@ -2092,7 +2123,7 @@
   
   <div class="header">
     <h1>TANK CONFIG<span>.</span></h1>
-    <div class="meta">2 RÉSERVOIRS · 30L TOTAL<br><b>2 CAPTEURS</b> OK</div>
+    <div class="meta">2 RÉSERVOIRS · 75L TOTAL<br><b>2 CAPTEURS US</b> OK</div>
   </div>
   
   <div class="config-cta" onclick="switchScreen('addTank')">
@@ -2123,18 +2154,18 @@
     <div class="pot-row-pin"></div>
     <div class="pot-row-id">T01</div>
     <div class="pot-row-info">
-      <div class="pot-row-name">Réservoir Balcon · 20L</div>
-      <div class="pot-row-meta">S01 · HC-SR04 GPIO_12 · pompe GPIO_13</div>
+      <div class="pot-row-name">Réservoir Balcon · 50L (2× 25L vases comm.)</div>
+      <div class="pot-row-meta">SLAVE · Zone A · US#1 GPIO 14/34 · pompe GPIO 27</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
-  
+
   <div class="pot-row" onclick="switchScreen('tankEdit')">
     <div class="pot-row-pin warn"></div>
     <div class="pot-row-id">T02</div>
     <div class="pot-row-info">
-      <div class="pot-row-name">Réservoir Intérieur · 10L</div>
-      <div class="pot-row-meta">S02 · HC-SR04 GPIO_5 · pompe GPIO_4</div>
+      <div class="pot-row-name">Réservoir Intérieur · 25L</div>
+      <div class="pot-row-meta">MASTER · Zone B · US#2 GPIO 14/34 · pompe GPIO 27</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2157,7 +2188,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
     </div>
     <div class="setting-content">
-      <div class="setting-title">Pompe principale T02 · 5V</div>
+      <div class="setting-title">Pompe principale T02 · 12V</div>
       <div class="setting-sub">312h fonctionnement · débit 20 ml/s · OK</div>
     </div>
     <svg class="setting-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2223,15 +2254,15 @@
   </div>
   
   <div class="field">
-    <div class="field-label"><span>SLAVE ESP32 ASSIGNÉ</span></div>
+    <div class="field-label"><span>ZONE</span></div>
     <div class="chip-grid">
       <div class="chip selected" onclick="selChipSingle(this)">
-        <div class="chip-head"><div class="chip-title">S01 · BALCON</div><div class="chip-check">✓</div></div>
-        <div class="chip-sub">12 pots · RSSI -42</div>
+        <div class="chip-head"><div class="chip-title">ZONE A · BALCON</div><div class="chip-check">✓</div></div>
+        <div class="chip-sub">Controller SLAVE · 50L (2× 25L vases comm.) · RSSI -42</div>
       </div>
       <div class="chip" onclick="selChipSingle(this)">
-        <div class="chip-head"><div class="chip-title">S02 · INTÉRIEUR</div><div class="chip-check">✓</div></div>
-        <div class="chip-sub">8 pots · RSSI -68</div>
+        <div class="chip-head"><div class="chip-title">ZONE B · INTÉRIEUR</div><div class="chip-check">✓</div></div>
+        <div class="chip-sub">Controller MASTER · 25L · capteur US GPIO 34</div>
       </div>
     </div>
   </div>
@@ -2254,7 +2285,7 @@
   
   <div class="header">
     <h1>EDIT T01<span>.</span></h1>
-    <div class="meta">SLAVE_S01 · 20L<br><b>RÉSERVOIR BALCON</b></div>
+    <div class="meta">SLAVE · ZONE A · 50L<br><b>RÉSERVOIR BALCON</b></div>
   </div>
   
   <div class="edit-section">
@@ -2270,9 +2301,9 @@
   </div>
   
   <div class="edit-section">
-    <div class="edit-section-title"><span>HARDWARE</span><b>S01 · GPIO 12/13</b></div>
-    <div class="review-row"><span class="k">SLAVE</span><span class="v">S01 · BALCON</span></div>
-    <div class="review-row"><span class="k">CAPTEUR NIVEAU</span><span class="v">HC-SR04 GPIO_12</span></div>
+    <div class="edit-section-title"><span>HARDWARE</span><b>SLAVE · US#1 GPIO 14/34</b></div>
+    <div class="review-row"><span class="k">CONTROLLER</span><span class="v">SLAVE · ZONE A BALCON</span></div>
+    <div class="review-row"><span class="k">CAPTEUR NIVEAU</span><span class="v">JSN-SR04T · TRIG GPIO 14 / ECHO GPIO 34</span></div>
     <div class="review-row"><span class="k">POMPE</span><span class="v">GPIO_13 · 12V 25ml/s</span></div>
     <div class="review-row"><span class="k">POTS DESSERVIS</span><span class="v">12 (P01-P14)</span></div>
   </div>
@@ -2300,7 +2331,7 @@
     <div class="danger-row">
       <div>
         <div class="t">Supprimer ce réservoir</div>
-        <div class="d">Désassocie les 12 pots · libère GPIO</div>
+        <div class="d">Désassocie les pots de la zone · libère canal MUX</div>
       </div>
       <button class="danger-btn">DELETE</button>
     </div>
@@ -2343,14 +2374,14 @@
     </div>
   </div>
   
-  <div class="section-title"><span>POTS ASSIGNÉS · BALCON</span><span class="more">S01 · 12 POTS</span></div>
+  <div class="section-title"><span>POTS ASSIGNÉS · ZONE A BALCON</span><span class="more">SLAVE · 10 POTS</span></div>
   
   <div class="pot-row" onclick="switchScreen('editPot')">
     <div class="pot-row-pin"></div>
     <div class="pot-row-id">P01</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Romarin officinal</div>
-      <div class="pot-row-meta">HERB_MED · GPIO_14 · GPIO_15 · capac.</div>
+      <div class="pot-row-meta">HERB_MED · MUX ch 0 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2360,7 +2391,7 @@
     <div class="pot-row-id">P02</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Thym citron</div>
-      <div class="pot-row-meta">HERB_MED · GPIO_16 · GPIO_17 · capac.</div>
+      <div class="pot-row-meta">HERB_MED · MUX ch 1 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2370,7 +2401,7 @@
     <div class="pot-row-id">P03</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Persil plat</div>
-      <div class="pot-row-meta">LEAFY_GREENS · GPIO_18 · GPIO_19 · capac.</div>
+      <div class="pot-row-meta">LEAFY_GREENS · MUX ch 2 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2380,7 +2411,7 @@
     <div class="pot-row-id">P04</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Tomate Roma</div>
-      <div class="pot-row-meta">FRUIT_DEMANDING · GPIO_21 · GPIO_22 · capac.</div>
+      <div class="pot-row-meta">FRUIT_DEMANDING · MUX ch 3 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2390,7 +2421,7 @@
     <div class="pot-row-id">P07</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Basilic Genovese</div>
-      <div class="pot-row-meta">HERB_MED · GPIO_25 · GPIO_26 · capac.</div>
+      <div class="pot-row-meta">HERB_MED · MUX ch 6 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2400,7 +2431,7 @@
     <div class="pot-row-id">P09</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Menthe verte</div>
-      <div class="pot-row-meta">HERB_MED · GPIO_27 · GPIO_32 · capac.</div>
+      <div class="pot-row-meta">HERB_MED · MUX ch 8 · zone A</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2410,29 +2441,29 @@
     <div class="pot-row-id">P11</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Courgette ronde</div>
-      <div class="pot-row-meta">FRUIT_DEMANDING · GPIO_33 · GPIO_34 · capac.</div>
+      <div class="pot-row-meta">FRUIT_DEMANDING · MUX ch 0 · zone B</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
   
-  <div class="pot-row" style="opacity:0.5;border-style:dashed;" onclick="switchScreen('editPot')">
-    <div class="pot-row-pin off"></div>
-    <div class="pot-row-id" style="color:var(--text-2);">P15</div>
+  <div class="pot-row" onclick="switchScreen('editPot')">
+    <div class="pot-row-pin"></div>
+    <div class="pot-row-id">P15</div>
     <div class="pot-row-info">
-      <div class="pot-row-name">Tomate cerise — OFFLINE</div>
-      <div class="pot-row-meta">FRUIT_DEMANDING · S03 hors ligne 2h</div>
+      <div class="pot-row-name">Monstera deliciosa</div>
+      <div class="pot-row-meta">LEAFY_GREENS · MUX ch 4 · zone B</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
   
-  <div class="section-title"><span>POTS ASSIGNÉS · INTÉRIEUR</span><span class="more">S02 · 7 POTS</span></div>
+  <div class="section-title"><span>POTS ASSIGNÉS · ZONE B INTÉRIEUR</span><span class="more">MASTER · 10 POTS</span></div>
   
   <div class="pot-row" onclick="switchScreen('editPot')">
     <div class="pot-row-pin"></div>
     <div class="pot-row-id">P16</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Aloe vera</div>
-      <div class="pot-row-meta">SUCCULENT_DRY · GPIO_4 · GPIO_5 · capac.</div>
+      <div class="pot-row-meta">SUCCULENT_DRY · MUX ch 1 · zone B</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2442,7 +2473,7 @@
     <div class="pot-row-id">P17</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Cactus colonnaire</div>
-      <div class="pot-row-meta">SUCCULENT_DRY · GPIO_12 · GPIO_13 · capac.</div>
+      <div class="pot-row-meta">SUCCULENT_DRY · MUX ch 2 · zone B</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2452,7 +2483,7 @@
     <div class="pot-row-id">P18</div>
     <div class="pot-row-info">
       <div class="pot-row-name">Pothos doré</div>
-      <div class="pot-row-meta">LEAFY_GREENS · GPIO_14 · GPIO_15 · capac.</div>
+      <div class="pot-row-meta">LEAFY_GREENS · MUX ch 3 · zone B</div>
     </div>
     <svg class="pot-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
   </div>
@@ -2574,64 +2605,42 @@
   <div class="wizard-step" data-step="3" style="display:none;">
     <div class="wizard-meta">ÉTAPE <b>3/5</b> · HARDWARE</div>
     <h2 class="wizard-h">Assignation matérielle</h2>
-    <p class="wizard-sub">Choisis le slave ESP32 et les GPIO. Les pins déjà utilisés sont grisés.</p>
-    
+    <p class="wizard-sub">Choisis la zone (controller ESP32) et le canal MUX. Les canaux déjà pris sont grisés.</p>
+
     <div class="field">
-      <div class="field-label"><span>SLAVE ASSIGNÉ</span></div>
+      <div class="field-label"><span>ZONE</span></div>
       <div class="chip-grid">
         <div class="chip selected" onclick="selChipSingle(this)">
-          <div class="chip-head"><div class="chip-title">S01 · BALCON</div><div class="chip-check">✓</div></div>
-          <div class="chip-sub">12/16 GPIO · RSSI -42</div>
+          <div class="chip-head"><div class="chip-title">ZONE A · BALCON</div><div class="chip-check">✓</div></div>
+          <div class="chip-sub">Controller SLAVE · 10 pots · RSSI -42</div>
         </div>
         <div class="chip" onclick="selChipSingle(this)">
-          <div class="chip-head"><div class="chip-title">S02 · SALON</div><div class="chip-check">✓</div></div>
-          <div class="chip-sub">7/16 GPIO · RSSI -68</div>
+          <div class="chip-head"><div class="chip-title">ZONE B · INTÉRIEUR</div><div class="chip-check">✓</div></div>
+          <div class="chip-sub">Controller MASTER · 10 pots</div>
         </div>
       </div>
     </div>
-    
+
     <div class="hw-block">
       <div class="hw-block-head">
-        <span>CAPTEUR · GPIO ANALOGIQUE</span>
-        <b>GPIO_35</b>
+        <span>CANAL MUX · GPIO 36 ADC1</span>
+        <b>ch 5</b>
       </div>
+      <!-- 10 canaux MUX (0-9), canaux déjà pris grisés (exemple zone A) -->
       <div class="pin-grid">
-        <div class="pin used"><div class="n">14</div><div class="l">P01</div></div>
-        <div class="pin used"><div class="n">16</div><div class="l">P02</div></div>
-        <div class="pin used"><div class="n">18</div><div class="l">P03</div></div>
-        <div class="pin used"><div class="n">21</div><div class="l">P04</div></div>
-        <div class="pin used"><div class="n">23</div><div class="l">P05</div></div>
-        <div class="pin used"><div class="n">25</div><div class="l">P07</div></div>
-        <div class="pin used"><div class="n">27</div><div class="l">P09</div></div>
-        <div class="pin used"><div class="n">33</div><div class="l">P11</div></div>
-        <div class="pin selected"><div class="n">35</div><div class="l">ADC</div></div>
-        <div class="pin"><div class="n">36</div><div class="l">ADC</div></div>
-        <div class="pin"><div class="n">39</div><div class="l">ADC</div></div>
-        <div class="pin"><div class="n">2</div><div class="l">ADC</div></div>
+        <div class="pin used"><div class="n">ch 0</div><div class="l">P01</div></div>
+        <div class="pin used"><div class="n">ch 1</div><div class="l">P02</div></div>
+        <div class="pin used"><div class="n">ch 2</div><div class="l">P03</div></div>
+        <div class="pin used"><div class="n">ch 3</div><div class="l">P04</div></div>
+        <div class="pin used"><div class="n">ch 4</div><div class="l">P05</div></div>
+        <div class="pin selected"><div class="n">ch 5</div><div class="l">MUX</div></div>
+        <div class="pin used"><div class="n">ch 6</div><div class="l">P07</div></div>
+        <div class="pin used"><div class="n">ch 7</div><div class="l">P08</div></div>
+        <div class="pin used"><div class="n">ch 8</div><div class="l">P09</div></div>
+        <div class="pin used"><div class="n">ch 9</div><div class="l">P10</div></div>
       </div>
     </div>
-    
-    <div class="hw-block">
-      <div class="hw-block-head">
-        <span>POMPE · GPIO DIGITAL OUT</span>
-        <b>GPIO_4</b>
-      </div>
-      <div class="pin-grid">
-        <div class="pin used"><div class="n">15</div><div class="l">P01</div></div>
-        <div class="pin used"><div class="n">17</div><div class="l">P02</div></div>
-        <div class="pin used"><div class="n">19</div><div class="l">P03</div></div>
-        <div class="pin used"><div class="n">22</div><div class="l">P04</div></div>
-        <div class="pin used"><div class="n">26</div><div class="l">P07</div></div>
-        <div class="pin used"><div class="n">32</div><div class="l">P09</div></div>
-        <div class="pin used"><div class="n">34</div><div class="l">P11</div></div>
-        <div class="pin selected"><div class="n">4</div><div class="l">OUT</div></div>
-        <div class="pin"><div class="n">5</div><div class="l">OUT</div></div>
-        <div class="pin"><div class="n">12</div><div class="l">OUT</div></div>
-        <div class="pin"><div class="n">13</div><div class="l">OUT</div></div>
-        <div class="pin"><div class="n">14</div><div class="l">OUT</div></div>
-      </div>
-    </div>
-    
+
     <div class="field">
       <div class="field-label"><span>TYPE CAPTEUR</span></div>
       <div class="chip-grid">
@@ -2653,21 +2662,17 @@
         </div>
       </div>
     </div>
-    
-    <div class="field">
-      <div class="field-label"><span>POMPE</span></div>
-      <div class="chip-grid">
-        <div class="chip selected" onclick="selChipSingle(this)">
-          <div class="chip-head"><div class="chip-title">PÉRISTALTIQUE 12V</div><div class="chip-check">✓</div></div>
-          <div class="chip-sub">25 ml/s · précis<br>Standard balcon</div>
-        </div>
-        <div class="chip" onclick="selChipSingle(this)">
-          <div class="chip-head"><div class="chip-title">SUBMERSIBLE 5V</div><div class="chip-check">✓</div></div>
-          <div class="chip-sub">60 ml/s · gros volume<br>Pour FRUIT</div>
-        </div>
+
+    <div class="hw-block" style="background:rgba(124,255,90,0.03);">
+      <div class="hw-block-head">
+        <span>POMPE DE ZONE</span>
+        <b>Péristaltique 12V</b>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;">
+        La pompe est partagée par toute la zone. Zone A → pompe SLAVE GPIO 27. Zone B → pompe MASTER GPIO 27. La calibration du débit se fait au niveau zone, pas par pot.
       </div>
     </div>
-    
+
     <div class="wizard-nav">
       <div class="action-row">
         <div class="btn" onclick="wizardStep(2)">← RETOUR</div>
@@ -2721,10 +2726,8 @@
         <input type="text" class="field-input" value="0.0">
       </div>
       
-      <div class="field" style="margin-bottom:0;">
-        <div class="field-label"><span>DÉBIT POMPE</span><span class="optional">ML/S</span></div>
-        <input type="text" class="field-input" value="25.0">
-        <div class="field-hint">PROVENANT DU TYPE DE POMPE · OVERRIDE POSSIBLE</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;padding:8px 0 0;">
+        Le débit pompe est défini au niveau zone (25 ml/s). La quantité par pot se configure via le profil (volume/cycle).
       </div>
     </div>
     
@@ -2773,11 +2776,10 @@
         <span>HARDWARE</span>
         <span class="edit" onclick="wizardStep(3)">EDIT →</span>
       </div>
-      <div class="review-row"><span class="k">SLAVE</span><span class="v accent">S01 · BALCON</span></div>
-      <div class="review-row"><span class="k">GPIO CAPTEUR</span><span class="v">35 (ADC)</span></div>
-      <div class="review-row"><span class="k">GPIO POMPE</span><span class="v">4 (OUT)</span></div>
+      <div class="review-row"><span class="k">ZONE</span><span class="v accent">A · BALCON (SLAVE)</span></div>
+      <div class="review-row"><span class="k">CANAL MUX</span><span class="v">ch 5 / GPIO 36 ADC1</span></div>
       <div class="review-row"><span class="k">CAPTEUR</span><span class="v">Capacitif v1.2</span></div>
-      <div class="review-row"><span class="k">POMPE</span><span class="v">Péristaltique 12V</span></div>
+      <div class="review-row"><span class="k">POMPE ZONE A</span><span class="v">Péristaltique 12V · partagée</span></div>
     </div>
     
     <div class="review-block">
@@ -2788,15 +2790,14 @@
       <div class="review-row"><span class="k">ADC SEC (0%)</span><span class="v">3580</span></div>
       <div class="review-row"><span class="k">ADC HUMIDE (100%)</span><span class="v" style="color:var(--warn);">DEFAULT 1420</span></div>
       <div class="review-row"><span class="k">OFFSET TEMP</span><span class="v">0.0 °C</span></div>
-      <div class="review-row"><span class="k">DÉBIT POMPE</span><span class="v">25.0 ml/s</span></div>
     </div>
     
     <div style="background:rgba(124,255,90,0.08);border:1px solid var(--accent-dim);border-radius:10px;padding:14px;margin-top:14px;font-size:12px;line-height:1.5;">
       <span style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:0.1em;">✓ ACTIONS À LA CRÉATION</span>
       <ul style="margin:8px 0 0 18px;color:var(--text-1);font-size:11px;line-height:1.7;">
-        <li>Config push vers SLAVE_S01 via ESP-NOW</li>
-        <li>Topic MQTT <span style="color:var(--accent);font-family:var(--mono);">/hydra/p21/+</span> souscrit</li>
-        <li>Première lecture capteur après 30s</li>
+        <li>Config push vers SLAVE (zone A) via ESP-NOW</li>
+        <li>MQTT topic <span style="color:var(--accent);font-family:var(--mono);">hydra/sensors</span> · première lecture dans 30s</li>
+        <li>Canal MUX ch 5 activé · calibration default appliquée</li>
         <li>Journal initialisé · profil seasonal coef appliqué</li>
       </ul>
     </div>
@@ -2823,7 +2824,7 @@
   
   <div class="header">
     <h1>EDIT P07<span>.</span></h1>
-    <div class="meta">SLAVE_S01<br><b>BASILIC GENOVESE</b></div>
+    <div class="meta">SLAVE · ZONE A<br><b>BASILIC GENOVESE</b></div>
   </div>
   
   <div class="edit-section">
@@ -2865,15 +2866,15 @@
   </div>
   
   <div class="edit-section">
-    <div class="edit-section-title"><span>HARDWARE</span><b>S01 · GPIO 25/26</b></div>
-    <div class="review-row"><span class="k">SLAVE</span><span class="v">S01 · BALCON</span></div>
-    <div class="review-row"><span class="k">GPIO CAPTEUR</span><span class="v">25 (ADC)</span></div>
-    <div class="review-row"><span class="k">GPIO POMPE</span><span class="v">26 (OUT)</span></div>
+    <div class="edit-section-title"><span>HARDWARE</span><b>SLAVE · ZONE A · MUX ch 6</b></div>
+    <div class="review-row"><span class="k">CONTROLLER</span><span class="v">SLAVE · BALCON</span></div>
+    <div class="review-row"><span class="k">ZONE</span><span class="v">A · Balcon</span></div>
+    <div class="review-row"><span class="k">CANAL MUX</span><span class="v">ch 6 / GPIO 36 ADC1</span></div>
+    <div class="review-row"><span class="k">POMPE ZONE A</span><span class="v">Péristaltique 12V · GPIO 27 SLAVE</span></div>
     <div class="review-row"><span class="k">CAPTEUR</span><span class="v">Capacitif v1.2</span></div>
-    <div class="review-row"><span class="k">POMPE</span><span class="v">Péristaltique 12V</span></div>
     <div class="btn" style="width:100%;margin-top:12px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg>
-      RECONFIGURER GPIO
+      RECONFIGURER CANAL MUX
     </div>
   </div>
   
@@ -3053,18 +3054,18 @@
     
     <div style="background:rgba(255,181,71,0.08);border:1px solid rgba(255,181,71,0.25);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.5;">
       <b style="color:var(--warn);">⚠ Cycle estimé</b><br>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--text-2);">VOLUME TOTAL · 3.85 L · DURÉE ≈ 12 min<br>POMPES SÉQUENTIELLES PAR SLAVE</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text-2);">VOLUME TOTAL · 3.85 L · DURÉE ≈ 12 min<br>POMPE SLAVE ZONE A · POMPE MASTER ZONE B</span>
     </div>
     
     <div style="font-family:var(--mono);font-size:10px;color:var(--text-2);margin-bottom:8px;text-transform:uppercase;">RÉPARTITION</div>
     <div class="rank-item">
-      <span class="rank-pot">S01</span>
-      <span class="rank-name">Balcon · 12 pots</span>
+      <span class="rank-pot">SLAVE</span>
+      <span class="rank-name">Balcon · 10 pots</span>
       <span class="rank-val">2.40 L</span>
     </div>
     <div class="rank-item">
-      <span class="rank-pot">S02</span>
-      <span class="rank-name">Salon · 7 pots</span>
+      <span class="rank-pot">MASTER</span>
+      <span class="rank-name">Intérieur · 10 pots</span>
       <span class="rank-val">1.45 L</span>
     </div>
     
@@ -3083,9 +3084,7 @@
     
     <div class="log-box" style="margin-bottom:14px;">
       <div class="log-line"><span class="log-time">→</span><span class="log-tag info">MASTER</span><span class="log-msg">87ms · TCP/443 OK</span></div>
-      <div class="log-line"><span class="log-time">→</span><span class="log-tag info">SLAVE_S01</span><span class="log-msg">14ms · ESP-NOW · RSSI -42</span></div>
-      <div class="log-line"><span class="log-time">→</span><span class="log-tag info">SLAVE_S02</span><span class="log-msg">31ms · ESP-NOW · RSSI -68</span></div>
-      <div class="log-line"><span class="log-time">→</span><span class="log-tag warn">SLAVE_S03</span><span class="log-msg">timeout 5000ms · 3 retries</span></div>
+      <div class="log-line"><span class="log-time">→</span><span class="log-tag info">SLAVE</span><span class="log-msg">14ms · ESP-NOW · RSSI -42 dBm · Zone A balcon</span></div>
       <div class="log-line"><span class="log-time">→</span><span class="log-tag info">MQTT</span><span class="log-msg">broker.lan:1883 · pub/sub OK</span></div>
       <div class="log-line"><span class="log-time">→</span><span class="log-tag info">TANK_01</span><span class="log-msg">sensor HC-SR04 OK · 42.0cm</span></div>
       <div class="log-line"><span class="log-time">→</span><span class="log-tag info">TANK_02</span><span class="log-msg">sensor HC-SR04 OK · 30.2cm</span></div>
@@ -3374,9 +3373,9 @@
     <div style="background:rgba(255,92,92,0.05);border:1px solid rgba(255,92,92,0.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.5;color:var(--text-1);">
       <span style="color:var(--crit);font-family:var(--mono);font-size:9px;letter-spacing:0.1em;">⚠ CONSÉQUENCES</span>
       <ul style="margin:8px 0 0 18px;font-size:11px;line-height:1.7;">
-        <li>GPIO 25 + 26 sur S01 libérés</li>
+        <li>Canal MUX ch 6 zone A libéré</li>
         <li>Historique 30j archivé · CSV téléchargeable</li>
-        <li>Topic MQTT <span style="font-family:var(--mono);color:var(--crit);">/hydra/p07/+</span> désabonné</li>
+        <li>Suppression config MUX ch 6 · zone A · prochain cycle hydra/sensors</li>
         <li>Profile HERB_MED : 7 → 6 pots</li>
       </ul>
     </div>
@@ -3403,12 +3402,12 @@
       </div>
     </div>
     <div class="modal-title" style="text-align:center;">P21 créé avec succès</div>
-    <div class="modal-sub" style="text-align:center;">AUBERGINE BLACK BEAUTY · SLAVE_S01</div>
-    
+    <div class="modal-sub" style="text-align:center;">AUBERGINE BLACK BEAUTY · ZONE A · MUX ch 5</div>
+
     <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:14px;font-family:var(--mono);font-size:10px;line-height:1.8;color:var(--text-1);">
-      <div><span style="color:var(--text-2);">→ </span>Config sync S01 OK · 87ms</div>
-      <div><span style="color:var(--text-2);">→ </span>MQTT topic /hydra/p21/+ ACTIVE</div>
-      <div><span style="color:var(--text-2);">→ </span>Première lecture dans 28s...</div>
+      <div><span style="color:var(--text-2);">→ </span>Config sync SLAVE via ESP-NOW OK · 87ms</div>
+      <div><span style="color:var(--text-2);">→ </span>MQTT topic hydra/sensors ACTIVE</div>
+      <div><span style="color:var(--text-2);">→ </span>Première lecture MUX ch 5 dans 28s...</div>
     </div>
     
     <div class="btn primary" style="width:100%;" onclick="closeModal();switchScreen('configurator');">RETOUR · CONFIGURATOR</div>
@@ -3448,11 +3447,25 @@ const CONFIG = {
     endDate: '2026-06-03',
     safetyMargin: 20,  // %
     notificationsEnabled: true
+  },
+  watering: {
+    mode: 'AUTO',  // 'AUTO' | 'SCHEDULED' | 'MANUAL'
+    auto: {
+      moistureMinPct: 35,   // déclenchement si hum moyenne zone < ce seuil
+      moistureMaxPct: 65,   // hum cible
+      cooldownH: 2,         // cooldown min entre 2 cycles auto
+      maxCyclesPerDay: 4
+    },
+    scheduled: {
+      slot1: {enabled:true,  hour:7,  minute:0,  volumeMl:200},
+      slot2: {enabled:false, hour:19, minute:30, volumeMl:200}
+    }
+    // manuel : pas de paramètres globaux, déclenchement par bouton ARROSER par pot
   }
 };
 
 // ─── HARDWARE STATE (live from ESP32 sensors via MQTT) ────────
-// Each value would arrive via MQTT topic /hydra/+/state in production
+// Each value would arrive via MQTT topics hydra/sensors + hydra/pump in production
 const HARDWARE = {
   master: {
     online: true,
@@ -3463,45 +3476,50 @@ const HARDWARE = {
     mqttRtt: 87,   // ms
     powerVolt: 11.8,
     wanLatency: 87,
-    wanLoss: 0.17  // %
+    wanLoss: 0.17,  // %
+    zone: 'B',       // contrôle zone B intérieur directement
+    avgHum: 55,      // hum moyenne zone B (calculé depuis capteurs)
+    pumpRunning: false
   },
   slaves: {
-    'S01': {online:true, rssi:-42, voltage:5.02, lastSeq:4892, gpioUsed:13},
-    'S02': {online:true, rssi:-68, voltage:4.98, lastSeq:4891, gpioUsed:9},
-    'S03': {online:false, rssi:null, voltage:null, offlineFor:8040, gpioUsed:2}
+    // Un seul slave : balcon (zone A)
+    'SLAVE': {online:true, rssi:-42, voltage:5.02, lastSeq:4892, zone:'A', avgHum:48, pumpRunning:false}
   },
   ups: {
     charge: 98,
     voltage: 13.4,
     runtimeRemain: 6 * 3600  // seconds
   },
-  // Pots — humidity and sensor data live from each pot's capacitive sensor
+  // Pots — 20 pots, P01-P10 = zone A balcon (SLAVE), P11-P20 = zone B intérieur (MASTER)
+  // muxChannel : canal MUX 0-9 au sein de la zone. Pas de gpioPump (pompe unique par zone).
   pots: {
-    'P01':{slaveId:'S01',gpioSensor:14,gpioPump:15,hum:68,tempSoil:19.1,ec:1.2,lastWater:8*3600+2*60,profileId:'HERB_MED',name:'Romarin',species:'Rosmarinus officinalis',nameShort:'Romarin',zone:'balcon',state:'high',vol:150},
-    'P02':{slaveId:'S01',gpioSensor:16,gpioPump:17,hum:54,tempSoil:19.4,ec:1.1,lastWater:14*3600+12*60,profileId:'HERB_MED',name:'Thym citron',species:'Thymus × citriodorus',nameShort:'Thym citron',zone:'balcon',state:'ok',vol:150},
-    'P03':{slaveId:'S01',gpioSensor:18,gpioPump:19,hum:42,tempSoil:18.8,ec:1.3,lastWater:0,profileId:'LEAFY_GREENS',name:'Persil plat',species:'Petroselinum crispum',nameShort:'Persil',zone:'balcon',state:'watering',vol:200},
-    'P04':{slaveId:'S01',gpioSensor:21,gpioPump:22,hum:71,tempSoil:20.1,ec:1.6,lastWater:4*3600+30*60,profileId:'FRUIT_DEMANDING',name:'Tomate Roma',species:'Solanum lycopersicum',nameShort:'Tomate Roma',zone:'balcon',state:'high',vol:300},
-    'P05':{slaveId:'S01',gpioSensor:23,gpioPump:24,hum:58,tempSoil:20.4,ec:1.5,lastWater:6*3600+18*60,profileId:'FRUIT_DEMANDING',name:'Aubergine violette',species:'Solanum melongena',nameShort:'Aubergine',zone:'balcon',state:'high',vol:300},
-    'P06':{slaveId:'S01',gpioSensor:25,gpioPump:26,hum:49,tempSoil:19.6,ec:1.0,lastWater:12*3600+42*60,profileId:'HERB_MED',name:'Ciboulette',species:'Allium schoenoprasum',nameShort:'Ciboulette',zone:'balcon',state:'ok',vol:150},
-    'P07':{slaveId:'S01',gpioSensor:27,gpioPump:32,hum:22,tempSoil:18.2,ec:1.4,lastWater:36*3600+14*60,profileId:'HERB_MED',name:'Basilic Genovese',species:'Ocimum basilicum',nameShort:'Basilic',zone:'balcon',state:'crit',vol:150},
-    'P08':{slaveId:'S01',gpioSensor:33,gpioPump:34,hum:62,tempSoil:20.2,ec:1.5,lastWater:5*3600+2*60,profileId:'FRUIT_DEMANDING',name:'Poivron rouge',species:'Capsicum annuum',nameShort:'Poivron',zone:'balcon',state:'high',vol:300},
-    'P09':{slaveId:'S01',gpioSensor:35,gpioPump:36,hum:31,tempSoil:19.0,ec:1.2,lastWater:22*3600+48*60,profileId:'HERB_MED',name:'Menthe verte',species:'Mentha spicata',nameShort:'Menthe',zone:'balcon',state:'dry',vol:150},
-    'P10':{slaveId:'S01',gpioSensor:39,gpioPump:2,hum:55,tempSoil:19.5,ec:1.0,lastWater:11*3600+18*60,profileId:'HERB_MED',name:'Origan',species:'Origanum vulgare',nameShort:'Origan',zone:'balcon',state:'ok',vol:150},
-    'P11':{slaveId:'S01',gpioSensor:4,gpioPump:5,hum:64,tempSoil:20.5,ec:1.7,lastWater:3*3600+28*60,profileId:'FRUIT_DEMANDING',name:'Courgette ronde',species:'Cucurbita pepo',nameShort:'Courgette',zone:'balcon',state:'high',vol:300},
-    'P12':{slaveId:'S01',gpioSensor:12,gpioPump:13,hum:47,tempSoil:19.4,ec:1.1,lastWater:16*3600+2*60,profileId:'HERB_MED',name:'Laurier-sauce',species:'Laurus nobilis',nameShort:'Laurier',zone:'balcon',state:'ok',vol:150},
-    'P13':{slaveId:'S01',gpioSensor:0,gpioPump:1,hum:51,tempSoil:19.1,ec:1.0,lastWater:13*3600+30*60,profileId:'HERB_MED',name:'Sauge officinale',species:'Salvia officinalis',nameShort:'Sauge',zone:'balcon',state:'ok',vol:150},
-    'P14':{slaveId:'S01',gpioSensor:3,gpioPump:6,hum:59,tempSoil:20.0,ec:1.4,lastWater:7*3600+12*60,profileId:'FRUIT_DEMANDING',name:'Fraisier',species:'Fragaria × ananassa',nameShort:'Fraisier',zone:'balcon',state:'high',vol:250},
-    'P15':{slaveId:'S03',gpioSensor:14,gpioPump:15,hum:null,tempSoil:null,ec:null,lastWater:0,profileId:'FRUIT_DEMANDING',name:'Tomate cerise',species:'Solanum lycopersicum',nameShort:'Tomate cerise',zone:'balcon',state:'off',vol:300},
-    'P16':{slaveId:'S02',gpioSensor:4,gpioPump:5,hum:44,tempSoil:22.1,ec:0.8,lastWater:5*86400+12*3600,profileId:'SUCCULENT_DRY',name:'Aloe vera',species:'Aloe barbadensis miller',nameShort:'Aloe vera',zone:'interieur',state:'ok',vol:50},
-    'P17':{slaveId:'S02',gpioSensor:12,gpioPump:13,hum:52,tempSoil:22.4,ec:0.7,lastWater:7*86400+4*3600,profileId:'SUCCULENT_DRY',name:'Cactus colonnaire',species:'Cereus repandus',nameShort:'Cactus',zone:'interieur',state:'ok',vol:50},
-    'P18':{slaveId:'S02',gpioSensor:14,gpioPump:15,hum:48,tempSoil:22.0,ec:1.0,lastWater:18*3600+42*60,profileId:'LEAFY_GREENS',name:'Pothos doré',species:'Epipremnum aureum',nameShort:'Pothos',zone:'interieur',state:'ok',vol:200},
-    'P19':{slaveId:'S02',gpioSensor:18,gpioPump:19,hum:56,tempSoil:21.8,ec:1.1,lastWater:10*3600+28*60,profileId:'LEAFY_GREENS',name:'Monstera deliciosa',species:'Monstera deliciosa',nameShort:'Monstera',zone:'interieur',state:'high',vol:250},
-    'P20':{slaveId:'S02',gpioSensor:21,gpioPump:22,hum:61,tempSoil:21.9,ec:1.2,lastWater:8*3600+14*60,profileId:'LEAFY_GREENS',name:'Ficus lyrata',species:'Ficus lyrata',nameShort:'Ficus lyrata',zone:'interieur',state:'high',vol:250}
+    // Zone A · Balcon · controller: SLAVE · muxChannel 0-9
+    'P01':{controller:'SLAVE',muxChannel:0,hum:68,tempSoil:19.1,ec:1.2,lastWater:8*3600+2*60,profileId:'HERB_MED',name:'Romarin',species:'Rosmarinus officinalis',nameShort:'Romarin',zone:'balcon',state:'high',vol:150},
+    'P02':{controller:'SLAVE',muxChannel:1,hum:54,tempSoil:19.4,ec:1.1,lastWater:14*3600+12*60,profileId:'HERB_MED',name:'Thym citron',species:'Thymus × citriodorus',nameShort:'Thym citron',zone:'balcon',state:'ok',vol:150},
+    'P03':{controller:'SLAVE',muxChannel:2,hum:42,tempSoil:18.8,ec:1.3,lastWater:0,profileId:'LEAFY_GREENS',name:'Persil plat',species:'Petroselinum crispum',nameShort:'Persil',zone:'balcon',state:'watering',vol:200},
+    'P04':{controller:'SLAVE',muxChannel:3,hum:71,tempSoil:20.1,ec:1.6,lastWater:4*3600+30*60,profileId:'FRUIT_DEMANDING',name:'Tomate Roma',species:'Solanum lycopersicum',nameShort:'Tomate Roma',zone:'balcon',state:'high',vol:300},
+    'P05':{controller:'SLAVE',muxChannel:4,hum:58,tempSoil:20.4,ec:1.5,lastWater:6*3600+18*60,profileId:'FRUIT_DEMANDING',name:'Aubergine violette',species:'Solanum melongena',nameShort:'Aubergine',zone:'balcon',state:'high',vol:300},
+    'P06':{controller:'SLAVE',muxChannel:5,hum:49,tempSoil:19.6,ec:1.0,lastWater:12*3600+42*60,profileId:'HERB_MED',name:'Ciboulette',species:'Allium schoenoprasum',nameShort:'Ciboulette',zone:'balcon',state:'ok',vol:150},
+    'P07':{controller:'SLAVE',muxChannel:6,hum:22,tempSoil:18.2,ec:1.4,lastWater:36*3600+14*60,profileId:'HERB_MED',name:'Basilic Genovese',species:'Ocimum basilicum',nameShort:'Basilic',zone:'balcon',state:'crit',vol:150},
+    'P08':{controller:'SLAVE',muxChannel:7,hum:62,tempSoil:20.2,ec:1.5,lastWater:5*3600+2*60,profileId:'FRUIT_DEMANDING',name:'Poivron rouge',species:'Capsicum annuum',nameShort:'Poivron',zone:'balcon',state:'high',vol:300},
+    'P09':{controller:'SLAVE',muxChannel:8,hum:31,tempSoil:19.0,ec:1.2,lastWater:22*3600+48*60,profileId:'HERB_MED',name:'Menthe verte',species:'Mentha spicata',nameShort:'Menthe',zone:'balcon',state:'dry',vol:150},
+    'P10':{controller:'SLAVE',muxChannel:9,hum:55,tempSoil:19.5,ec:1.0,lastWater:11*3600+18*60,profileId:'HERB_MED',name:'Origan',species:'Origanum vulgare',nameShort:'Origan',zone:'balcon',state:'ok',vol:150},
+    // Zone B · Intérieur · controller: MASTER · muxChannel 0-9
+    'P11':{controller:'MASTER',muxChannel:0,hum:64,tempSoil:20.5,ec:1.7,lastWater:3*3600+28*60,profileId:'FRUIT_DEMANDING',name:'Courgette ronde',species:'Cucurbita pepo',nameShort:'Courgette',zone:'interieur',state:'high',vol:300},
+    'P12':{controller:'MASTER',muxChannel:1,hum:47,tempSoil:22.1,ec:0.8,lastWater:5*86400+12*3600,profileId:'SUCCULENT_DRY',name:'Aloe vera',species:'Aloe barbadensis miller',nameShort:'Aloe vera',zone:'interieur',state:'ok',vol:50},
+    'P13':{controller:'MASTER',muxChannel:2,hum:52,tempSoil:22.4,ec:0.7,lastWater:7*86400+4*3600,profileId:'SUCCULENT_DRY',name:'Cactus colonnaire',species:'Cereus repandus',nameShort:'Cactus',zone:'interieur',state:'ok',vol:50},
+    'P14':{controller:'MASTER',muxChannel:3,hum:48,tempSoil:22.0,ec:1.0,lastWater:18*3600+42*60,profileId:'LEAFY_GREENS',name:'Pothos doré',species:'Epipremnum aureum',nameShort:'Pothos',zone:'interieur',state:'ok',vol:200},
+    'P15':{controller:'MASTER',muxChannel:4,hum:56,tempSoil:21.8,ec:1.1,lastWater:10*3600+28*60,profileId:'LEAFY_GREENS',name:'Monstera deliciosa',species:'Monstera deliciosa',nameShort:'Monstera',zone:'interieur',state:'high',vol:250},
+    'P16':{controller:'MASTER',muxChannel:5,hum:61,tempSoil:21.9,ec:1.2,lastWater:8*3600+14*60,profileId:'LEAFY_GREENS',name:'Ficus lyrata',species:'Ficus lyrata',nameShort:'Ficus lyrata',zone:'interieur',state:'high',vol:250},
+    'P17':{controller:'MASTER',muxChannel:6,hum:44,tempSoil:22.2,ec:0.9,lastWater:4*86400+8*3600,profileId:'SUCCULENT_DRY',name:'Crassula ovata',species:'Crassula ovata',nameShort:'Crassula',zone:'interieur',state:'ok',vol:50},
+    'P18':{controller:'MASTER',muxChannel:7,hum:51,tempSoil:21.5,ec:1.1,lastWater:2*86400+3*3600,profileId:'LEAFY_GREENS',name:'Calathea ornata',species:'Calathea ornata',nameShort:'Calathea',zone:'interieur',state:'ok',vol:200},
+    'P19':{controller:'MASTER',muxChannel:8,hum:59,tempSoil:22.0,ec:1.0,lastWater:1*86400+12*3600,profileId:'LEAFY_GREENS',name:'Dracaena marginata',species:'Dracaena marginata',nameShort:'Dracaena',zone:'interieur',state:'high',vol:300},
+    'P20':{controller:'MASTER',muxChannel:9,hum:38,tempSoil:21.3,ec:1.3,lastWater:3*86400+6*3600,profileId:'HERB_MED',name:'Basilic Thai',species:'Ocimum basilicum var. thyrsiflora',nameShort:'Basilic Thai',zone:'interieur',state:'dry',vol:150}
   },
-  // Tanks — level from ultrasonic sensor + capacity from config
+  // Tanks — level from ultrasonic sensor (US#1 on SLAVE GPIO34, US#2 on MASTER GPIO34)
   tanks: {
-    'T01':{slaveId:'S01',gpioSensor:12,gpioPump:13,name:'Réservoir Balcon',cap:20,vol:14.4,lastFill:3*86400+14*3600,cycles:47,sensorOk:true,distSensor:42.0,distFull:4.2,sigmaMm:4,driftPct:0.8,calibAge:21*86400},
-    'T02':{slaveId:'S02',gpioSensor:5,gpioPump:4,name:'Réservoir Intérieur',cap:10,vol:2.8,lastFill:5*86400+2*3600,cycles:23,sensorOk:true,distSensor:30.2,distFull:3.0,sigmaMm:3,driftPct:0.5,calibAge:14*86400}
+    'T01':{controller:'SLAVE',name:'Réservoir Balcon',cap:50,vol:36.0,lastFill:3*86400+14*3600,cycles:47,sensorOk:true,distSensor:42.0,distFull:4.2,sigmaMm:4,driftPct:0.8,calibAge:21*86400},
+    'T02':{controller:'MASTER',name:'Réservoir Intérieur',cap:25,vol:7.0,lastFill:5*86400+2*3600,cycles:23,sensorOk:true,distSensor:30.2,distFull:3.0,sigmaMm:3,driftPct:0.5,calibAge:14*86400}
   }
 };
 
@@ -3535,8 +3553,8 @@ const WEATHER_FORECAST = [
 // In production: computed server-side from event log
 const STATS = {
   baseConsoLpd: 3.4,
-  baseConsoS01: 2.3,
-  baseConsoS02: 1.0,
+  baseConsoS01: 2.3,  // zone A balcon (SLAVE)
+  baseConsoS02: 1.0,  // zone B intérieur (MASTER)
   baseTempReference: 19.5,
   baseEt0Reference: 4.0,
   std7d: 0.7,
@@ -3565,13 +3583,16 @@ const POT_DB = new Proxy({}, {
     return {
       ...p,
       profile: p.profileId,
-      slave: p.slaveId,
-      gpio: p.gpioPump,      // legacy alias — older fns use single gpio for pump
+      // legacy aliases
+      slave: p.controller,        // alias: controller remplace slaveId
+      slaveId: p.controller,      // alias complet
+      gpio: p.muxChannel,         // alias: muxChannel remplace gpioPump
+      muxChannel: p.muxChannel,
       dry: prof.dry, ok: prof.ok,
       temp: p.tempSoil,
-      coef: '0.85×',         // TODO: compute from current weather coef per profile
+      coef: '0.85×',              // TODO: compute from current weather coef per profile
       last: p.state === 'watering' ? 'IN PROGRESS' : fmtDuration(p.lastWater),
-      zone: p.zone === 'balcon' ? 'Balcon' : 'Salon'
+      zone: p.zone === 'balcon' ? 'Balcon' : 'Intérieur'
     };
   },
   ownKeys(){ return Object.keys(HARDWARE.pots); },
@@ -3588,17 +3609,19 @@ const TANK_DB = new Proxy({}, {
     let status = 'ok', statusLabel = 'NOMINAL';
     if(pct < CONFIG.thresholds.tankCrit){ status='crit'; statusLabel='CRITIQUE'; }
     else if(pct < CONFIG.thresholds.tankWarn){ status='warn'; statusLabel='NIVEAU BAS'; }
-    const dailyConso = t.slaveId === 'S01' ? STATS.baseConsoS01 : STATS.baseConsoS02;
+    const dailyConso = t.controller === 'SLAVE' ? STATS.baseConsoS01 : STATS.baseConsoS02;
+    const zoneId = t.controller === 'SLAVE' ? 'A' : 'B';
     return {
       ...t,
-      slave: t.slaveId,
+      slave: t.controller,        // legacy alias
+      slaveId: t.controller,      // legacy alias complet
       pct: Math.round(pct),
       status, statusLabel,
       conso24: dailyConso,
       avg7: dailyConso,
       autonomy: t.vol / dailyConso,
       lastFill: fmtDuration(t.lastFill),
-      zone: `ALIMENTE ${getPotsForSlave(t.slaveId).length} POTS · ${t.slaveId}`
+      zone: `ALIMENTE ${getPotsForZone(zoneId === 'A' ? 'balcon' : 'interieur').length} POTS · ZONE ${zoneId}`
     };
   },
   ownKeys(){ return Object.keys(HARDWARE.tanks); },
@@ -3612,9 +3635,23 @@ const TANK_DB = new Proxy({}, {
 let currentPotFilter = 'all';
 
 // ─── DERIVED COMPUTATIONS (re-evaluated on each render) ───────
-function getPotsForSlave(slaveId){
+
+/** Retourne les pots contrôlés par un controller donné ('MASTER' | 'SLAVE') */
+function getPotsForController(controllerId){
   return Object.entries(HARDWARE.pots)
-    .filter(([_,p]) => p.slaveId === slaveId)
+    .filter(([_,p]) => p.controller === controllerId)
+    .map(([id,p]) => ({id, ...p}));
+}
+
+/** Alias de compatibilité — l'ancien code appelle getPotsForSlave(slaveId) */
+function getPotsForSlave(controllerId){
+  return getPotsForController(controllerId);
+}
+
+/** Retourne les pots d'une zone physique ('balcon' | 'interieur') */
+function getPotsForZone(zone){
+  return Object.entries(HARDWARE.pots)
+    .filter(([_,p]) => p.zone === zone)
     .map(([id,p]) => ({id, ...p}));
 }
 
@@ -3667,6 +3704,8 @@ function totalSlavesOnline(){
   const online = all.filter(s => s.online).length;
   return {online, total: all.length};
 }
+// Alias nommé pour clarté (un seul slave physique)
+function isSlaveOnline(){ return HARDWARE.slaves['SLAVE']?.online ?? false; }
 
 function countAlerts(){
   const potAlerts = getAlertPots().length;
@@ -3726,8 +3765,11 @@ const BINDINGS = {
   'pots.avgHumBalcon':   () => avgHumidityZone('balcon') + '%',
   'pots.avgHumInterieur':() => avgHumidityZone('interieur') + '%',
   
-  // Slaves
-  'slaves.onlineFraction': () => `${totalSlavesOnline().online}/${totalSlavesOnline().total} SLAVES`,
+  // Slave unique (balcon)
+  'slaves.onlineFraction': () => {
+    const s = HARDWARE.slaves['SLAVE'];
+    return s && s.online ? '1/1 SLAVE' : '0/1 SLAVE';
+  },
   
   // Tanks
   'tanks.count':        () => Object.keys(HARDWARE.tanks).length,
@@ -3745,11 +3787,14 @@ const BINDINGS = {
   'stats.totalLiters7d':() => STATS.totalLiters7d.toFixed(1) + 'L',
   'stats.totalSkipped7d':() => STATS.totalSkipped7d,
   'stats.alertsLast7d': () => STATS.alertsLast7d,
-  'stats.s01Daily':     () => STATS.baseConsoS01.toFixed(1) + ' L/J',
-  'stats.s02Daily':     () => STATS.baseConsoS02.toFixed(1) + ' L/J',
+  'stats.s01Daily':     () => STATS.baseConsoS01.toFixed(1) + ' L/J',  // zone A balcon
+  'stats.s02Daily':     () => STATS.baseConsoS02.toFixed(1) + ' L/J',  // zone B intérieur
   
   // Alerts
-  'alerts.count':       () => countAlerts()
+  'alerts.count':       () => countAlerts(),
+
+  // Mode arrosage
+  'watering.mode':      () => CONFIG.watering.mode
 };
 
 // Render bindings — find all [data-bind] elements and populate
@@ -3825,7 +3870,7 @@ function renderDashboardAlerts(){
       }
       const pctEl = document.getElementById('alertT02Pct');
       const autoEl = document.getElementById('alertT02Auto');
-      const dailyConso = worstTank.slaveId === 'S01' ? STATS.baseConsoS01 : STATS.baseConsoS02;
+      const dailyConso = worstTank.controller === 'SLAVE' ? STATS.baseConsoS01 : STATS.baseConsoS02;
       if(pctEl) pctEl.textContent = Math.round(worstTank.pct);
       if(autoEl) autoEl.textContent = (worstTank.vol / dailyConso).toFixed(1) + 'j';
     } else {
@@ -3924,9 +3969,10 @@ function renderTanksList(){
   Object.entries(HARDWARE.tanks).forEach(([id,t]) => {
     const pct = (t.vol/t.cap)*100;
     const pctRound = Math.round(pct);
-    const dailyConso = t.slaveId === 'S01' ? STATS.baseConsoS01 : STATS.baseConsoS02;
+    const dailyConso = t.controller === 'SLAVE' ? STATS.baseConsoS01 : STATS.baseConsoS02;
     const autonomy = (t.vol / dailyConso).toFixed(1);
-    const potCount = getPotsForSlave(t.slaveId).length;
+    const zonePhysique = t.controller === 'SLAVE' ? 'balcon' : 'interieur';
+    const potCount = getPotsForZone(zonePhysique).length;
     
     let statusClass = '', statusLabel = 'NOMINAL';
     if(pct < CONFIG.thresholds.tankCrit){ statusClass='crit'; statusLabel='CRITIQUE'; }
@@ -3944,9 +3990,9 @@ function renderTanksList(){
     <div class="tank-card ${statusClass}" onclick="openTankDetail('${id}')">
       <div class="tank-head">
         <div>
-          <div class="tank-id">TANK_${id.slice(1)} · ${t.slaveId}</div>
+          <div class="tank-id">TANK_${id.slice(1)} · ${t.controller}</div>
           <div class="tank-name">${t.name}</div>
-          <div class="tank-zone">ALIMENTE ${potCount} POTS · ${t.slaveId}</div>
+          <div class="tank-zone">ALIMENTE ${potCount} POTS · ZONE ${t.controller === 'SLAVE' ? 'A' : 'B'}</div>
         </div>
         <div class="tank-status ${statusClass}">
           <span class="dot"></span>${statusLabel}
@@ -4025,28 +4071,28 @@ function renderTanksList(){
 function renderTopology(){
   const topo = document.getElementById('topology');
   if(!topo) return;
-  
+
+  const s = HARDWARE.slaves['SLAVE'];
+  const potCountA = getPotsForZone('balcon').length;
+  const potCountB = getPotsForZone('interieur').length;
+
   let html = `
     <div class="topo-master">
       <div class="topo-icon">M</div>
       <div>
-        <div class="topo-name">${CONFIG.system.masterId} · Master</div>
-        <div class="topo-meta">ESP32-S3 · ${CONFIG.system.masterIp} · TFT ILI9341</div>
+        <div class="topo-name">${CONFIG.system.masterId} · MASTER</div>
+        <div class="topo-meta">ESP32 · ${CONFIG.system.masterIp} · TFT ILI9341 · Zone B (${potCountB} pots intérieur)</div>
       </div>
       <div class="topo-status">●  ${HARDWARE.master.online ? 'ONLINE' : 'OFFLINE'}</div>
     </div>
     <div class="topo-link">ESP-NOW · 2.4GHz · CH 6</div>
   `;
-  
-  Object.entries(HARDWARE.slaves).forEach(([sid,s]) => {
-    const potCount = getPotsForSlave(sid).length;
+
+  // Single slave — balcon, zone A
+  if(s){
     const offlineClass = s.online ? '' : 'offline';
-    const sNum = sid.slice(1);
-    
-    // RSSI bars - 4 levels based on signal
     let bars = '';
     if(s.online && s.rssi !== null){
-      // -40 = 4 bars, -90 = 1 bar
       const strength = Math.max(1, Math.min(4, Math.round((100 + s.rssi) / 12)));
       for(let i=1; i<=4; i++){
         const h = 6 + (i-1)*3;
@@ -4056,25 +4102,22 @@ function renderTopology(){
     } else {
       bars = '<div class="topo-rssi-bar low" style="height:6px;"></div><div class="topo-rssi-bar low" style="height:9px;"></div><div class="topo-rssi-bar low" style="height:12px;"></div><div class="topo-rssi-bar low" style="height:15px;"></div>';
     }
-    
-    const metaText = s.online 
-      ? `MAC ec:da:3${sNum} · ${potCount} pots · RSSI ${s.rssi}`
-      : `MAC ec:da:3${sNum} · OFFLINE ${fmtDuration(s.offlineFor)}`;
-    
+    const metaText = s.online
+      ? `MAC ec:da:3b · ${potCountA} pots · RSSI ${s.rssi} dBm · seq ${s.lastSeq}`
+      : `MAC ec:da:3b · OFFLINE ${fmtDuration(s.offlineFor)}`;
     const iconStyle = s.online ? '' : 'style="background:transparent;border-color:var(--text-2);color:var(--text-2);"';
-    const zoneName = sid === 'S01' ? 'Balcon' : sid === 'S02' ? 'Salon' : `Pot extension`;
-    
+
     html += `
       <div class="topo-slave ${offlineClass}">
-        <div class="topo-icon slave" ${iconStyle}>S${sNum}</div>
+        <div class="topo-icon slave" ${iconStyle}>S</div>
         <div>
-          <div class="topo-name">SLAVE_${sid} · ${zoneName}</div>
+          <div class="topo-name">SLAVE · Balcon · Zone A (${potCountA} pots)</div>
           <div class="topo-meta">${metaText}</div>
         </div>
         <div class="topo-rssi">${bars}</div>
       </div>`;
-  });
-  
+  }
+
   topo.innerHTML = html;
 }
 
@@ -4082,18 +4125,15 @@ function renderTopology(){
 function renderSlavePower(){
   const el = document.getElementById('slavePowerRows');
   if(!el) return;
-  let html = '';
-  Object.entries(HARDWARE.slaves).forEach(([sid,s]) => {
-    const status = s.online && s.voltage 
-      ? `<span style="color:var(--accent);">● OK · ${s.voltage.toFixed(2)}V</span>` 
-      : `<span style="color:var(--crit);">● OFFLINE</span>`;
-    html += `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;">
-        <span style="color:var(--text-1);">SLAVE_${sid} · Secteur</span>
-        ${status}
-      </div>`;
-  });
-  el.innerHTML = html;
+  const s = HARDWARE.slaves['SLAVE'];
+  const status = s && s.online && s.voltage
+    ? `<span style="color:var(--accent);">● OK · ${s.voltage.toFixed(2)}V</span>`
+    : `<span style="color:var(--crit);">● OFFLINE</span>`;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;">
+      <span style="color:var(--text-1);">SLAVE · Balcon · Secteur USB</span>
+      ${status}
+    </div>`;
 }
 
 // ─── RANKING (top consumers from STATS.potRanking7d) ──────────
@@ -4131,10 +4171,10 @@ function pushLogEvent(tag, msg){
 }
 
 // Seed initial log
-pushLogEvent('info', 'SUB /hydra/cmd/+ · qos 1');
-pushLogEvent('info', `ESP-NOW S01 frame OK · RSSI ${HARDWARE.slaves.S01.rssi}`);
-pushLogEvent('info', `ESP-NOW S02 frame OK · RSSI ${HARDWARE.slaves.S02.rssi}`);
-pushLogEvent('err', `S03 timeout · retry 3/3 · fallback MQTT`);
+pushLogEvent('info', 'SUB hydra/cmd/water · hydra/cmd/stop · hydra/cmd/reset · qos 1');
+pushLogEvent('info', `ESP-NOW SLAVE frame OK · RSSI ${HARDWARE.slaves['SLAVE'].rssi} dBm`);
+pushLogEvent('info', `MQTT PUB hydra/sensors · avgHum ${HARDWARE.master.avgHum}%`);
+pushLogEvent('info', `Mode arrosage actif → ${CONFIG.watering.mode}`);
 pushLogEvent('info', `SCHED eval cycle · ${Object.keys(HARDWARE.pots).length} pots`);
 
 function renderLiveLog(){
@@ -4186,6 +4226,20 @@ function renderWanBars(){
   }
 }
 
+// ─── MODE ARROSAGE ────────────────────────────────────────────
+function setWateringMode(mode){
+  CONFIG.watering.mode = mode;
+  document.querySelectorAll('.mode-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.mode === mode);
+  });
+  // Refresh tous les data-bind="watering.mode"
+  document.querySelectorAll('[data-bind="watering.mode"]').forEach(el => {
+    el.textContent = mode;
+  });
+  // Log event
+  pushLogEvent('info', `Mode arrosage → ${mode}`);
+}
+
 // ─── LIVE UPDATES (simulates MQTT push) ───────────────────────
 function startLiveUpdates(){
   let tickCount = 0;
@@ -4223,25 +4277,22 @@ function startLiveUpdates(){
     // RAM jitter
     HARDWARE.master.ramUsed = 140 + Math.round(Math.random() * 10);
     
-    // Slave seq increments
-    if(HARDWARE.slaves.S01.online) HARDWARE.slaves.S01.lastSeq++;
-    if(HARDWARE.slaves.S02.online) HARDWARE.slaves.S02.lastSeq++;
-    
+    // Slave seq increment
+    const slv = HARDWARE.slaves['SLAVE'];
+    if(slv.online) slv.lastSeq++;
+
     // RSSI jitter
-    if(HARDWARE.slaves.S01.online){
-      HARDWARE.slaves.S01.rssi = -42 + Math.round((Math.random() - 0.5) * 4);
+    if(slv.online){
+      slv.rssi = -42 + Math.round((Math.random() - 0.5) * 4);
     }
-    if(HARDWARE.slaves.S02.online){
-      HARDWARE.slaves.S02.rssi = -68 + Math.round((Math.random() - 0.5) * 6);
-    }
-    
+
     // Periodic log events
     if(tickCount % 4 === 0){
       const evts = [
-        ['info', `MQTT PUB /hydra/state · ${Object.keys(HARDWARE.pots).length} pots`],
-        ['info', `ESP-NOW S01 frame OK · seq ${HARDWARE.slaves.S01.lastSeq} · RSSI ${HARDWARE.slaves.S01.rssi}`],
-        ['info', `ESP-NOW S02 frame OK · seq ${HARDWARE.slaves.S02.lastSeq} · RSSI ${HARDWARE.slaves.S02.rssi}`],
-        ['info', `SCHED eval cycle · ${getActivePots().length}/${Object.keys(HARDWARE.pots).length} pots`],
+        ['info', `MQTT PUB hydra/sensors · ${Object.keys(HARDWARE.pots).length} pots`],
+        ['info', `ESP-NOW SLAVE frame OK · seq ${slv.lastSeq} · RSSI ${slv.rssi} dBm`],
+        ['info', `MQTT PUB hydra/pump · zone A ${slv.pumpRunning ? 'RUNNING' : 'IDLE'} · zone B ${HARDWARE.master.pumpRunning ? 'RUNNING' : 'IDLE'}`],
+        ['info', `SCHED eval cycle · ${getActivePots().length}/${Object.keys(HARDWARE.pots).length} pots · mode ${CONFIG.watering.mode}`],
         ['info', `heap free ${HARDWARE.master.ramTotal - HARDWARE.master.ramUsed}kB · stack ok`]
       ];
       const evt = evts[Math.floor(Math.random() * evts.length)];
@@ -4380,34 +4431,34 @@ function updateVacationProjection(){
     deficitEl.style.color = 'var(--accent)';
   }
   
-  // Compute action plan based on what each slave needs
-  const s01Need = (STATS.baseConsoS01 * w.coef) * days * marginCoef;
-  const s02Need = (STATS.baseConsoS02 * w.coef) * days * marginCoef;
-  const t01Cap = 20, t01Vol = 14.4;
-  const t02Cap = 10, t02Vol = 2.8;
-  
-  const t01ToAdd = Math.min(t01Cap - t01Vol, s01Need - t01Vol);
-  const t02ToAdd = Math.min(t02Cap - t02Vol, s02Need - t02Vol);
-  const t01Deficit = Math.max(0, s01Need - t01Cap);
-  const t02Deficit = Math.max(0, s02Need - t02Cap);
-  
+  // Compute action plan based on zone needs
+  const zoneANeed = (STATS.baseConsoS01 * w.coef) * days * marginCoef;  // zone A balcon (SLAVE)
+  const zoneBNeed = (STATS.baseConsoS02 * w.coef) * days * marginCoef;  // zone B intérieur (MASTER)
+  const t01Cap = HARDWARE.tanks.T01.cap, t01Vol = HARDWARE.tanks.T01.vol;
+  const t02Cap = HARDWARE.tanks.T02.cap, t02Vol = HARDWARE.tanks.T02.vol;
+
+  const t01ToAdd = Math.min(t01Cap - t01Vol, zoneANeed - t01Vol);
+  const t02ToAdd = Math.min(t02Cap - t02Vol, zoneBNeed - t02Vol);
+  const t01Deficit = Math.max(0, zoneANeed - t01Cap);
+  const t02Deficit = Math.max(0, zoneBNeed - t02Cap);
+
   const planEl = document.getElementById('vacPlanList');
   let plan = '';
   if(t01ToAdd > 0){
-    plan += `<div><span style="color:var(--accent);">✓</span> Remplir <b style="color:var(--text-0);">T01 à 100%</b> (+${t01ToAdd.toFixed(1)}L)</div>`;
+    plan += `<div><span style="color:var(--accent);">✓</span> Remplir <b style="color:var(--text-0);">T01 à 100%</b> (+${t01ToAdd.toFixed(1)}L) · Zone A balcon</div>`;
   } else {
-    plan += `<div><span style="color:var(--accent);">✓</span> <b style="color:var(--text-0);">T01 niveau suffisant</b></div>`;
+    plan += `<div><span style="color:var(--accent);">✓</span> <b style="color:var(--text-0);">T01 niveau suffisant</b> · Zone A</div>`;
   }
   if(t02ToAdd > 0){
-    plan += `<div><span style="color:var(--accent);">✓</span> Remplir <b style="color:var(--text-0);">T02 à 100%</b> (+${t02ToAdd.toFixed(1)}L)</div>`;
+    plan += `<div><span style="color:var(--accent);">✓</span> Remplir <b style="color:var(--text-0);">T02 à 100%</b> (+${t02ToAdd.toFixed(1)}L) · Zone B intérieur</div>`;
   } else {
-    plan += `<div><span style="color:var(--accent);">✓</span> <b style="color:var(--text-0);">T02 niveau suffisant</b></div>`;
+    plan += `<div><span style="color:var(--accent);">✓</span> <b style="color:var(--text-0);">T02 niveau suffisant</b> · Zone B</div>`;
   }
   if(t01Deficit > 0){
-    plan += `<div><span style="color:var(--crit);">!</span> Ajouter <b style="color:var(--crit);">T01-bis ${Math.ceil(t01Deficit/5)*5}L</b> · besoin S01 ${s01Need.toFixed(1)}L</div>`;
+    plan += `<div><span style="color:var(--crit);">!</span> Ajouter <b style="color:var(--crit);">T01-bis ${Math.ceil(t01Deficit/5)*5}L</b> · besoin zone A ${zoneANeed.toFixed(1)}L</div>`;
   }
   if(t02Deficit > 0){
-    plan += `<div><span style="color:var(--crit);">!</span> Ajouter <b style="color:var(--crit);">T02-bis ${Math.ceil(t02Deficit/5)*5}L</b> · besoin S02 ${s02Need.toFixed(1)}L</div>`;
+    plan += `<div><span style="color:var(--crit);">!</span> Ajouter <b style="color:var(--crit);">T02-bis ${Math.ceil(t02Deficit/5)*5}L</b> · besoin zone B ${zoneBNeed.toFixed(1)}L</div>`;
   }
   if(t01Deficit === 0 && t02Deficit === 0){
     plan += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);color:var(--accent);">▸ Capacité actuelle suffisante</div>`;
@@ -4648,7 +4699,7 @@ function openPotDetail(id){
   
   // Sync the modal context to this pot
   currentWaterPot = id;
-  document.getElementById('dt-meta').textContent = `POT_${id.slice(1)} · SLAVE_${p.slave} · GPIO_${p.gpio}`;
+  document.getElementById('dt-meta').textContent = `POT_${id.slice(1)} · ${p.controller} · MUX ch ${p.muxChannel}`;
   document.getElementById('dt-name').textContent = p.name;
   document.getElementById('dt-species').innerHTML = `<i>${p.species}</i> · profile ${p.profile}`;
   document.getElementById('dt-temp').textContent = typeof p.temp === 'number' ? p.temp.toFixed(1)+'°C' : p.temp;
