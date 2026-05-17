@@ -5,7 +5,7 @@
  *   1. Load CSS modules in order (variables → reset → ... → animations)
  *   2. Construit les stores (singletons exportés depuis `stores/`)
  *   3. Init services (storage, rest-client, mqtt-bridge, mock-service)
- *   4. Construit BindingEngine + ModalManager + screens
+ *   4. Construit BindingEngine + ModalManager + screens (16 portés)
  *   5. Build router + wire BottomNav + MqttBanner
  *   6. Navigate vers le dashboard
  *   7. Start mock service (auto-suspend quand MQTT LIVE)
@@ -25,7 +25,7 @@ import { StorageService, RestClient, MqttBridge, MockService } from './services'
 import { BindingEngine, ModalManager, BottomNav, MqttBanner } from './components';
 import { Router, buildScreenRegistry } from './router';
 import { buildScreenFactories } from './screens';
-import { INITIAL_PROFILES } from './data';
+import { INITIAL_PROFILES, INITIAL_WEATHER } from './data';
 import type { NavId, ScreenId } from './types';
 
 const BUILD_ID = '__BUILD__';
@@ -63,23 +63,83 @@ function main(): void {
   const modalMgr = new ModalManager();
   modalMgr.attachKeyboard();
 
-  // ─── Router + screens ────────────────────────────────────
+  // ─── Screens + router ────────────────────────────────────
+  // Forward-decl pour pouvoir référencer router dans les callbacks
+  // eslint-disable-next-line prefer-const
+  let router: Router;
   const factories = buildScreenFactories({
-    dashboard: {
-      hardware: hardwareStore,
-      bindings,
-      onAction: (action) => {
-        if (action === 'waterAll') {
-          void rest.pumpStart();
-        }
-        if (action === 'openVacation') {
-          router.navigate('vacation');
+    hardware: hardwareStore,
+    config: configStore,
+    ui: uiStore,
+    stats: statsStore,
+    bindings,
+    storage,
+    profiles: INITIAL_PROFILES,
+    forecast: INITIAL_WEATHER,
+    callbacks: {
+      onDashboard: (a) => {
+        if (a === 'waterAll') void rest.pumpStart();
+        else if (a === 'openVacation') router.navigate('vacation');
+      },
+      onPots: (a) => {
+        if (a.type === 'openDetail') router.navigate('detail', { selectedId: a.potId });
+        else if (a.type === 'addPot') router.navigate('addPot');
+      },
+      onTanks: (a) => {
+        if (a.type === 'openDetail') router.navigate('tankDetail', { selectedId: a.tankId });
+        else if (a.type === 'addTank') router.navigate('addTank');
+      },
+      onSystem: (a) => {
+        if (a.type === 'reboot') void rest.reboot();
+        else if (a.type === 'factoryReset') void rest.factoryReset();
+        else if (a.type === 'safetyUnlock') void rest.safetyUnlock();
+        else if (a.type === 'pairSlave') router.navigate('addPairing');
+        else if (a.type === 'openConfigurator') router.navigate('configurator');
+      },
+      onDetail: (a) => {
+        if (a.type === 'back') router.navigate('pots');
+        else if (a.type === 'waterPot') void rest.pumpStart();
+        else if (a.type === 'editPot') router.navigate('editPot', { selectedId: a.potId });
+        else if (a.type === 'togglePot') void rest.updateConfig({});
+      },
+      onTankDetail: (a) => {
+        if (a.type === 'back') router.navigate('tanks');
+        else if (a.type === 'editTank') router.navigate('tankEdit', { selectedId: a.tankId });
+        else if (a.type === 'configTank') router.navigate('tankConfig', { selectedId: a.tankId });
+        else if (a.type === 'markFilled') void rest.updateConfig({});
+      },
+      onTankConfig: (a) => {
+        if (a.type === 'back') router.navigate('tankDetail');
+        else if (a.type === 'save') void rest.updateConfig({});
+      },
+      onTankEdit: (a) => {
+        if (a.type === 'back') router.navigate('tankDetail');
+        else if (a.type === 'save') void rest.updateConfig({});
+      },
+      onEditPot: (a) => {
+        if (a.type === 'back') router.navigate('detail');
+        else if (a.type === 'save') void rest.updateConfig({});
+        else if (a.type === 'delete') void rest.updateConfig({});
+      },
+      onConfigurator: (a) => {
+        if (a.type === 'back') router.navigate('system');
+        else if (a.type === 'save') {
+          rest.setConfig(a.payload.rest);
+          bridge.setConfig(a.payload.mqtt);
+          configStore.setWateringMode(a.payload.mode);
+          router.navigate('system');
         }
       },
+      onAddPotComplete: () => router.navigate('pots'),
+      onAddPotCancel: () => router.navigate('pots'),
+      onAddPairingComplete: () => router.navigate('system'),
+      onAddPairingCancel: () => router.navigate('system'),
+      onAddTankComplete: () => router.navigate('tanks'),
+      onAddTankCancel: () => router.navigate('tanks'),
     },
   });
   const screens = buildScreenRegistry(factories);
-  const router = new Router({
+  router = new Router({
     screens,
     resolveContainer: (id) => document.getElementById(id),
     uiStore,
@@ -122,6 +182,7 @@ function main(): void {
       stores: { hardwareStore, configStore, uiStore, statsStore, liveLogStore },
       services: { rest, bridge, mockService, storage },
       router,
+      modalMgr,
     };
   }
 }
@@ -129,13 +190,11 @@ function main(): void {
 function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') return;
-  // vite-plugin-pwa génère /sw.js
   navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
     .catch((err) => console.warn('[sw] register failed', err));
 }
 
-// Single entry point (no double-boot)
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', main, { once: true });
 } else {
