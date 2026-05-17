@@ -53,6 +53,13 @@ export default [
         // SW
         self: 'readonly',
         caches: 'readonly',
+        // Web crypto / encoding / Node-compat
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        structuredClone: 'readonly',
+        Uint8Array: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
         // Node (for configs)
         process: 'readonly',
       },
