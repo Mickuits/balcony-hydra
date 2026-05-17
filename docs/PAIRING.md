@@ -111,12 +111,48 @@ espNow.resetPairing();  // EspNowMaster ou EspNowSlave
 
 ## Sécurité
 
-La sécurité repose uniquement sur le magic byte `0xBA` (PROTOCOL_MAGIC) dans
-chaque header : tout paquet ESP-NOW sans ce magic est rejeté silencieusement.
-Cela filtre les devices ESP-NOW d'autres projets au voisinage.
+**Magic byte** : tout paquet ESP-NOW sans `PROTOCOL_MAGIC = 0xBA` dans le
+header est rejeté silencieusement. Cela filtre les devices ESP-NOW d'autres
+projets au voisinage (couche application).
 
-Pas de chiffrement PMK/LMK implémenté à ce stade (voir TODO.md §Sécurité).
-Suffisant pour un usage personnel en appartement (1 paire maître+esclave).
+**Chiffrement AES-128-CCM** (implémenté 2026-05-18) : depuis v4.2.1, les
+communications **unicast post-pairing** sont chiffrées via ESP-NOW natif :
+
+- **PMK** (Primary Master Key, 16 bytes) : commune au master et au slave,
+  définie en clair dans `firmware/common/config_common.h:ESPNOW_PMK`.
+  Appliquée via `esp_now_set_pmk()` immédiatement après `esp_now_init()`.
+- **LMK** (Local Master Key, 16 bytes) : par peer, copiée dans
+  `esp_now_peer_info_t.lmk` quand on appelle `esp_now_add_peer()` avec
+  `encrypt=true`. Définie dans `ESPNOW_LMK`.
+
+Le **handshake de pairing reste en clair** (broadcast) — c'est forcé car le
+slave ne connaît pas encore le MAC du master. Seuls les paquets unicast
+post-pairing (`CMD_PING`, `DATA_PONG`, `CMD_PUMP_*`, `DATA_SENSORS`, etc.)
+sont chiffrés.
+
+**Modèle de menace couvert** :
+- Sniffing passif au voisinage (autres projets ESP-NOW, attaquant WiFi
+  promiscuous mode)
+- Injection de paquets ESP-NOW depuis un autre device sans la clé
+- Replay attacks sur l'unicast chiffré (AES-CCM intègre un nonce)
+
+**Modèle de menace NON couvert** :
+- Attaquant physique qui démonte le boîtier et dump le flash → les clés
+  sont en clair dans le firmware, donc lisibles
+- Compromission d'un des ESP32 → l'attaquant a la PMK et peut sniffer les
+  futurs paquets s'il connaît aussi la LMK (extraite du firmware)
+
+Pour usage personnel en appartement (1 paire master+slave), c'est suffisant.
+Pour une vraie production, il faudrait :
+- Stocker les clés dans la partition `nvs_encrypted` (eFuse-derived key)
+- Implémenter un protocole de rotation des clés via OTA
+- Sécuriser le pairing initial (ex: appui simultané d'un bouton sur les 2
+  devices pour entrer en mode pairing, ECDH pour échanger les clés)
+
+**Rotation des clés** : changer `ESPNOW_PMK` ou `ESPNOW_LMK` dans
+`config_common.h` puis re-flasher les 2 firmwares (master + slave). Le
+pairing NVS doit être réinitialisé (`/pairing_reset`) car les anciens
+peers n'ont plus la bonne LMK.
 
 ## Limitations connues
 

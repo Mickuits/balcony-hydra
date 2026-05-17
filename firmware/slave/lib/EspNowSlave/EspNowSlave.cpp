@@ -29,6 +29,14 @@ void EspNowSlave::begin() {
         return;
     }
 
+    // Set PMK (Primary Master Key) — identique côté master via config_common.h.
+    // Doit être appelé AVANT esp_now_add_peer pour les peers chiffrés.
+    if (esp_now_set_pmk(ESPNOW_PMK) != ESP_OK) {
+        Serial.println("[SLAVE-NOW] set_pmk FAILED — chiffrement indisponible");
+    } else {
+        Serial.println("[SLAVE-NOW] PMK set · AES-128-CCM activé sur unicast post-pairing");
+    }
+
     esp_now_register_recv_cb(_onDataRecv);
 
     if (loaded == 6) {
@@ -130,13 +138,19 @@ bool EspNowSlave::sendAlert(AlertType type, const char* message) {
 // ---- PAIRING ----
 
 bool EspNowSlave::_addPeer(const uint8_t* mac) {
+    // Peer unicast post-pairing : chiffrement AES-128-CCM avec LMK.
+    // Cette méthode N'est appelée QUE pour le peer unicast (master connu).
+    // Le peer broadcast (mode pairing) reste en clair, géré inline dans
+    // begin() et resetPairing() avec encrypt=false.
     esp_now_peer_info_t peer;
     memset(&peer, 0, sizeof(peer));
     memcpy(peer.peer_addr, mac, 6);
     peer.channel = 0;
-    peer.encrypt = false;
+    peer.encrypt = true;
+    memcpy(peer.lmk, ESPNOW_LMK, 16);
     if (esp_now_add_peer(&peer) == ESP_OK) {
         _peerAdded = true;
+        Serial.println("[SLAVE-NOW] Peer unicast ajouté · chiffrement AES-128-CCM actif");
         return true;
     }
     Serial.println("[SLAVE-NOW] Ajout peer ÉCHOUÉ");

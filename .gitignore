@@ -28,3 +28,11 @@ firmware/include/secrets.h
 
 # Claude Code internal state (agent memory, settings locales)
 .claude/
+
+# Mosquitto broker — secrets et état runtime
+infrastructure/mosquitto/config/passwd
+infrastructure/mosquitto/config/acl
+infrastructure/mosquitto/data/*
+!infrastructure/mosquitto/data/.gitkeep
+infrastructure/mosquitto/log/*
+!infrastructure/mosquitto/log/.gitkeep

@@ -1,0 +1,53 @@
+# Mosquitto broker MQTT pour Balcony Hydra v4
+#
+# Démarrage :    docker compose up -d
+# Logs :         docker compose logs -f
+# Stop :         docker compose down
+# Stop + clean : docker compose down -v
+#
+# Ports exposés :
+#   1883 → MQTT classique (firmware ESP32 master)
+#   9001 → MQTT over WebSocket (app mobile depuis navigateur)
+#
+# Auth : user/pass dans config/passwd (utiliser mosquitto_passwd pour générer)
+# Persistence : volumes ./data (db) et ./log (logs)
+#
+# Création de l'utilisateur initial (à faire une seule fois avant le premier `up`) :
+#   docker run --rm -v "$(pwd)/config:/mosquitto/config" eclipse-mosquitto:2 \
+#     mosquitto_passwd -c -b /mosquitto/config/passwd hydra <PASSWORD>
+#
+# Pour ajouter un user supplémentaire (sans -c) :
+#   docker run --rm -v "$(pwd)/config:/mosquitto/config" eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd mobile <PASSWORD>
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: hydra-mqtt
+    restart: unless-stopped
+
+    ports:
+      - "1883:1883"  # MQTT classique (ESP32)
+      - "9001:9001"  # WebSocket (app mobile)
+
+    volumes:
+      # Config read-only (mosquitto.conf + passwd)
+      - ./config:/mosquitto/config:ro
+      # Persistence DB (retained messages survivent au redémarrage)
+      - ./data:/mosquitto/data
+      # Logs
+      - ./log:/mosquitto/log
+
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/broker/version' -C 1 -W 2 -u $${MOSQUITTO_TEST_USER:-} -P $${MOSQUITTO_TEST_PASS:-} 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+    networks:
+      - hydra-net
+
+networks:
+  hydra-net:
+    driver: bridge

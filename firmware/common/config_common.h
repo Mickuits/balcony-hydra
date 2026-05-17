@@ -43,6 +43,34 @@ constexpr uint32_t ESPNOW_PING_INTERVAL_MS = 60000;   // 60s heartbeat
 constexpr uint8_t  ESPNOW_MAX_MISSED_PONGS = 3;       // → alert after 3 missed
 constexpr uint32_t ESPNOW_SENSOR_INTERVAL_MS = 30000;  // 30s sensor read cycle
 
+// ---- ESP-NOW CHIFFREMENT (AES-128-CCM) ----
+// PMK (Primary Master Key) : commune à tous les peers chiffrés du device.
+// LMK (Local Master Key) : par peer, sert au chiffrement effectif AES-128-CCM.
+// Les deux doivent être identiques côté master et slave pour qu'ils puissent
+// déchiffrer les paquets l'un de l'autre. Le pairing initial (broadcast)
+// reste en clair — seul l'unicast post-pairing utilise ces clés.
+//
+// SÉCURITÉ : ces clés sont en clair dans le firmware → AT REST elles ne sont
+// pas secrètes. Le modèle de menace est :
+//   - Protéger contre les paquets ESP-NOW d'autres devices au voisinage
+//     (autres projets ESP-NOW, sniffing passif)
+//   - PAS contre un attaquant qui démonte le boîtier et dump le flash
+// Pour usage perso en appartement, c'est suffisant.
+//
+// ROTATION : pour rotation des clés, il faut re-flasher les 2 firmwares et
+// re-pairing (NVS pairing supprimé). Une rotation par version mineure est
+// acceptable (ex : v4.2 = ces clés, v4.3 = nouvelles clés).
+// PMK = "BALCONY_PMK_v420" en ASCII + entropie ajoutée
+constexpr uint8_t ESPNOW_PMK[16] = {
+    0x42, 0x41, 0x4C, 0x43, 0x4F, 0x4E, 0x59, 0x5F,
+    0x50, 0x4D, 0x4B, 0x76, 0x34, 0x32, 0x30, 0xBA
+};
+// LMK = "HYDRAMOUGINS2026" en ASCII (16 chars exacts)
+constexpr uint8_t ESPNOW_LMK[16] = {
+    0x48, 0x59, 0x44, 0x52, 0x41, 0x4D, 0x4F, 0x55,
+    0x47, 0x49, 0x4E, 0x53, 0x32, 0x30, 0x32, 0x36
+};
+
 // ---- SAFETY ----
 // Thermal safety (BME280 ambiant, pas batterie)
 constexpr float    SAFETY_TEMP_WARNING     = 50.0;

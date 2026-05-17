@@ -1980,8 +1980,68 @@ void test_T16_05_factory_reset_text_exact_match_required() {
 }
 
 // ================================================================
-// MAIN — 143 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles,
-// T14: 5 pairing, T15: 10 mqtt+wifi, T16: 5 factory_reset)
+// T17 — ESP-NOW chiffrement PMK/LMK (5 tests)
+// ----------------------------------------------------------------
+// Validation des contraintes de l'API ESP-IDF pour esp_now_set_pmk et
+// esp_now_peer_info_t.lmk :
+//   - PMK et LMK doivent faire exactement 16 bytes
+//   - Si PMK == LMK ou si les deux sont identiques, la sécurité s'effondre
+//     (un attaquant qui extrait l'une connaît l'autre)
+//   - Les clés ne doivent pas être tout-zéro (pas de chiffrement utile)
+//   - Les constantes ESPNOW_PMK/LMK sont des contrats inter-firmwares —
+//     une modif locale doit aussi se propager côté slave (autre repo).
+//     T17_05 fige les valeurs pour détecter une rotation accidentelle.
+// ================================================================
+
+void test_T17_01_pmk_is_16_bytes() {
+    // L'API ESP-IDF exige strictement 16 bytes pour esp_now_set_pmk
+    TEST_ASSERT_EQUAL(16, (int)sizeof(ESPNOW_PMK));
+}
+
+void test_T17_02_lmk_is_16_bytes() {
+    // L'API ESP-IDF exige strictement 16 bytes pour esp_now_peer_info_t.lmk
+    TEST_ASSERT_EQUAL(16, (int)sizeof(ESPNOW_LMK));
+}
+
+void test_T17_03_pmk_and_lmk_are_distinct() {
+    // Si PMK == LMK, un attaquant qui extrait l'une connaît l'autre.
+    // Ce test garantit qu'on ne fait pas l'erreur d'utiliser la même constante.
+    bool identical = (memcmp(ESPNOW_PMK, ESPNOW_LMK, 16) == 0);
+    TEST_ASSERT_FALSE(identical);
+}
+
+void test_T17_04_keys_are_non_zero() {
+    // Clé tout-zéro = pas de chiffrement utile (le chiffrement est activé
+    // mais avec une clé prévisible, contournable trivialement)
+    uint8_t zero[16];
+    memset(zero, 0, 16);
+    TEST_ASSERT_NOT_EQUAL(0, memcmp(ESPNOW_PMK, zero, 16));
+    TEST_ASSERT_NOT_EQUAL(0, memcmp(ESPNOW_LMK, zero, 16));
+}
+
+void test_T17_05_pmk_lmk_constants_stable() {
+    // Snapshot des valeurs actuelles (v4.2). Si quelqu'un les change, ce
+    // test détecte la régression et force à mettre à jour AUSSI le firmware
+    // slave (sinon le pairing chiffré échoue avec "decrypt failed").
+    //
+    // Pour rotation de clés : changer ici + dans firmware/common (déjà fait,
+    // c'est le même fichier) + re-flasher les 2 firmwares + reset pairing.
+
+    // PMK = "BALCONY_PMK_v420" en ASCII + 0xBA en suffixe (15 ASCII + 1 byte)
+    TEST_ASSERT_EQUAL(0x42, ESPNOW_PMK[0]);   // 'B'
+    TEST_ASSERT_EQUAL(0x41, ESPNOW_PMK[1]);   // 'A'
+    TEST_ASSERT_EQUAL(0x4C, ESPNOW_PMK[2]);   // 'L'
+    TEST_ASSERT_EQUAL(0xBA, ESPNOW_PMK[15]);  // BAlcony magic suffix
+
+    // LMK = "HYDRAMOUGINS2026" en ASCII
+    TEST_ASSERT_EQUAL(0x48, ESPNOW_LMK[0]);   // 'H'
+    TEST_ASSERT_EQUAL(0x59, ESPNOW_LMK[1]);   // 'Y'
+    TEST_ASSERT_EQUAL(0x36, ESPNOW_LMK[15]);  // '6' de 2026
+}
+
+// ================================================================
+// MAIN — 148 tests total (T1-T10: 91 constantes, T11-T13: 32 instances réelles,
+// T14: 5 pairing, T15: 10 mqtt+wifi, T16: 5 factory_reset, T17: 5 PMK/LMK)
 // ================================================================
 
 int setup() {
@@ -2162,6 +2222,13 @@ int setup() {
     RUN_TEST(test_T16_03_factory_reset_confirm_within_window_succeeds);
     RUN_TEST(test_T16_04_factory_reset_confirm_after_window_fails);
     RUN_TEST(test_T16_05_factory_reset_text_exact_match_required);
+
+    // Cat 17: ESP-NOW chiffrement PMK/LMK (5)
+    RUN_TEST(test_T17_01_pmk_is_16_bytes);
+    RUN_TEST(test_T17_02_lmk_is_16_bytes);
+    RUN_TEST(test_T17_03_pmk_and_lmk_are_distinct);
+    RUN_TEST(test_T17_04_keys_are_non_zero);
+    RUN_TEST(test_T17_05_pmk_lmk_constants_stable);
 
     return UNITY_END();
 }

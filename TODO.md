@@ -6,7 +6,9 @@
 
 **Projet logiciellement complet.** ✅ Le firmware est prêt à recevoir le hardware.
 **CI 100% vert sur 5 jobs hard gate** : build-master + build-slave + Lint × 2 + protocol-check.
-**143/143 tests Unity natifs pass** (138 + 5 T16 factory_reset window logic).
+**148/148 tests Unity natifs** (138 base + T16 factory_reset×5 + T17 PMK/LMK×5).
+**ESP-NOW chiffré AES-128-CCM** sur unicast post-pairing (PMK/LMK 16 bytes).
+**App mobile Phase 2 ready** : bridge MQTT.js réel + Mosquitto docker-compose.
 
 Session 2026-04-07/08 : 50+ commits, refactoring massif, ESP-NOW pairing dynamique implémenté
 de bout en bout, tests d'intégration réels (~50 tests instanciant les vrais modules), CLI série
@@ -95,7 +97,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] `actions/setup-python@v5 → v6`
 - [x] Job `pio check` (cppcheck) en `continue-on-error`
 - [x] Upload artifacts `.bin` sur builds de `main` pour debug futur (master+slave, retention 30j, 2026-05-18)
-- [ ] Bumper le job lint en hard gate quand le code reste clean plusieurs commits
+- [x] Bumper le job lint en hard gate (2026-05-18, --fail-on-defect=high sans `|| true` ni `continue-on-error`)
 
 ### Hardware (à faire avec ESP32 sous la main)
 
@@ -109,13 +111,13 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] Route `GET /api/safety/status` + `POST /api/safety/unlock` implémentées dans `WebPortal` (SafetyManager injecté via setter)
 - [x] Documentation `docs/` alignée v4 (voir commit `docs: align with v4 architecture...`)
 - [x] Retrait de la promesse "divergence US > 15%" de `CLAUDE.md` (non applicable en v4 = 1 US par zone)
-- [ ] Chiffrement PMK/LMK ESP-NOW (PAIRING.md §Sécurité le signale comme non-implémenté) — optionnel, sécurité actuelle = magic byte `0xBA`
+- [x] Chiffrement PMK/LMK ESP-NOW — implémenté 2026-05-18 : AES-128-CCM sur unicast post-pairing, PMK/LMK 16 bytes dans `config_common.h`, `esp_now_set_pmk` au boot, `peer.encrypt=true` + `peer.lmk` sur unicast (broadcast pairing reste en clair). +5 tests SIL T17. Doc PAIRING.md §Sécurité étendue (modèle de menace couvert/non couvert + procédure rotation)
 - [x] Telegram `/factory_reset` — implémenté 2026-05-18 avec confirmation 2-step (`/factory_reset` puis `/factory_reset CONFIRM` dans 30s), efface NVS + pairing + reboot. +5 tests SIL T16 (logique fenêtre)
 
 ### Infrastructure
 
 - [ ] Setup Grafana Cloud + InfluxDB pour dashboard historique
-- [ ] Docker compose pour broker MQTT local (Mosquitto)
+- [x] Docker compose pour broker MQTT local (Mosquitto) — 2026-05-18, listener 1883 (MQTT) + 9001 (WebSocket pour app mobile), auth password_file, persistance volume, healthcheck, ACL template optionnel. README usage complet
 
 ### Mobile App — prototype HTML livré 2026-05-17
 
@@ -137,7 +139,7 @@ Prototype mobile haute fidélité disponible dans `mobile/balcony-hydra-mobile.h
 
 #### Intégration firmware (Phase 2)
 
-- [ ] **Remplacer `startLiveUpdates()` mock** par un client MQTT.js (sub `hydra/sensors`, `hydra/pump`, `hydra/alerts`)
+- [x] **Remplacer `startLiveUpdates()` mock** par un client MQTT.js (sub `hydra/sensors`, `hydra/pump`, `hydra/alerts`) — 2026-05-18 : `mqttBridge` (lazy-load mqtt.js depuis CDN), switch dev/live persisté en `localStorage`, bandeau status sticky-top 4 états (mock/connecting/connected/error), card config dans SYS (URL + user + pass), reconnect exponential backoff 2-30s, mock désactivé quand bridge LIVE, validé Playwright
 - [ ] **Brancher les actions UI** sur l'API REST du master (`POST /api/pump/start|stop`, `POST /api/safety/unlock`, `POST /api/config`, `GET /api/status`)
 - [ ] **Définir l'authentification** : token statique côté master, JWT, ou mDNS-only ? Décider.
 - [ ] **Reconnexion MQTT avec backoff** + bandeau "déconnecté" quand le master n'est plus joignable
@@ -169,6 +171,48 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-18 (session 3) — Phase 2 amorcée + chiffrement ESP-NOW + CI hard gate
+
+Quatre blocs indépendants livrés en une session :
+
+**Infrastructure**
+- `infrastructure/mosquitto/` : docker-compose.yml (eclipse-mosquitto:2.0) +
+  mosquitto.conf (listener 1883 + 9001 WebSocket + auth password_file +
+  ACL template + limits + healthcheck), README usage complet avec procédure
+  création users + test connectivité + config firmware/mobile + TLS prod
+
+**Mobile Phase 2 amorcée**
+- `mqttBridge` dans le proto (~250 lignes JS) : lazy-load mqtt.js depuis
+  CDN unpkg, état machine (MOCK/CONNECTING/CONNECTED/ERROR), config
+  persistée localStorage `hydra-mqtt-cfg`, reconnect exponential backoff
+  2/4/8/16/30s, sub `hydra/sensors|pump|alerts` avec dispatch dans
+  HARDWARE state (mirror du payload firmware)
+- Card MQTT BRIDGE dans SYS (URL + user + pass inputs, état détaillé,
+  buttons CONNECTER/DÉCONNECTER)
+- Bandeau status sticky-top (caché en mock pur, visible 3 états restants)
+- Mock désactivé pour sensors/pump quand bridge LIVE (les UI sims pairing
+  et safety restent locales)
+- Validé Playwright : transitions MOCK → CONNECTING → ERROR → MOCK,
+  localStorage persiste, banner masqué en mock
+
+**Firmware sécurité**
+- `config_common.h` : constantes `ESPNOW_PMK[16]` (PMK = "BALCONY_PMK_v420"
+  ASCII + 0xBA) et `ESPNOW_LMK[16]` (LMK = "HYDRAMOUGINS2026" ASCII)
+- `EspNowMaster::begin` : appel `esp_now_set_pmk(ESPNOW_PMK)` après init
+- `EspNowMaster::_addPeer` : `peer.encrypt = true` + `memcpy(peer.lmk, ESPNOW_LMK, 16)`
+- Idem côté slave (EspNowSlave.cpp)
+- Le pairing handshake reste en clair (broadcast) — seul l'unicast post-
+  pairing est chiffré AES-128-CCM
+- 5 tests SIL T17 (taille PMK/LMK = 16, PMK ≠ LMK, non-zero, snapshot
+  des valeurs pour détecter régression)
+- `docs/PAIRING.md` §Sécurité étendue : modèle de menace couvert vs non
+  couvert, procédure rotation des clés
+
+**CI**
+- Job lint promu **hard gate** : retiré `|| true`, `continue-on-error: true`
+  step et job. Seuil `--fail-on-defect=high` (low/medium toujours non-
+  bloquants). Si un defect HIGH est trouvé, le merge est bloqué
 
 ### 2026-05-18 (session 2) — Phase 1 docs + PWA + firmware /factory_reset + CI artifacts
 

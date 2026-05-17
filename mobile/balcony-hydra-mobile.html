@@ -46,6 +46,15 @@
   .sys-status{display:flex;align-items:center;gap:8px;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-family:var(--mono);font-size:10px;flex-wrap:wrap;}
   .pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent);animation:pulse 2s infinite;flex-shrink:0;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(124,255,90,0.5);}70%{box-shadow:0 0 0 8px rgba(124,255,90,0);}100%{box-shadow:0 0 0 0 rgba(124,255,90,0);}}
+
+  /* MQTT connection banner (sticky top) */
+  .mqtt-banner{position:fixed;top:0;left:0;right:0;z-index:300;display:flex;align-items:center;gap:8px;padding:6px 14px;font-family:var(--mono);font-size:10px;letter-spacing:0.05em;background:var(--bg-2);border-bottom:1px solid var(--line);color:var(--text-1);}
+  .mqtt-banner.connected{background:rgba(124,255,90,0.08);border-bottom-color:rgba(124,255,90,0.25);color:var(--accent);}
+  .mqtt-banner.connecting{background:rgba(255,176,46,0.08);border-bottom-color:rgba(255,176,46,0.25);color:var(--warn);}
+  .mqtt-banner.error{background:rgba(255,92,92,0.08);border-bottom-color:rgba(255,92,92,0.25);color:var(--crit);}
+  .mqtt-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;animation:pulse 2s infinite;}
+  .mqtt-banner-cfg{margin-left:auto;cursor:pointer;text-decoration:underline;opacity:0.7;}
+  .mqtt-banner-cfg:hover{opacity:1;}
   .sys-status .uptime{margin-left:auto;color:var(--text-2);}
   
   /* ALERT */
@@ -791,6 +800,15 @@
 </style>
 </head>
 <body>
+
+<!-- ============ MQTT CONNECTION BANNER ============ -->
+<!-- Visible uniquement quand le bridge est en mode autre que "mock"
+     ou en erreur. Masqué en mock pur (UX silencieuse pour le standalone). -->
+<div id="mqttBanner" class="mqtt-banner" style="display:none;">
+  <span id="mqttBannerDot" class="mqtt-dot"></span>
+  <span id="mqttBannerText">MQTT déconnecté</span>
+  <span class="mqtt-banner-cfg" onclick="document.getElementById('mqttBridgeCard')?.scrollIntoView({block:'center'});switchScreen('system');">configurer →</span>
+</div>
 
 <!-- TOP TABS REMOVED — navigation via bottom nav only -->
 
@@ -1578,6 +1596,45 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         LANCER LE PAIRING
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════ MQTT BRIDGE (Phase 2 — connect to real broker) ═══════ -->
+  <div class="section-title"><span>MQTT BRIDGE</span><span class="more" id="mqttBridgeBadge" style="color:var(--text-2);">○ MOCK</span></div>
+
+  <div class="profile-card" id="mqttBridgeCard" style="margin-bottom:14px;">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;margin-bottom:12px;">
+      En <span style="color:var(--text-1);">MOCK</span> : données simulées localement (boucle JS 3 s). En <span style="color:var(--text-1);">LIVE</span> : sub MQTT.js sur le broker réel (sensors/pump/alerts).
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <div class="field-label"><span>URL BROKER</span><span class="optional">ws:// ou wss://</span></div>
+      <input type="text" id="mqttCfgUrl" class="field-input" placeholder="ws://192.168.1.10:9001" value="">
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <div class="field-label"><span>USERNAME</span></div>
+      <input type="text" id="mqttCfgUser" class="field-input" placeholder="mobile" value="" autocomplete="username">
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <div class="field-label"><span>PASSWORD</span></div>
+      <input type="password" id="mqttCfgPass" class="field-input" placeholder="••••••••" value="" autocomplete="current-password">
+    </div>
+
+    <div id="mqttBridgeStatus" style="background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;font-family:var(--mono);font-size:9px;line-height:1.7;color:var(--text-2);">
+      <div>État : <span id="mqttStatusState" style="color:var(--text-1);">MOCK (déconnecté)</span></div>
+      <div>Last msg : <span id="mqttStatusLastMsg" style="color:var(--text-2);">—</span></div>
+      <div>Reconnexions : <span id="mqttStatusReconnects" style="color:var(--text-2);">0</span></div>
+    </div>
+
+    <div class="action-row">
+      <div class="btn" onclick="mqttBridge.disconnect()">DÉCONNECTER</div>
+      <div class="btn primary" onclick="mqttBridge.connectFromUI()">CONNECTER LIVE</div>
+    </div>
+
+    <div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;">
+      Config persistée en <span style="color:var(--text-1);">localStorage</span> · auto-reconnect à l'ouverture · backoff exponentiel 2/4/8/16/30s
     </div>
   </div>
 
@@ -4976,25 +5033,34 @@ function startLiveUpdates(){
       }
     }
     
-    // Small random walk on humidity (drying down slowly)
-    Object.values(HARDWARE.pots).forEach(p => {
-      if(p.state === 'off' || p.state === 'watering') return;
-      // -0.05% per 3s average + noise — about -1.5%/min, realistic for drying
-      p.hum = Math.max(0, p.hum - 0.05 + (Math.random() - 0.5) * 0.2);
-      p.lastWater += 3;
-      // Update state based on new humidity
-      const prof = PROFILES[p.profileId];
-      if(p.hum < prof.dry) p.state = 'crit';
-      else if(p.hum < prof.ok) p.state = 'dry';
-      else if(p.hum < prof.ok + 15) p.state = 'ok';
-      else p.state = 'high';
-    });
-    
-    // Tanks consumed slowly
-    HARDWARE.tanks.T01.vol = Math.max(0, HARDWARE.tanks.T01.vol - 0.0008);
-    HARDWARE.tanks.T02.vol = Math.max(0, HARDWARE.tanks.T02.vol - 0.0003);
-    HARDWARE.tanks.T01.lastFill += 3;
-    HARDWARE.tanks.T02.lastFill += 3;
+    // Skip simulated sensor evolution if MQTT bridge is LIVE — la donnée
+    // vient du firmware réel via mqttBridge._dispatch().
+    if(!mqttBridge.isLive()){
+      // Small random walk on humidity (drying down slowly)
+      Object.values(HARDWARE.pots).forEach(p => {
+        if(p.state === 'off' || p.state === 'watering') return;
+        // -0.05% per 3s average + noise — about -1.5%/min, realistic for drying
+        p.hum = Math.max(0, p.hum - 0.05 + (Math.random() - 0.5) * 0.2);
+        p.lastWater += 3;
+        // Update state based on new humidity
+        const prof = PROFILES[p.profileId];
+        if(p.hum < prof.dry) p.state = 'crit';
+        else if(p.hum < prof.ok) p.state = 'dry';
+        else if(p.hum < prof.ok + 15) p.state = 'ok';
+        else p.state = 'high';
+      });
+
+      // Tanks consumed slowly
+      HARDWARE.tanks.T01.vol = Math.max(0, HARDWARE.tanks.T01.vol - 0.0008);
+      HARDWARE.tanks.T02.vol = Math.max(0, HARDWARE.tanks.T02.vol - 0.0003);
+      HARDWARE.tanks.T01.lastFill += 3;
+      HARDWARE.tanks.T02.lastFill += 3;
+    } else {
+      // En LIVE : juste avancer lastFill (compteur temps) et lastWater
+      Object.values(HARDWARE.pots).forEach(p => { p.lastWater += 3; });
+      HARDWARE.tanks.T01.lastFill += 3;
+      HARDWARE.tanks.T02.lastFill += 3;
+    }
     
     // MQTT RTT jitter
     HARDWARE.master.mqttRtt = 80 + Math.round(Math.random() * 20);
@@ -5594,17 +5660,280 @@ if(document.getElementById('vacStartDate')){
   setTimeout(updateVacationProjection, 100);
 }
 
+// ════════════════════════════════════════════════════════════
+//  MQTT BRIDGE — Phase 2 · pont vers le broker réel
+// ════════════════════════════════════════════════════════════
+// L'app fonctionne en 2 modes :
+//
+//   MOCK  : `startLiveUpdates()` simule des données via setInterval
+//           (par défaut, aucun broker requis, démo standalone)
+//
+//   LIVE  : `mqttBridge.connect(cfg)` se connecte au broker via mqtt.js
+//           (chargé depuis CDN à la 1ère connexion), sub aux topics
+//           hydra/sensors|pump|alerts et applique les payloads au state
+//
+// Le passage en LIVE désactive seulement l'évolution simulée du HARDWARE
+// — les UI sims (safety, pairing) restent locales puisqu'elles n'ont pas
+// encore d'équivalent firmware push.
+
+const MQTT_BRIDGE_STATE = { MOCK: 'mock', CONNECTING: 'connecting', CONNECTED: 'connected', ERROR: 'error' };
+
+const mqttBridge = {
+  client:   null,
+  state:    MQTT_BRIDGE_STATE.MOCK,
+  cfg:      null,
+  reconnects: 0,
+  lastMsgAt: 0,
+  _retryTimer: null,
+  _retryDelayMs: 2000,
+  _libLoading: null,
+
+  // ─── lifecycle ─────────────────────────────────────────────
+  init(){
+    // Restore config from localStorage if présent
+    try {
+      const raw = localStorage.getItem('hydra-mqtt-cfg');
+      if(raw){
+        this.cfg = JSON.parse(raw);
+        // Pre-fill UI inputs
+        const setIf = (id,v) => { const el = document.getElementById(id); if(el) el.value = v || ''; };
+        setIf('mqttCfgUrl',  this.cfg.url);
+        setIf('mqttCfgUser', this.cfg.user);
+        setIf('mqttCfgPass', this.cfg.pass);
+        // Auto-connect si config valide
+        if(this.cfg.url){ this.connect(this.cfg); }
+      }
+    } catch(e){ console.warn('[MQTT] localStorage parse failed', e); }
+    this._renderUI();
+  },
+
+  connectFromUI(){
+    const cfg = {
+      url:  document.getElementById('mqttCfgUrl')?.value.trim()  || '',
+      user: document.getElementById('mqttCfgUser')?.value.trim() || '',
+      pass: document.getElementById('mqttCfgPass')?.value        || ''
+    };
+    if(!cfg.url){ alert('URL broker requise (ex: ws://192.168.1.10:9001)'); return; }
+    localStorage.setItem('hydra-mqtt-cfg', JSON.stringify(cfg));
+    this.connect(cfg);
+  },
+
+  async connect(cfg){
+    this.cfg = cfg;
+    this._setState(MQTT_BRIDGE_STATE.CONNECTING);
+    pushLogEvent('info', `[MQTT] connexion vers ${cfg.url}...`);
+
+    try {
+      await this._ensureLibLoaded();
+    } catch(e){
+      pushLogEvent('warn', `[MQTT] échec chargement lib · ${e.message}`);
+      this._setState(MQTT_BRIDGE_STATE.ERROR);
+      this._scheduleRetry();
+      return;
+    }
+
+    try {
+      const opts = {
+        clientId: 'hydra-mobile-' + (crypto.randomUUID?.() || Math.random().toString(16).slice(2,18)),
+        username: cfg.user || undefined,
+        password: cfg.pass || undefined,
+        clean: true,
+        keepalive: 30,
+        reconnectPeriod: 0,  // on gère le backoff nous-mêmes
+        connectTimeout: 8000
+      };
+      this.client = mqtt.connect(cfg.url, opts);
+
+      this.client.on('connect', () => {
+        this._setState(MQTT_BRIDGE_STATE.CONNECTED);
+        this._retryDelayMs = 2000;  // reset backoff
+        this.reconnects++;
+        pushLogEvent('info', `[MQTT] connecté · sub hydra/sensors|pump|alerts`);
+        this.client.subscribe(['hydra/sensors', 'hydra/pump', 'hydra/alerts'], (err) => {
+          if(err) pushLogEvent('warn', `[MQTT] sub failed: ${err.message}`);
+        });
+      });
+
+      this.client.on('message', (topic, payload) => {
+        this.lastMsgAt = Date.now();
+        let data;
+        try { data = JSON.parse(payload.toString()); }
+        catch(e){ pushLogEvent('warn', `[MQTT] payload invalide sur ${topic}`); return; }
+        this._dispatch(topic, data);
+        this._renderUI();
+      });
+
+      this.client.on('error', (err) => {
+        pushLogEvent('warn', `[MQTT] erreur · ${err.message}`);
+      });
+
+      this.client.on('close', () => {
+        if(this.state === MQTT_BRIDGE_STATE.CONNECTED){
+          pushLogEvent('warn', '[MQTT] connexion perdue');
+          this._setState(MQTT_BRIDGE_STATE.ERROR);
+          this._scheduleRetry();
+        }
+      });
+
+      this.client.on('offline', () => {
+        if(this.state === MQTT_BRIDGE_STATE.CONNECTED){
+          this._setState(MQTT_BRIDGE_STATE.ERROR);
+        }
+      });
+    } catch(e){
+      pushLogEvent('warn', `[MQTT] connect failed · ${e.message}`);
+      this._setState(MQTT_BRIDGE_STATE.ERROR);
+      this._scheduleRetry();
+    }
+  },
+
+  disconnect(){
+    if(this._retryTimer){ clearTimeout(this._retryTimer); this._retryTimer = null; }
+    if(this.client){
+      try { this.client.end(true); } catch(e){}
+      this.client = null;
+    }
+    this._setState(MQTT_BRIDGE_STATE.MOCK);
+    pushLogEvent('info', '[MQTT] déconnecté · retour au mode MOCK');
+    this._renderUI();
+  },
+
+  isLive(){ return this.state === MQTT_BRIDGE_STATE.CONNECTED; },
+
+  // ─── private ───────────────────────────────────────────────
+  _ensureLibLoaded(){
+    if(window.mqtt) return Promise.resolve();
+    if(this._libLoading) return this._libLoading;
+    this._libLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload  = () => resolve();
+      s.onerror = () => reject(new Error('CDN mqtt.js inaccessible'));
+      document.head.appendChild(s);
+    });
+    return this._libLoading;
+  },
+
+  _dispatch(topic, data){
+    // Mirror firmware payloads (cf. docs/mobile_api_contract.md §2.1)
+    if(topic === 'hydra/sensors'){
+      if(typeof data.avgMoisture === 'number') HARDWARE.master.avgHum = data.avgMoisture;
+      if(typeof data.tankLevel    === 'number' && data.tankLevel >= 0){
+        // Le firmware ne distingue pas zone A/B sur ce topic — on update T02 (master)
+        HARDWARE.tanks.T02.vol = (data.tankLevel / 100) * HARDWARE.tanks.T02.cap;
+      }
+      if(typeof data.temperature === 'number' && data.temperature > -50){
+        HARDWARE.safety.tempPcb = data.temperature;
+      }
+    } else if(topic === 'hydra/pump'){
+      // Payload dual-zone : { balcon: {...}, interieur: {...} }
+      if(data.balcon){
+        HARDWARE.slaves['SLAVE'].pumpRunning = !!data.balcon.running;
+        HARDWARE.slaves['SLAVE'].avgHum     = data.balcon.avgMoisture ?? HARDWARE.slaves['SLAVE'].avgHum;
+      }
+      if(data.interieur){
+        HARDWARE.master.pumpRunning = !!data.interieur.running;
+      }
+    } else if(topic === 'hydra/alerts'){
+      const msg = data.alert || data.message || 'alerte';
+      pushLogEvent('warn', `[ALERTE] ${msg}`);
+    }
+  },
+
+  _setState(s){
+    this.state = s;
+    this._renderUI();
+  },
+
+  _scheduleRetry(){
+    if(this._retryTimer) return;
+    if(!this.cfg?.url) return;
+    const delay = this._retryDelayMs;
+    pushLogEvent('info', `[MQTT] retry dans ${(delay/1000)|0}s`);
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = null;
+      // Exponential backoff (cap 30s)
+      this._retryDelayMs = Math.min(this._retryDelayMs * 2, 30000);
+      this.connect(this.cfg);
+    }, delay);
+  },
+
+  _renderUI(){
+    const banner = document.getElementById('mqttBanner');
+    const dot    = document.getElementById('mqttBannerDot');
+    const text   = document.getElementById('mqttBannerText');
+    const badge  = document.getElementById('mqttBridgeBadge');
+    const state  = document.getElementById('mqttStatusState');
+    const lastM  = document.getElementById('mqttStatusLastMsg');
+    const recos  = document.getElementById('mqttStatusReconnects');
+
+    if(!banner) return;  // DOM pas prêt
+
+    // Banner visibilité (caché en mock pur)
+    const showBanner = this.state !== MQTT_BRIDGE_STATE.MOCK;
+    banner.style.display = showBanner ? 'flex' : 'none';
+
+    // Banner styling
+    banner.classList.remove('connected', 'connecting', 'error');
+    if(this.state === MQTT_BRIDGE_STATE.CONNECTED){
+      banner.classList.add('connected');
+      if(text) text.textContent = `MQTT connecté · ${this.cfg?.url || ''}`;
+    } else if(this.state === MQTT_BRIDGE_STATE.CONNECTING){
+      banner.classList.add('connecting');
+      if(text) text.textContent = `MQTT connexion en cours...`;
+    } else if(this.state === MQTT_BRIDGE_STATE.ERROR){
+      banner.classList.add('error');
+      if(text) text.textContent = `MQTT déconnecté · retry...`;
+    }
+
+    // Badge dans la card SYS
+    if(badge){
+      if(this.state === MQTT_BRIDGE_STATE.CONNECTED){
+        badge.textContent = '● LIVE'; badge.style.color = 'var(--accent)';
+      } else if(this.state === MQTT_BRIDGE_STATE.CONNECTING){
+        badge.textContent = '◌ CONNEXION...'; badge.style.color = 'var(--warn)';
+      } else if(this.state === MQTT_BRIDGE_STATE.ERROR){
+        badge.textContent = '✕ ERREUR'; badge.style.color = 'var(--crit)';
+      } else {
+        badge.textContent = '○ MOCK'; badge.style.color = 'var(--text-2)';
+      }
+    }
+
+    // Status detail dans la card
+    if(state){
+      state.textContent = {
+        mock: 'MOCK (déconnecté)',
+        connecting: 'CONNEXION EN COURS',
+        connected: 'CONNECTÉ · LIVE',
+        error: 'ERREUR · retry actif'
+      }[this.state] || this.state;
+    }
+    if(lastM){
+      if(this.lastMsgAt){
+        const secAgo = Math.max(0, ((Date.now() - this.lastMsgAt)/1000)|0);
+        lastM.textContent = secAgo < 5 ? 'à l\'instant' : `il y a ${secAgo}s`;
+      } else {
+        lastM.textContent = '—';
+      }
+    }
+    if(recos) recos.textContent = this.reconnects;
+  }
+};
+
 // ─── BOOT THE LIVE DATA SYSTEM ───────────────────────────────
 // First render (populates all [data-bind] elements)
 // then start the MQTT-simulating live update loop
 document.addEventListener('DOMContentLoaded', () => {
   render();
   startLiveUpdates();
+  mqttBridge.init();
 });
 // Also try immediately in case DOM is already ready
 if(document.readyState !== 'loading'){
   render();
   startLiveUpdates();
+  mqttBridge.init();
 }
 
 // ─── PWA · Service Worker registration ────────────────────────

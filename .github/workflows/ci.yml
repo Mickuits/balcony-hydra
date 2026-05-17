@@ -107,14 +107,14 @@ jobs:
 
   # ----------------------------------------------------------------
   # lint — pio check (cppcheck) on both firmwares.
-  # Non-bloquant (continue-on-error) — l'objectif est de démarrer
-  # une culture lint sans gater les builds. Les warnings doivent
-  # diminuer commit après commit.
+  # HARD GATE depuis 2026-05-18 : si un defect HIGH est trouvé,
+  # le merge est bloqué. Les defects LOW/MEDIUM ne fail pas (seuil
+  # --fail-on-defect=high). Pour bypass temporaire, retirer ce job
+  # ou ajouter une suppression cppcheck explicite dans le code.
   # ----------------------------------------------------------------
   lint:
     name: Lint (${{ matrix.firmware }})
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -132,8 +132,7 @@ jobs:
       - name: Run pio check (${{ matrix.firmware }})
         run: |
           cd firmware/${{ matrix.firmware }}
-          pio check --skip-packages --fail-on-defect=high || true
-        continue-on-error: true
+          pio check --skip-packages --fail-on-defect=high
 
   protocol-check:
     runs-on: ubuntu-latest
