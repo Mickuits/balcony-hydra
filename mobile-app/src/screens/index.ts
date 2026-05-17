@@ -15,6 +15,7 @@ import type { UiStore } from '@/stores/ui.store';
 import type { StatsStore } from '@/stores/stats.store';
 import type { BindingEngine } from '@/components/binding-engine/binding-engine';
 import type { StorageService } from '@/services/storage';
+import type { ConfigBackupService } from '@/services/config-backup';
 import { DashboardScreen, type DashboardAction } from './dashboard/dashboard.screen';
 import { PotsScreen, type PotsAction } from './pots/pots.screen';
 import { TanksScreen, type TanksAction } from './tanks/tanks.screen';
@@ -61,6 +62,7 @@ export interface ScreenFactoriesDeps {
   stats: StatsStore;
   bindings: BindingEngine;
   storage: StorageService;
+  backup: ConfigBackupService;
   profiles: Record<string, PlantProfile>;
   forecast: WeatherForecast;
   /** Callbacks centralisés (dispatchés vers le routeur depuis main.ts). */
@@ -141,6 +143,7 @@ export function buildScreenFactories(
       new ConfiguratorScreen({
         config: deps.config,
         storage: deps.storage,
+        backup: deps.backup,
         onAction: cb.onConfigurator,
       }),
     addPot: () =>

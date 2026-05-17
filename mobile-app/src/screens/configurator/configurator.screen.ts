@@ -13,6 +13,7 @@ import { BaseScreen } from '@/router/screen';
 import type { ScreenId, WateringMode, RestConfig, MqttConfig } from '@/types';
 import type { ConfigStore } from '@/stores/config.store';
 import { StorageService, STORAGE_KEYS } from '@/services/storage';
+import type { ConfigBackupService } from '@/services/config-backup';
 import { isValidUrl, isValidApiToken, escapeHtml } from '@/utils/sanitize';
 
 export interface ConfiguratorPayload {
@@ -21,11 +22,15 @@ export interface ConfiguratorPayload {
   mode: WateringMode;
 }
 
-export type ConfiguratorAction = { type: 'save'; payload: ConfiguratorPayload } | { type: 'back' };
+export type ConfiguratorAction =
+  | { type: 'save'; payload: ConfiguratorPayload }
+  | { type: 'back' }
+  | { type: 'configImported'; count: number };
 
 export interface ConfiguratorScreenDeps {
   config: ConfigStore;
   storage: StorageService;
+  backup: ConfigBackupService;
   onAction: (action: ConfiguratorAction) => void;
 }
 
@@ -43,8 +48,16 @@ export class ConfiguratorScreen extends BaseScreen {
 
   protected override onMount(root: HTMLElement): void {
     this.clickHandler = (e: Event) => {
-      const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-action="back"]');
-      if (target) this.deps.onAction({ type: 'back' });
+      const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]');
+      const action = target?.dataset['action'];
+      if (action === 'back') {
+        this.deps.onAction({ type: 'back' });
+      } else if (action === 'exportConfig') {
+        void this.handleExport();
+      } else if (action === 'importConfig') {
+        const fileInput = root.querySelector<HTMLInputElement>('#importFile');
+        fileInput?.click();
+      }
     };
     root.addEventListener('click', this.clickHandler);
   }
@@ -122,7 +135,21 @@ export class ConfiguratorScreen extends BaseScreen {
           <button type="submit" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>
+
+      <fieldset class="backup-section">
+        <legend>Sauvegarde de la configuration</legend>
+        <p class="hint">Exportez votre config (broker, token, mode) avant un reset ou un changement de device.</p>
+        <div class="action-bar">
+          <button type="button" data-action="exportConfig" class="btn">Exporter en JSON</button>
+          <button type="button" data-action="importConfig" class="btn">Importer un fichier</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json,.json" hidden />
+        <p id="backupStatus" class="backup-status" role="status" aria-live="polite" hidden></p>
+      </fieldset>
     `;
+
+    const fileInput = this.root.querySelector<HTMLInputElement>('#importFile');
+    fileInput?.addEventListener('change', (e) => void this.handleImport(e));
 
     const form = this.root.querySelector<HTMLFormElement>('#configForm');
     form?.addEventListener('submit', (e: SubmitEvent) => this.handleSubmit(e));
@@ -170,5 +197,41 @@ export class ConfiguratorScreen extends BaseScreen {
   private showError(el: HTMLElement, msg: string): void {
     el.textContent = msg;
     el.hidden = false;
+  }
+
+  private async handleExport(): Promise<void> {
+    try {
+      await this.deps.backup.downloadFile();
+      this.showStatus('Export téléchargé.', false);
+    } catch (err) {
+      this.showStatus(`Échec de l'export : ${(err as Error).message}`, true);
+    }
+  }
+
+  private async handleImport(e: Event): Promise<void> {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const count = await this.deps.backup.importJson(text);
+      this.showStatus(`${count} entrée(s) importée(s). Re-render…`, false);
+      this.deps.onAction({ type: 'configImported', count });
+      // Force re-render avec les valeurs importées
+      this.render();
+    } catch (err) {
+      this.showStatus(`Échec de l'import : ${(err as Error).message}`, true);
+    } finally {
+      target.value = ''; // reset input pour permettre re-import du même fichier
+    }
+  }
+
+  private showStatus(msg: string, isError: boolean): void {
+    if (!this.root) return;
+    const el = this.root.querySelector<HTMLElement>('#backupStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    el.classList.toggle('backup-status-error', isError);
   }
 }

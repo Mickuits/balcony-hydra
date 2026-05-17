@@ -7,16 +7,19 @@ import { ConfigStore } from '@/stores/config.store';
 import { UiStore } from '@/stores/ui.store';
 import { StatsStore } from '@/stores/stats.store';
 import { StorageService } from '@/services/storage';
+import { ConfigBackupService } from '@/services/config-backup';
 import { INITIAL_PROFILES, INITIAL_WEATHER } from '@/data';
 
 function makeDeps(): ScreenFactoriesDeps {
+  const storage = new StorageService();
   return {
     hardware: new HardwareStore(),
     config: new ConfigStore(),
     ui: new UiStore(),
     stats: new StatsStore(),
     bindings: new BindingEngine(),
-    storage: new StorageService(),
+    storage,
+    backup: new ConfigBackupService({ storage, buildId: 'test' }),
     profiles: INITIAL_PROFILES,
     forecast: INITIAL_WEATHER,
     callbacks: {

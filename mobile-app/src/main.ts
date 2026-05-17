@@ -21,7 +21,13 @@ import './styles/nav.css';
 import './styles/animations.css';
 
 import { hardwareStore, configStore, uiStore, statsStore, liveLogStore } from './stores';
-import { StorageService, RestClient, MqttBridge, MockService } from './services';
+import {
+  StorageService,
+  RestClient,
+  MqttBridge,
+  MockService,
+  ConfigBackupService,
+} from './services';
 import { BindingEngine, ModalManager, BottomNav, MqttBanner } from './components';
 import { Router, buildScreenRegistry } from './router';
 import { buildScreenFactories } from './screens';
@@ -58,6 +64,8 @@ function main(): void {
     profiles: INITIAL_PROFILES,
   });
 
+  const backup = new ConfigBackupService({ storage, buildId: BUILD_ID });
+
   // ─── UI core ─────────────────────────────────────────────
   const bindings = new BindingEngine();
   const modalMgr = new ModalManager();
@@ -74,6 +82,7 @@ function main(): void {
     stats: statsStore,
     bindings,
     storage,
+    backup,
     profiles: INITIAL_PROFILES,
     forecast: INITIAL_WEATHER,
     callbacks: {
@@ -128,6 +137,10 @@ function main(): void {
           bridge.setConfig(a.payload.mqtt);
           configStore.setWateringMode(a.payload.mode);
           router.navigate('system');
+        } else if (a.type === 'configImported') {
+          // Réinitialise les services avec la config importée
+          rest.init();
+          bridge.init();
         }
       },
       onAddPotComplete: () => router.navigate('pots'),

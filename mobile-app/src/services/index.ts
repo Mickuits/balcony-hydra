@@ -20,3 +20,6 @@ export type { MockServiceDeps } from './mock-service';
 
 export { computeWeatherCoefficient, extendForecastToDays } from './weather';
 export type { WeatherCoefficient, WeatherReferences } from './weather';
+
+export { ConfigBackupService } from './config-backup';
+export type { ConfigBackup, ConfigBackupServiceDeps } from './config-backup';
