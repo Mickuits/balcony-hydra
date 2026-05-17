@@ -107,10 +107,17 @@ jobs:
 
   # ----------------------------------------------------------------
   # lint — pio check (cppcheck) on both firmwares.
-  # HARD GATE depuis 2026-05-18 : si un defect HIGH est trouvé,
-  # le merge est bloqué. Les defects LOW/MEDIUM ne fail pas (seuil
-  # --fail-on-defect=high). Pour bypass temporaire, retirer ce job
-  # ou ajouter une suppression cppcheck explicite dans le code.
+  #
+  # HARD GATE en escalier :
+  #   2026-05-18 (am) : --fail-on-defect=high
+  #   2026-05-18 (pm) : --fail-on-defect=medium  ← actuel
+  #   (futur)         : --fail-on-defect=low (quand medium reste vert
+  #                      sur plusieurs commits consécutifs)
+  #
+  # Si le bump fait rouge le CI : revert à --fail-on-defect=high et
+  # fixer les defects MEDIUM dans un commit séparé avant de re-bumper.
+  # Le palier intermédiaire (high → medium → low) évite un mur de
+  # warnings à traiter d'un coup.
   # ----------------------------------------------------------------
   lint:
     name: Lint (${{ matrix.firmware }})
@@ -132,7 +139,7 @@ jobs:
       - name: Run pio check (${{ matrix.firmware }})
         run: |
           cd firmware/${{ matrix.firmware }}
-          pio check --skip-packages --fail-on-defect=high
+          pio check --skip-packages --fail-on-defect=medium
 
   protocol-check:
     runs-on: ubuntu-latest

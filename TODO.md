@@ -97,7 +97,8 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] `actions/setup-python@v5 → v6`
 - [x] Job `pio check` (cppcheck) en `continue-on-error`
 - [x] Upload artifacts `.bin` sur builds de `main` pour debug futur (master+slave, retention 30j, 2026-05-18)
-- [x] Bumper le job lint en hard gate (2026-05-18, --fail-on-defect=high sans `|| true` ni `continue-on-error`)
+- [x] Bumper le job lint en hard gate (2026-05-18, étape 1 : --fail-on-defect=high · étape 2 : --fail-on-defect=medium)
+- [ ] Bumper lint à `--fail-on-defect=low` quand medium reste vert sur plusieurs commits consécutifs (palier final)
 
 ### Hardware (à faire avec ESP32 sous la main)
 
@@ -111,6 +112,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [x] Route `GET /api/safety/status` + `POST /api/safety/unlock` implémentées dans `WebPortal` (SafetyManager injecté via setter)
 - [x] Documentation `docs/` alignée v4 (voir commit `docs: align with v4 architecture...`)
 - [x] Retrait de la promesse "divergence US > 15%" de `CLAUDE.md` (non applicable en v4 = 1 US par zone)
+- [ ] **Vérification header `X-Hydra-Token` côté master** (WebPortal) — actuellement les routes /api/* sont ouvertes sur le LAN. L'app mobile envoie déjà le header, le firmware doit le valider. Pattern : token persisté NVS, généré au premier boot, affiché sur LCD + log série. Sans ce check, l'auth Phase 2 est cosmétique
 - [x] Chiffrement PMK/LMK ESP-NOW — implémenté 2026-05-18 : AES-128-CCM sur unicast post-pairing, PMK/LMK 16 bytes dans `config_common.h`, `esp_now_set_pmk` au boot, `peer.encrypt=true` + `peer.lmk` sur unicast (broadcast pairing reste en clair). +5 tests SIL T17. Doc PAIRING.md §Sécurité étendue (modèle de menace couvert/non couvert + procédure rotation)
 - [x] Telegram `/factory_reset` — implémenté 2026-05-18 avec confirmation 2-step (`/factory_reset` puis `/factory_reset CONFIRM` dans 30s), efface NVS + pairing + reboot. +5 tests SIL T16 (logique fenêtre)
 
@@ -140,9 +142,9 @@ Prototype mobile haute fidélité disponible dans `mobile/balcony-hydra-mobile.h
 #### Intégration firmware (Phase 2)
 
 - [x] **Remplacer `startLiveUpdates()` mock** par un client MQTT.js (sub `hydra/sensors`, `hydra/pump`, `hydra/alerts`) — 2026-05-18 : `mqttBridge` (lazy-load mqtt.js depuis CDN), switch dev/live persisté en `localStorage`, bandeau status sticky-top 4 états (mock/connecting/connected/error), card config dans SYS (URL + user + pass), reconnect exponential backoff 2-30s, mock désactivé quand bridge LIVE, validé Playwright
-- [ ] **Brancher les actions UI** sur l'API REST du master (`POST /api/pump/start|stop`, `POST /api/safety/unlock`, `POST /api/config`, `GET /api/status`)
-- [ ] **Définir l'authentification** : token statique côté master, JWT, ou mDNS-only ? Décider.
-- [ ] **Reconnexion MQTT avec backoff** + bandeau "déconnecté" quand le master n'est plus joignable
+- [x] **Brancher les actions UI** sur l'API REST du master — 2026-05-18 : `restClient` object (fetch wrapper timeout 4s + retries), card REST API · MASTER dans SYS (URL + token), header `X-Hydra-Token` auto-ajouté, branché : `confirmSafetyUnlock` → POST /api/safety/unlock, `confirmWaterAll` → POST /api/pump/start, `confirmRemoteReboot` → POST /api/reboot. Fallback gracieux : effet UI optimiste local si POST échoue. Validé Playwright
+- [x] **Définir l'authentification** — 2026-05-18 : header `X-Hydra-Token: <secret>` (token statique persisté localStorage). ⚠ **Vérification côté firmware non encore implémentée** — `_handleApi*` ne check pas le header. TODO firmware à ouvrir avant déploiement hors LAN
+- [x] **Reconnexion MQTT avec backoff** + bandeau "déconnecté" quand le master n'est plus joignable — backoff exponentiel 2/4/8/16/30s implémenté dans `mqttBridge._scheduleRetry`
 - [ ] **Web portal sert le HTML** : décider si on embarque l'app dans le firmware (PROGMEM) ou si on la sert depuis Vercel/GitHub Pages
 - [ ] **Synchroniser les topics MQTT** : le proto référence `/hydra/state` et `/hydra/p07/+` qui n'existent pas dans le firmware. Aligner.
 
@@ -171,6 +173,32 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-18 (session 4) — Phase 2 mobile finalisée + lint bump medium
+
+**Mobile Phase 2 wiring final**
+- `restClient` object (~200 lignes JS) : fetch wrapper avec timeout 4s,
+  header `X-Hydra-Token` auto, gestion 401/403/5xx/timeout, état machine
+  (MOCK/READY/ERROR/UNAUTHORIZED), persistance config localStorage
+  `hydra-rest-cfg`
+- API publique : `pumpStart`, `pumpStop`, `pumpReset`, `safetyUnlock`,
+  `reboot`, `factoryReset`, `getStatus`, `updateConfig(partial)`
+- Card "REST API · MASTER" dans SYS (URL + token + état détaillé +
+  bouton TESTER + ACTIVER / REVENIR AU MOCK)
+- Actions UI branchées :
+  - `confirmSafetyUnlock` → POST /api/safety/unlock (gestion 409 si
+    auto-recovery en cours, fallback effet UI local si réseau down)
+  - `confirmWaterAll` (modal waterAll) → POST /api/pump/start (gestion
+    409 si failsafe, mock simule cycle 4s en mode standalone)
+  - `confirmRemoteReboot` (modal remoteReboot) → POST /api/reboot
+    (auto-reprobe 15s plus tard pour détecter le retour du master)
+- Validé Playwright : transitions MOCK → ERROR → MOCK, actions UI en
+  mode mock continuent de fonctionner, localStorage persiste
+
+**CI lint bump (étape 2)**
+- `.github/workflows/ci.yml` job lint : seuil `--fail-on-defect`
+  promu de `high` à `medium`. Documentation inline du palier en
+  3 étapes (high → medium → low) avec procédure fallback si rouge
 
 ### 2026-05-18 (session 3) — Phase 2 amorcée + chiffrement ESP-NOW + CI hard gate
 

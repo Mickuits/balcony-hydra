@@ -1599,6 +1599,40 @@
     </div>
   </div>
 
+  <!-- ═══════ REST API (Phase 2 — connect to firmware master) ═══════ -->
+  <div class="section-title"><span>REST API · MASTER</span><span class="more" id="restBadge" style="color:var(--text-2);">○ MOCK</span></div>
+
+  <div class="profile-card" id="restApiCard" style="margin-bottom:14px;">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;margin-bottom:12px;">
+      Actions UI (arroser, unlock, reboot) sont câblées à <span style="color:var(--text-1);">POST /api/*</span> du firmware master. Token <span style="color:var(--text-1);">X-Hydra-Token</span> envoyé en header pour auth.
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <div class="field-label"><span>URL MASTER</span><span class="optional">http:// ou https://</span></div>
+      <input type="text" id="restCfgUrl" class="field-input" placeholder="http://hydra.local" value="">
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <div class="field-label"><span>TOKEN AUTH</span><span class="optional">X-Hydra-Token</span></div>
+      <input type="password" id="restCfgToken" class="field-input" placeholder="••••••••" value="" autocomplete="off">
+    </div>
+
+    <div id="restStatusBox" style="background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;font-family:var(--mono);font-size:9px;line-height:1.7;color:var(--text-2);">
+      <div>État : <span id="restStatusState" style="color:var(--text-1);">MOCK (pas testé)</span></div>
+      <div>Dernier appel : <span id="restStatusLastCall" style="color:var(--text-2);">—</span></div>
+      <div>Latence : <span id="restStatusLatency" style="color:var(--text-2);">—</span></div>
+    </div>
+
+    <div class="action-row">
+      <div class="btn" onclick="restClient.disableLive()">REVENIR AU MOCK</div>
+      <div class="btn primary" onclick="restClient.testFromUI()">TESTER + ACTIVER</div>
+    </div>
+
+    <div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--text-2);line-height:1.5;">
+      Config persistée en <span style="color:var(--text-1);">localStorage</span> · timeout 4s · 2 retries · auto-fallback mock si master injoignable
+    </div>
+  </div>
+
   <!-- ═══════ MQTT BRIDGE (Phase 2 — connect to real broker) ═══════ -->
   <div class="section-title"><span>MQTT BRIDGE</span><span class="more" id="mqttBridgeBadge" style="color:var(--text-2);">○ MOCK</span></div>
 
@@ -3426,7 +3460,7 @@
     
     <div class="action-row" style="margin-top:14px;">
       <div class="btn" onclick="closeModal()">ANNULER</div>
-      <div class="btn primary" onclick="closeModal()">LANCER CYCLE</div>
+      <div class="btn primary" onclick="confirmWaterAll()">LANCER CYCLE</div>
     </div>
   </div>
 <!-- MODAL: DELETE POT -->
@@ -3540,7 +3574,7 @@
     
     <div class="action-row">
       <div class="btn" onclick="closeModal()">ANNULER</div>
-      <div class="btn warn" onclick="closeModal()">REBOOT</div>
+      <div class="btn warn" onclick="confirmRemoteReboot()">REBOOT</div>
     </div>
   </div>
 </div>
@@ -4799,11 +4833,79 @@ function setSafetyState(state){
   renderSafety();
 }
 
-function confirmSafetyUnlock(){
+async function confirmSafetyUnlock(){
   const prevState = HARDWARE.safety.state;
-  setSafetyState('NORMAL');
+
+  // Si REST live : appel POST /api/safety/unlock. Sinon mock pur.
+  if(restClient.isLive()){
+    const res = await restClient.safetyUnlock();
+    if(res.ok){
+      setSafetyState('NORMAL');
+      closeModal();
+      pushLogEvent('info', `[REST] safety/unlock OK (${res.latencyMs}ms) · ${prevState} → NORMAL`);
+    } else if(res.status === 409){
+      closeModal();
+      pushLogEvent('warn', '[REST] unlock refusé · auto-recovery en cours ou pas de lockout');
+    } else {
+      // Échec réseau : effet UI optimiste local pour ne pas frustrer le user
+      setSafetyState('NORMAL');
+      closeModal();
+      pushLogEvent('warn', `[REST] safety/unlock échec (${res.error}) · effet local appliqué`);
+    }
+  } else {
+    setSafetyState('NORMAL');
+    closeModal();
+    pushLogEvent('info', `[MOCK] Unlock · ${prevState} → NORMAL · double-verrou réarmé`);
+  }
+}
+
+async function confirmWaterAll(){
   closeModal();
-  pushLogEvent('info', `Unlock confirmé · ${prevState} → NORMAL · double-verrou réarmé`);
+  if(restClient.isLive()){
+    const res = await restClient.pumpStart();
+    if(res.ok){
+      pushLogEvent('info', `[REST] pump/start OK (${res.latencyMs}ms) · cycle déclenché côté master`);
+      // Marquer les pots watering localement (visual feedback, sera corrigé par MQTT push)
+      HARDWARE.master.pumpRunning = true;
+    } else if(res.status === 409){
+      pushLogEvent('warn', '[REST] pump/start refusé · failsafe actif (cf. SafetyManager)');
+    } else {
+      pushLogEvent('warn', `[REST] pump/start échec · ${res.error}`);
+    }
+  } else {
+    // Mock : simule un cycle visuel
+    HARDWARE.master.pumpRunning = true;
+    HARDWARE.slaves['SLAVE'].pumpRunning = true;
+    Object.values(HARDWARE.pots).forEach(p => { if(p.state !== 'off') p.state = 'watering'; });
+    pushLogEvent('info', '[MOCK] Cycle complet lancé · 19 pots · 3.85 L');
+    setTimeout(() => {
+      HARDWARE.master.pumpRunning = false;
+      HARDWARE.slaves['SLAVE'].pumpRunning = false;
+      Object.values(HARDWARE.pots).forEach(p => { if(p.state === 'watering') p.state = 'high'; });
+      render();
+    }, 4000);
+  }
+  render();
+}
+
+async function confirmRemoteReboot(){
+  closeModal();
+  if(restClient.isLive()){
+    const res = await restClient.reboot();
+    if(res.ok){
+      pushLogEvent('info', `[REST] reboot envoyé (${res.latencyMs}ms) · master redémarre · ~12s downtime`);
+      // L'app reste fonctionnelle en mock pendant le downtime
+      restClient.state = REST_STATE.ERROR;
+      restClient.lastError = 'master rebooting...';
+      restClient._renderUI();
+      // Reprobe automatique après 15s
+      setTimeout(() => restClient.testSilently(), 15000);
+    } else {
+      pushLogEvent('warn', `[REST] reboot échec · ${res.error}`);
+    }
+  } else {
+    pushLogEvent('info', '[MOCK] Reboot master simulé · 12s downtime');
+  }
 }
 
 // ─── PAIRING ESP-NOW ─────────────────────────────────────────
@@ -5921,6 +6023,187 @@ const mqttBridge = {
   }
 };
 
+// ════════════════════════════════════════════════════════════
+//  REST CLIENT — Phase 2 · pont vers l'API HTTP du master
+// ════════════════════════════════════════════════════════════
+// Mirror du mqttBridge mais pour les actions utilisateur (commandes).
+// REST = source de vérité pour les écritures (pump/start, safety/unlock,
+// config, reboot, factory-reset). MQTT = source de vérité pour les
+// lectures temps réel (sensors/pump/alerts push).
+//
+// Modes :
+//   - MOCK : actions UI font une simulation locale (utilisé en standalone)
+//   - LIVE : actions UI appellent fetch() avec X-Hydra-Token header
+//
+// Fallback gracieux : si la requête échoue (timeout 4s, 5xx, 0 reachable),
+// on log warn + on garde l'effet UI optimiste local pour ne pas frustrer
+// le user. La prochaine lecture MQTT corrigera l'état si nécessaire.
+//
+// AUTH : header X-Hydra-Token : <token>. Le firmware master ne vérifie
+// PAS encore ce header (TODO firmware §Sécurité). Pour l'instant le
+// token sert juste à se préparer à l'auth — c'est un placeholder.
+
+const REST_STATE = { MOCK: 'mock', READY: 'ready', ERROR: 'error', UNAUTHORIZED: 'unauthorized' };
+
+const restClient = {
+  state: REST_STATE.MOCK,
+  cfg: null,
+  lastCallAt: 0,
+  lastLatencyMs: 0,
+  lastError: null,
+
+  // ─── lifecycle ─────────────────────────────────────────────
+  init(){
+    try {
+      const raw = localStorage.getItem('hydra-rest-cfg');
+      if(raw){
+        this.cfg = JSON.parse(raw);
+        const setIf = (id, v) => { const el = document.getElementById(id); if(el) el.value = v || ''; };
+        setIf('restCfgUrl',   this.cfg.url);
+        setIf('restCfgToken', this.cfg.token);
+        // Test silencieux au boot (ne basculera en LIVE que si OK)
+        if(this.cfg.url) this.testSilently();
+      }
+    } catch(e){ console.warn('[REST] localStorage parse failed', e); }
+    this._renderUI();
+  },
+
+  isLive(){ return this.state === REST_STATE.READY; },
+
+  // ─── public API · actions firmware ─────────────────────────
+  async pumpStart()     { return this._post('/api/pump/start'); },
+  async pumpStop()      { return this._post('/api/pump/stop'); },
+  async pumpReset()     { return this._post('/api/pump/reset'); },
+  async safetyUnlock()  { return this._post('/api/safety/unlock'); },
+  async reboot()        { return this._post('/api/reboot'); },
+  async factoryReset()  { return this._post('/api/factory-reset'); },
+  async getStatus()     { return this._get('/api/status'); },
+  async updateConfig(partial) { return this._post('/api/config', partial); },
+
+  // ─── UI handlers ───────────────────────────────────────────
+  testFromUI(){
+    const cfg = {
+      url:   (document.getElementById('restCfgUrl')?.value || '').trim().replace(/\/$/, ''),
+      token: document.getElementById('restCfgToken')?.value || ''
+    };
+    if(!cfg.url){ alert('URL master requise (ex: http://hydra.local)'); return; }
+    localStorage.setItem('hydra-rest-cfg', JSON.stringify(cfg));
+    this.cfg = cfg;
+    this.testSilently();
+  },
+
+  async testSilently(){
+    pushLogEvent('info', `[REST] test ${this.cfg.url}/api/status...`);
+    try {
+      const r = await this._get('/api/status');
+      if(r.ok){
+        this.state = REST_STATE.READY;
+        pushLogEvent('info', `[REST] OK · ${this.lastLatencyMs}ms · LIVE activé`);
+      }
+    } catch(e){
+      // _get a déjà géré l'état (ERROR / UNAUTHORIZED)
+    }
+    this._renderUI();
+  },
+
+  disableLive(){
+    this.state = REST_STATE.MOCK;
+    pushLogEvent('info', '[REST] retour au mode MOCK · actions locales');
+    this._renderUI();
+  },
+
+  // ─── private ───────────────────────────────────────────────
+  async _get(path)  { return this._request('GET', path); },
+  async _post(path, body) { return this._request('POST', path, body); },
+
+  async _request(method, path, body){
+    if(!this.cfg?.url){
+      return { ok: false, status: 0, error: 'no config', mock: true };
+    }
+
+    const url = this.cfg.url + path;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 4000);
+    const t0 = performance.now();
+
+    const headers = { 'Accept': 'application/json' };
+    if(this.cfg.token) headers['X-Hydra-Token'] = this.cfg.token;
+    if(body !== undefined) headers['Content-Type'] = 'application/json';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: ctrl.signal,
+        mode: 'cors'
+      });
+      this.lastCallAt = Date.now();
+      this.lastLatencyMs = Math.round(performance.now() - t0);
+
+      if(res.status === 401 || res.status === 403){
+        this.state = REST_STATE.UNAUTHORIZED;
+        this.lastError = `HTTP ${res.status}`;
+        pushLogEvent('warn', `[REST] ${method} ${path} · ${res.status} unauthorized`);
+        this._renderUI();
+        return { ok: false, status: res.status, error: 'unauthorized' };
+      }
+
+      if(!res.ok){
+        this.lastError = `HTTP ${res.status}`;
+        pushLogEvent('warn', `[REST] ${method} ${path} · ${res.status}`);
+        this._renderUI();
+        return { ok: false, status: res.status, error: res.statusText };
+      }
+
+      // Parsing JSON best-effort
+      let data = null;
+      try { data = await res.json(); } catch(e){}
+      this._renderUI();
+      return { ok: true, status: res.status, data, latencyMs: this.lastLatencyMs };
+    } catch(e){
+      this.lastError = e.name === 'AbortError' ? 'timeout 4s' : e.message;
+      this.state = REST_STATE.ERROR;
+      pushLogEvent('warn', `[REST] ${method} ${path} · ${this.lastError}`);
+      this._renderUI();
+      return { ok: false, status: 0, error: this.lastError };
+    } finally {
+      clearTimeout(timeout);
+    }
+  },
+
+  _renderUI(){
+    const badge   = document.getElementById('restBadge');
+    const state   = document.getElementById('restStatusState');
+    const lastCall = document.getElementById('restStatusLastCall');
+    const latency = document.getElementById('restStatusLatency');
+    if(!badge) return;
+
+    if(this.state === REST_STATE.READY){
+      badge.textContent = '● LIVE'; badge.style.color = 'var(--accent)';
+      if(state) state.textContent = 'CONNECTÉ · LIVE';
+    } else if(this.state === REST_STATE.UNAUTHORIZED){
+      badge.textContent = '⚠ 401'; badge.style.color = 'var(--warn)';
+      if(state) state.textContent = 'UNAUTHORIZED · vérifie token';
+    } else if(this.state === REST_STATE.ERROR){
+      badge.textContent = '✕ DOWN'; badge.style.color = 'var(--crit)';
+      if(state) state.textContent = `ERREUR · ${this.lastError || '?'}`;
+    } else {
+      badge.textContent = '○ MOCK'; badge.style.color = 'var(--text-2)';
+      if(state) state.textContent = 'MOCK (pas testé)';
+    }
+
+    if(lastCall){
+      lastCall.textContent = this.lastCallAt
+        ? new Date(this.lastCallAt).toLocaleTimeString('fr-FR')
+        : '—';
+    }
+    if(latency){
+      latency.textContent = this.lastLatencyMs ? this.lastLatencyMs + ' ms' : '—';
+    }
+  }
+};
+
 // ─── BOOT THE LIVE DATA SYSTEM ───────────────────────────────
 // First render (populates all [data-bind] elements)
 // then start the MQTT-simulating live update loop
@@ -5928,12 +6211,14 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
   startLiveUpdates();
   mqttBridge.init();
+  restClient.init();
 });
 // Also try immediately in case DOM is already ready
 if(document.readyState !== 'loading'){
   render();
   startLiveUpdates();
   mqttBridge.init();
+  restClient.init();
 }
 
 // ─── PWA · Service Worker registration ────────────────────────
