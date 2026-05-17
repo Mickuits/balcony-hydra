@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-05-17 — Intégration prototype mobile comme couche client (PWA cible)
+
+**Décision** : ajouter une couche client mobile à l'architecture v4, sous forme de prototype HTML autonome (`mobile/balcony-hydra-mobile.html`) servant de référence UX. Cible long-terme : **PWA** (Progressive Web App) servie depuis Vercel/GitHub Pages, consommant l'API REST + MQTT du master.
+
+**Contexte** : le firmware est fonctionnellement complet mais l'interface utilisateur reste limitée au TFT 2.4" du master, au portail web embarqué (mobile-unfriendly) et à Telegram. Un design mobile haute fidélité de 14 écrans / 4 834 lignes a été livré 2026-05-17 — il faut décider comment l'intégrer.
+
+**Audit du proto** : un agent a inventorié les 14 écrans, 5 wizards, ~30 modaux et identifié **8 écarts** avec le firmware réel (3 slaves vs 1, capteur ADC dédié vs MUX, pompe par pot vs pompe par zone, pas de modes AUTO/SCHEDULED, pas d'UI safety/lockout, pas d'écran pairing, pompe submersible 5V mentionnée à tort, GPIO incohérents).
+
+**Alternatives évaluées** :
+- **A — Intégrer le HTML comme web portal embarqué** (sert depuis ESP32 PROGMEM) : zéro infra externe, mais le firmware atteint déjà 80 % de la flash master avec TFT + Telegram + Web ; 243 KB de HTML/CSS/JS supplémentaires impossible.
+- **B — PWA externe (Vercel/GitHub Pages)** : déploiement séparé, l'app discute en MQTT (broker public ou local) + REST direct vers le master. Indépendante du firmware, installable depuis Safari/Chrome mobile, offline-first via service worker. **Retenu**.
+- **C — App native React Native / Capacitor** : meilleure UX (push natifs, biométrie) mais refactor ~80 % du HTML existant, store submission (Apple Developer 99 €/an), build pipeline lourd. Reporté à Phase 3+.
+
+**Choix** : **B — PWA**. Le proto est déjà HTML/CSS/JS vanilla et mobile-first. Ajouter `manifest.webmanifest` + service worker + Workbox pour offline = ~50 lignes. Distribution sans store.
+
+**Conséquences** :
+- Création de `mobile/README.md` documentant inventaire des 14 écrans, écarts vs firmware, roadmap Phase 1/2/3.
+- Section "Couche client mobile" ajoutée à `docs/architecture_v4.md` avec topics MQTT consommés + table API REST consommée.
+- `TODO.md` reçoit une section dédiée "Mobile App" avec les 8 écarts à résoudre, les actions Phase 2 (MQTT.js + fetch), et les actions Phase 3 (PWA + push).
+- `README.md` repassé en v4 (était encore v3) et mentionne le proto mobile.
+- `CLAUDE.md` mis à jour : section documentation + ASCII de l'architecture avec la couche mobile au-dessus du master.
+- Le proto **n'est pas connecté au firmware** — c'est un mock UI. Les écarts ne sont pas des bugs : ce sont des choix de design à trancher (le proto exprime une UX désirable, pas une spec firmware).
+- Décision à venir Phase 2 : authentification (token statique côté master ? JWT ? mDNS-only sur réseau local ?).
+
+---
+
 ## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI
 
 **Décision** : le conflit `GPIO 18 = Relay sécurité ET VSPI CLK` côté maître sera résolu en passant le TFT ILI9341 + XPT2046 sur le bus **HSPI** (GPIO 14 CLK, 12 MISO, 13 MOSI — remappables). Le Relay reste sur GPIO 18. Décision **non encore implémentée** dans le firmware (pas de `TftDashboard` branché sur vrai hardware à ce jour).

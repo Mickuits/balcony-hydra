@@ -22,6 +22,15 @@ Système d'arrosage automatique **distribué maître/esclave** pour 20 pots rép
 ## Architecture système distribuée
 
 ```
+                ┌──────────────────────────────┐
+                │   APP MOBILE (PWA cible)     │
+                │   mobile/balcony-hydra-      │
+                │   mobile.html (prototype)    │
+                │   → MQTT sub + REST API      │
+                └──────────────┬───────────────┘
+                               │ WiFi (depuis tel mobile)
+                               │ REST + MQTT
+                               ▼
 INTÉRIEUR (maître USB secteur)          BALCON (esclave USB secteur)
 ┌──────────────────────┐               ┌──────────────────────┐
 │ ESP32 MAÎTRE         │   ESP-NOW     │ ESP32 ESCLAVE        │
@@ -35,7 +44,9 @@ INTÉRIEUR (maître USB secteur)          BALCON (esclave USB secteur)
 └──────────────────────┘
 ```
 
-Voir `docs/architecture_v4.md` pour l'architecture détaillée.
+> **Couche client mobile** : le prototype `mobile/balcony-hydra-mobile.html` est un mock UI/UX (14 écrans, données simulées). Roadmap d'intégration : remplacer le mock `startLiveUpdates()` par un client MQTT.js + brancher les actions sur l'API REST du master. Cible : **PWA** (Phase 3, voir `mobile/README.md`).
+
+Voir `docs/architecture_v4.md` pour l'architecture détaillée (incluant la couche client mobile).
 
 ## Architecture firmware
 
@@ -519,6 +530,8 @@ help     — Liste des commandes
 | `docs/hydra-sysml-diagrams.pdf` | Diagrammes SysML/UML système |
 | `docs/protocole_mise_en_service.pdf` | Protocole de mise en service terrain |
 | `docs/legacy/` | Documents v2/v3 archivés (obsolètes, traçabilité historique) |
+| `mobile/balcony-hydra-mobile.html` | Prototype mobile haute fidélité (HTML autonome, 14 écrans, mock UI/UX). Voir `mobile/README.md`. |
+| `mobile/README.md` | Inventaire des écrans, écarts vs firmware, roadmap PWA Phase 1/2/3 |
 
 ## TODO / Prochaines étapes
 

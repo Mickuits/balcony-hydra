@@ -1,6 +1,6 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-04-24
+> Dernière MAJ : 2026-05-17
 
 ## État du sprint
 
@@ -117,6 +117,45 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
 - [ ] Setup Grafana Cloud + InfluxDB pour dashboard historique
 - [ ] Docker compose pour broker MQTT local (Mosquitto)
 
+### Mobile App — prototype HTML livré 2026-05-17
+
+Prototype mobile haute fidélité disponible dans `mobile/balcony-hydra-mobile.html`
+(4 834 lignes, 14 écrans, mock UI/UX). Voir `mobile/README.md` pour l'inventaire complet.
+
+**Statut** : prototype design, **non connecté** au firmware (données simulées).
+
+#### Écarts à résoudre vs firmware v4 (8)
+
+- [ ] **Aligner le nombre de slaves** : proto = 3 (S01/S02/S03), firmware = 1 (balcon uniquement). Décider : aligner mock OU élargir firmware au pattern N-slaves.
+- [ ] **Capteurs MUX vs GPIO dédié** : refactoriser le wizard pot pour exposer le canal MUX (0-9) et non un GPIO.
+- [ ] **Pompes par zone vs par pot** : refactoriser le wizard pour choisir une zone (A balcon / B intérieur) au lieu d'un GPIO pompe.
+- [ ] **Ajouter selector mode arrosage** (AUTO / SCHEDULED / SOLAR / MANUAL) absent du proto.
+- [ ] **Ajouter écran safety** : état `SafetyManager` + bouton unlock confirmé (équivalent `/unlock` Telegram).
+- [ ] **Ajouter wizard pairing ESP-NOW** : flow premier setup + bouton `/pairing_reset`.
+- [ ] **Retirer l'option pompe submersible 5V** : seules les péristaltiques 12V sont supportées.
+- [ ] **Filtrer les pin-grids** selon les contraintes ESP32 réelles (ADC2 interdit avec WiFi, strapping pins, input-only).
+
+#### Intégration firmware (Phase 2)
+
+- [ ] **Remplacer `startLiveUpdates()` mock** par un client MQTT.js (sub `hydra/sensors`, `hydra/pump`, `hydra/alerts`)
+- [ ] **Brancher les actions UI** sur l'API REST du master (`POST /api/pump/start|stop`, `POST /api/safety/unlock`, `POST /api/config`, `GET /api/status`)
+- [ ] **Définir l'authentification** : token statique côté master, JWT, ou mDNS-only ? Décider.
+- [ ] **Reconnexion MQTT avec backoff** + bandeau "déconnecté" quand le master n'est plus joignable
+- [ ] **Web portal sert le HTML** : décider si on embarque l'app dans le firmware (PROGMEM) ou si on la sert depuis Vercel/GitHub Pages
+- [ ] **Synchroniser les topics MQTT** : le proto référence `/hydra/state` et `/hydra/p07/+` qui n'existent pas dans le firmware. Aligner.
+
+#### Distribution (Phase 3)
+
+- [ ] **PWA** : manifest.webmanifest + service worker + icônes — option recommandée vu zéro dépendance JS
+- [ ] **Push notifications** : FCM ou APNs pour alertes critiques (tank crit, thermal lockout, esclave perdu)
+- [ ] **OU alternatives** : Capacitor (wrap HTML) ou React Native (refactor ~80%). Trancher après Phase 2.
+
+#### Documentation mobile à produire
+
+- [ ] `docs/mobile_api_contract.md` : contrat REST + MQTT topics consommés par l'app
+- [ ] `docs/mobile_screens.md` : storyboard des 14 écrans avec flux navigation détaillé
+- [ ] Screenshots / GIFs du proto dans le README principal
+
 ## Bugs ouverts
 
 **Aucun.** Tous les bugs préexistants découverts durant la session 2026-04-07/08 ont été
@@ -130,6 +169,14 @@ Découverte que le firmware slave n'avait JAMAIS compilé pour ESP32 depuis `732
 massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firmware slave entièrement
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
+
+### 2026-05-17 — Intégration prototype mobile
+
+Ajout du prototype mobile HTML haute fidélité (`mobile/balcony-hydra-mobile.html`, 4 834 lignes,
+14 écrans, 5 wizards). Audit complet vs firmware v4 → 8 écarts documentés.
+Création de `mobile/README.md` (inventaire + roadmap Phase 1/2/3), mise à jour de
+`README.md` (v3 → v4), `CLAUDE.md` (référence + structure repo) et `docs/architecture_v4.md`
+(couche client mobile).
 
 ### 2026-04-08 — Finalisation projet (25+ commits)
 

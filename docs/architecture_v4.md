@@ -1,10 +1,18 @@
 # Architecture v4 — Système Distribué Maître/Esclave
 
 > Pivot architectural majeur: 2 ESP32, communication sans fil ESP-NOW + MQTT fallback
+> + une couche client mobile (PWA cible) au-dessus du master.
 
 ## Vue d'ensemble
 
 ```
+                ┌─────────────────────────────────────┐
+                │  APP MOBILE (PWA cible)              │
+                │  mobile/balcony-hydra-mobile.html    │  ← prototype HTML 14 écrans
+                │  MQTT subscribe + REST API           │     (mock, données simulées)
+                └──────────────────┬──────────────────┘
+                                   │ WiFi
+                                   ▼
 ┌─────────────────────────────────────────────────────────┐
 │                    APPARTEMENT (intérieur)                │
 │                                                          │
@@ -219,12 +227,84 @@ Calcul jour par jour avec changement de mois pour précision saisonnière:
   - Janvier: 50mL → 22s
   - Succulente 3L avec goutteur 2 L/h: Août: 25mL → 45s, Janvier: 3mL → 5s (plancher)
 
+## Couche client mobile
+
+Le système v4 introduit une couche client mobile **au-dessus** du master, à utiliser depuis un téléphone connecté au même réseau WiFi (ou via un broker MQTT public).
+
+### Statut actuel — prototype HTML
+
+`mobile/balcony-hydra-mobile.html` : **prototype haute fidélité** mobile-first, autonome.
+- 14 écrans (dashboard, pots, tanks, stats, system, profiles, configurator, wizards…)
+- 4 834 lignes / 243 KB, zéro dépendance JS (uniquement Google Fonts)
+- Données simulées par boucle `setInterval(3000)` → mock MQTT/ESP-NOW
+- Voir `mobile/README.md` pour l'inventaire complet et la roadmap
+
+### Architecture cible
+
+```
+┌──────────────────────────────────────────────┐
+│         MOBILE APP (PWA)                      │
+│  ┌────────────────────────────────────────┐  │
+│  │ UI : 14 écrans React/Vanilla           │  │
+│  │ State : POTS, TANKS, PROFILES, SYSTEM  │  │
+│  └──────────┬───────────────────┬─────────┘  │
+│             │                   │            │
+│  ┌──────────▼───────┐  ┌────────▼─────────┐  │
+│  │ MQTT.js client    │  │ REST client      │  │
+│  │ (sub topics live) │  │ (commandes)      │  │
+│  └──────────┬────────┘  └────────┬─────────┘  │
+└─────────────┼─────────────────────┼───────────┘
+              │ WebSocket/TCP        │ HTTPS
+              ▼                      ▼
+        Broker MQTT          ESP32 Master Web API
+        (Mosquitto)          AsyncWebServer
+              ▲                      │
+              │ publish               │
+              └──────── ESP32 Master ──┘
+```
+
+### Topics MQTT consommés
+
+| Topic | Direction | Usage |
+|-------|-----------|-------|
+| `hydra/sensors` | sub | KPIs dashboard, grille pots, graphs |
+| `hydra/pump` | sub | État pompes (idle/running/blocked) |
+| `hydra/alerts` | sub | Bannières alertes, log live |
+| `hydra/cmd/water` | pub | Déclenche arrosage (modal water) |
+| `hydra/cmd/stop` | pub | Arrêt pompe |
+| `hydra/cmd/reset` | pub | Reset failsafe |
+
+> **Écart à corriger** : le proto référence des topics fictifs (`/hydra/state`, `/hydra/p07/+`) qui ne correspondent pas au firmware. Voir `TODO.md` §Mobile App.
+
+### API REST consommée
+
+| Méthode | Route | Action UI |
+|---------|-------|-----------|
+| GET | `/api/status` | Refresh dashboard (poll si MQTT KO) |
+| GET | `/api/sensors` | Drill-down détail capteurs |
+| GET | `/api/config` | Charger configuration éditable |
+| POST | `/api/config` | Sauvegarder modifs settings |
+| POST | `/api/pump/start` | Bouton "ARROSER xxxml" |
+| POST | `/api/pump/stop` | Bouton "STOP" |
+| POST | `/api/pump/reset` | Bouton "Reset failsafe" |
+| GET | `/api/safety/status` | Écran sécurité (à ajouter au proto) |
+| POST | `/api/safety/unlock` | Bouton "/unlock" (à ajouter au proto) |
+| POST | `/api/reboot` | Action "Reboot master" |
+
+### Phases d'intégration
+
+- **Phase 1 — Alignement design** : corriger 8 écarts (slaves, MUX, modes, safety, pairing, GPIO, pompes). Détaillé dans `mobile/README.md`.
+- **Phase 2 — Connexion live** : MQTT.js + fetch API REST, auth à définir (token, JWT, ou mDNS-only ?).
+- **Phase 3 — Distribution** : PWA (manifest + service worker) recommandée, OU Capacitor / React Native si besoin de notif push natives.
+
 ## Structure repo
 
 ```
 balcony-hydra/
 ├── CLAUDE.md
 ├── README.md
+├── TODO.md
+├── DECISIONS.md
 ├── LICENSE
 ├── docs/
 │   ├── BOM_v4_secteur.xlsx
@@ -275,6 +355,9 @@ balcony-hydra/
 │           ├── SafetyLocal/        # Failsafes locaux (pas de relay)
 │           ├── StatusLED/
 │           └── DegradedMode/       # Arrosage autonome si maître perdu
+├── mobile/                         # ← Nouveau v4
+│   ├── balcony-hydra-mobile.html   # Prototype haute fidélité 14 écrans
+│   └── README.md                   # Inventaire + écarts + roadmap PWA
 └── tools/
 ```
 
