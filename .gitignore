@@ -29,6 +29,15 @@ firmware/include/secrets.h
 # Claude Code internal state (agent memory, settings locales)
 .claude/
 
+# Mobile app — build artifacts (Vite outputs)
+mobile-app/node_modules/
+mobile-app/dist/
+mobile-app/dist-standalone/
+mobile-app/coverage/
+mobile-app/playwright-report/
+mobile-app/test-results/
+mobile-app/.vite/
+
 # Mosquitto broker — secrets et état runtime
 infrastructure/mosquitto/config/passwd
 infrastructure/mosquitto/config/acl

@@ -1,0 +1,19 @@
+/* Design tokens — variables CSS racine */
+:root {
+  --bg-0: #0a0d0c;
+  --bg-1: #111614;
+  --bg-2: #171e1b;
+  --bg-3: #1f2724;
+  --line: #2a322e;
+  --line-bright: #3a4540;
+  --text-0: #e8efe9;
+  --text-1: #9aa8a0;
+  --text-2: #5e6b65;
+  --accent: #7cff5a;
+  --accent-dim: #4aa838;
+  --warn: #ffb547;
+  --crit: #ff5c5c;
+  --water: #5ad3ff;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+}

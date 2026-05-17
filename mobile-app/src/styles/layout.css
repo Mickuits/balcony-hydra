@@ -1,0 +1,55 @@
+/* Layout principal — shell de l'app */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport height (iOS Safari) */
+  width: 100%;
+  position: relative;
+}
+
+.screen-wrap {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 16px 80px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen-wrap.active {
+  display: flex;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.header h1 span {
+  color: var(--accent);
+}
+
+.header .meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-2);
+  text-align: right;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+}
+
+.header .meta b {
+  color: var(--text-0);
+  font-weight: 500;
+}

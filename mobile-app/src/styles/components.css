@@ -1,0 +1,75 @@
+/* Composants partagés (sys-status, mqtt-banner, btn, etc.) */
+.sys-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+
+/* MQTT banner sticky-top */
+.mqtt-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--text-1);
+}
+
+.mqtt-banner[hidden] {
+  display: none;
+}
+
+.mqtt-banner.connected {
+  background: rgba(124, 255, 90, 0.08);
+  border-bottom-color: rgba(124, 255, 90, 0.25);
+  color: var(--accent);
+}
+
+.mqtt-banner.connecting {
+  background: rgba(255, 176, 46, 0.08);
+  border-bottom-color: rgba(255, 176, 46, 0.25);
+  color: var(--warn);
+}
+
+.mqtt-banner.error {
+  background: rgba(255, 92, 92, 0.08);
+  border-bottom-color: rgba(255, 92, 92, 0.25);
+  color: var(--crit);
+}
+
+.mqtt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.mqtt-banner-cfg {
+  margin-left: auto;
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.7;
+}
+
+.mqtt-banner-cfg:hover {
+  opacity: 1;
+}

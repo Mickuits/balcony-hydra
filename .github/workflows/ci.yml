@@ -165,3 +165,60 @@ jobs:
           echo "Checking shared constants..."
           grep -c 'constexpr' firmware/common/config_common.h
           echo "Constants defined ✅"
+
+  # ----------------------------------------------------------------
+  # Mobile app — Vite + TypeScript + Vitest (introduced 2026-05-18,
+  # refactor production-quality du proto HTML legacy)
+  # ----------------------------------------------------------------
+  mobile-app:
+    name: Mobile app (TS + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests + coverage
+        run: npm run test:coverage
+
+      - name: Build PWA
+        run: npm run build
+
+      - name: Build standalone (single-file)
+        run: npm run build:standalone
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-coverage-${{ github.sha }}
+          path: mobile-app/coverage
+          retention-days: 30
+
+      - name: Upload PWA build
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-pwa-${{ github.sha }}
+          path: mobile-app/dist
+          retention-days: 30
