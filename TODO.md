@@ -170,13 +170,21 @@ massif (5300 lignes v3 supprimées), 5 modules SIL réparés côté master, firm
 réparé, lib registry references cassées corrigées (Telegram + XPT2046 → GitHub tags), 91/91 tests
 natifs en place.
 
-### 2026-05-17 — Intégration prototype mobile
+### 2026-05-17 — Intégration prototype mobile + fix filtre stats
 
 Ajout du prototype mobile HTML haute fidélité (`mobile/balcony-hydra-mobile.html`, 4 834 lignes,
 14 écrans, 5 wizards). Audit complet vs firmware v4 → 8 écarts documentés.
 Création de `mobile/README.md` (inventaire + roadmap Phase 1/2/3), mise à jour de
 `README.md` (v3 → v4), `CLAUDE.md` (référence + structure repo) et `docs/architecture_v4.md`
 (couche client mobile).
+
+**Fix bug onglets période STATS (24H/7J/30J/SAISON)** : les onglets étaient purement
+visuels, sans handler ni binding. KPIs hardcodés sur 7d. Implémenté `currentStatsPeriod`
++ `STATS_PERIOD` (factor de scaling depuis baseline 7d) + 4 bindings période-aware
+(`statsPeriod.totalLiters|totalEvents|totalSkipped|alerts`) + fonction `setStatsPeriod()`
+qui toggle l'onglet actif, update les labels (header, ALERTES, section title) et re-rend
+bindings + ranking. Le ranking TOP CONSO scale proportionnellement. Limitations connues :
+bar chart "Volume par jour" et heatmap 7×24 restent sur 7d (SVG en dur, mock pur).
 
 ### 2026-04-08 — Finalisation projet (25+ commits)
 

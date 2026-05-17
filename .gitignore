@@ -25,3 +25,6 @@ desktop.ini
 
 # Secrets (ne jamais committer)
 firmware/include/secrets.h
+
+# Claude Code internal state (agent memory, settings locales)
+.claude/
