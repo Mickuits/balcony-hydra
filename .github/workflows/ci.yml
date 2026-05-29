@@ -16,7 +16,9 @@ name: Balcony Hydra CI
 # Couverture firmware gcov + seuil bloquant (2026-05-29) : job firmware-coverage
 #  (gcovr sur l'env native_cov, hard-gate lignes — master 65 %, slave 95 %).
 #
-# RESTE (nécessite réseau/HW) : SHA-pin de chaque `uses:` (tags @vN → SHA).
+# SHA-pin (2026-05-29) : chaque `uses:` est épinglé sur le commit SHA complet
+#  (commentaire = version lisible). Empêche le déplacement silencieux d'un tag
+#  mobile (@vN) — supply-chain hardening. Bump = changer SHA + commentaire.
 # ============================================================
 
 on:
@@ -47,11 +49,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
       - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         # HARD-GATE : gratuit sur repo public / compte perso (le repo est public
         # depuis 2026-05-29). Un secret committé bloque la CI.
         env:
@@ -66,8 +68,8 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -85,8 +87,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/dependency-review-action@e58c696e52cac8e62d61cc21fda89565d71505d7 # v4.3.1
         # HARD-GATE : dependency graph gratuit sur repo public. Bloque l'ajout
         # d'une dépendance vulnérable dans une PR.
 
@@ -98,26 +100,26 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: github/codeql-action/init@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
         with:
           languages: javascript-typescript
         # HARD-GATE : CodeQL gratuit sur repo public. Une alerte de sécurité
         # de gravité error fait échouer la PR.
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
 
   # ---------------- Build firmware (reproductible) ----------------
   build-master:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Cache PlatformIO
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.platformio
           key: pio-master-${{ hashFiles('firmware/master/platformio.ini') }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.11'
       - name: Install PlatformIO (épinglé)
@@ -130,7 +132,7 @@ jobs:
         run: cd firmware/master && pio run -e master -t size
       - name: Upload master .bin artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: firmware-master-${{ github.sha }}
           path: |
@@ -145,13 +147,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Cache PlatformIO
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.platformio
           key: pio-slave-${{ hashFiles('firmware/slave/platformio.ini') }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.11'
       - name: Install PlatformIO (épinglé)
@@ -164,7 +166,7 @@ jobs:
         run: cd firmware/slave && pio run -e slave -t size
       - name: Upload slave .bin artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: firmware-slave-${{ github.sha }}
           path: |
@@ -189,8 +191,8 @@ jobs:
       matrix:
         firmware: [master, slave]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.11'
       - name: Install PlatformIO (épinglé)
@@ -217,13 +219,13 @@ jobs:
           - firmware: slave
             min_line: 95
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Cache PlatformIO
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.platformio
           key: pio-${{ matrix.firmware }}-${{ hashFiles(format('firmware/{0}/platformio.ini', matrix.firmware)) }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.11'
       - name: Install PlatformIO (épinglé) + gcovr
@@ -232,7 +234,7 @@ jobs:
         run: bash scripts/firmware_coverage.sh firmware/${{ matrix.firmware }} ${{ matrix.min_line }}
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: firmware-coverage-${{ matrix.firmware }}-${{ github.sha }}
           path: |
@@ -247,7 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Verify Protocol.h consistency
         run: |
           echo "Checking Protocol.h is identical in common/"
@@ -288,7 +290,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Digital-twin ESP-NOW (round-trip + pannes + rejet en-tête)
         run: |
           g++ -std=c++17 -I firmware/common -I firmware/master/test/mocks \
@@ -306,9 +308,9 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -329,14 +331,14 @@ jobs:
         run: npm run build:standalone
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mobile-coverage-${{ github.sha }}
           path: mobile-app/coverage
           retention-days: 30
       - name: Upload PWA build
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mobile-pwa-${{ github.sha }}
           path: mobile-app/dist

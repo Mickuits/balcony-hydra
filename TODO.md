@@ -14,13 +14,13 @@
 
 **Au signal « start pio », faire dans l'ordre :**
 1. **Vérifier l'environnement** : `pio --version` ; `cd firmware/master && pio run -e master` ; `pio test -e native` (≈154 tests) ; idem `firmware/slave`. Si `pio` échoue (réseau non ouvert), le signaler.
-2. **Reprendre les items CI restants** (désormais faisables ; **vérifier en local AVANT push**, 1 PR par item, squash-merge) :
+2. ✅ **Items CI restants — TOUS FAITS (2026-05-29, session « start pio »)** :
    - ✅ **P1 — couverture firmware gcov** (FAIT 2026-05-29) : env `native_cov` (`--coverage` + pre-script SCons pour `-lgcov`), `scripts/firmware_coverage.sh` + `gcovr`, job CI `firmware-coverage` hard-gate. Baselines : master 68,4 % / slave 100 %. Seuils escalier : master 65 %, slave 95 % (cf. DECISIONS.md).
    - ✅ **P2 — mode dégradé esclave E2E** (FAIT 2026-05-29) : tests Unity T5/T6/T7 dans `firmware/slave/test/test_main.cpp` exerçant `DegradedMode` (maître perdu → arrosage sur seuils NVS) + `SafetyLocal`, contre un mock HAL (millis contrôlable + NVS en mémoire). 32/32 tests slave verts. **Dernier trou SIL comblé.**
-   - **P1 — SHA-pin des actions** : si `api.github.com` accessible (authentifié), résoudre tags→SHA et épingler chaque `uses:` du workflow.
+   - ✅ **P1 — SHA-pin des actions** (FAIT 2026-05-29) : les 9 actions du workflow épinglées sur commit SHA complet (`@<sha> # vN`), résolus via `git ls-remote`. `dependency-review-action` épinglé sur la release v4.3.1 (pas de tag `v4` mobile, juste une branche).
 3. **Workflow PR** : branch protection active sur `main` (checks requis + PR obligatoire, approvals=0). Brancher depuis `origin/main`, pousser, ouvrir PR, merger en squash quand vert.
 
-**État CI au 2026-05-29** : niveau 🟠 3 industriel. Mergés : P0 (#2 reproductibilité+durcissement), P1 (#3 ABI guard+couverture+npm audit ; #5 scans hard-gate repo public), P2 (#6 digital-twin ESP-NOW). Repo **public**. Garde-fous : ABI ESP-NOW (`tools/protocol_abi_check.cpp`), twin (`tools/protocol_twin_test.cpp`), 10 jobs hard-gate.
+**État CI au 2026-05-29** : niveau 🟠 3 industriel. Mergés : P0 (#2 reproductibilité+durcissement), P1 (#3 ABI guard+couverture+npm audit ; #5 scans hard-gate repo public), P2 (#6 digital-twin ESP-NOW). **Session « start pio » 2026-05-29** : +couverture firmware gcov (job `firmware-coverage`), +mode dégradé slave E2E (32 tests), +SHA-pin des 9 actions → **11 jobs**. Repo **public**. Garde-fous : ABI ESP-NOW (`tools/protocol_abi_check.cpp`), twin (`tools/protocol_twin_test.cpp`), couverture firmware (gcovr), actions SHA-pinnées.
 
 ## État du sprint
 
