@@ -1,49 +1,127 @@
 name: Balcony Hydra CI
 
+# ============================================================
+# Durcissement P0 (2026-05-29) — voir DECISIONS.md
+#  - reproductibilité : platform + lib_deps + platformio ÉPINGLÉS
+#  - sécurité : secrets-scan, deps (npm audit), CodeQL, dependency-review
+#  - durcissement : permissions least-privilege, concurrency, timeouts
+#  - couverture déclencheur : firmware/** + mobile-app/** + workflows
+#
+# NOTE escalier (cf. lint) : les scans sécurité démarrent NON BLOQUANTS
+# (continue-on-error) pour rester verts ; les passer en hard-gate une fois
+# stabilisés (retirer continue-on-error).
+#
+# TODO durcissement supply-chain : épingler chaque `uses:` par SHA de commit
+# (pas par tag mutable @vN). Fait en P1.
+# ============================================================
+
 on:
   push:
     branches: [main, develop]
-    paths: ['firmware/**']
+    paths: ['firmware/**', 'mobile-app/**', '.github/workflows/**']
   pull_request:
     branches: [main]
-    paths: ['firmware/**']
+    paths: ['firmware/**', 'mobile-app/**', '.github/workflows/**']
+  workflow_dispatch:
+
+# Least privilege par défaut (un job qui a besoin de plus l'élève localement).
+permissions:
+  contents: read
+
+# Annule les runs obsolètes sur une même réf (économie + feedback rapide).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIO_VERSION: "6.1.19"   # PlatformIO Core épinglé (reproductibilité)
 
 jobs:
-  build-master:
+  # ---------------- Sécurité : scan de secrets ----------------
+  secrets-scan:
+    name: Secrets scan (gitleaks)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true   # escalier : passer en bloquant après validation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup PlatformIO
+  # ---------------- Sécurité : dépendances ----------------
+  deps-scan:
+    name: Deps vuln scan (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile-app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: npm audit (high+)
+        continue-on-error: true   # escalier ; réactive l'audit désactivé auparavant
+        run: npm audit --audit-level=high
+      # TODO P1 : osv-scanner pour les libs firmware (PlatformIO) — pas de feed
+      # CVE simple aujourd'hui ; à instrumenter séparément.
+
+  dependency-review:
+    name: Dependency review (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/dependency-review-action@v4
+        continue-on-error: true   # nécessite dependency graph/GHAS selon visibilité repo
+
+  codeql:
+    name: CodeQL (JS/TS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+        continue-on-error: true   # code scanning peut être indisponible (repo privé sans GHAS)
+      - uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+
+  # ---------------- Build firmware (reproductible) ----------------
+  build-master:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache PlatformIO
         uses: actions/cache@v5
         with:
           path: ~/.platformio
           key: pio-master-${{ hashFiles('firmware/master/platformio.ini') }}
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
-      - name: Install PlatformIO
-        run: pip install platformio
-
+      - name: Install PlatformIO (épinglé)
+        run: pip install "platformio==${PIO_VERSION}"
       - name: Build Master Firmware
-        run: |
-          cd firmware/master
-          pio run -e master
-
+        run: cd firmware/master && pio run -e master
       - name: Run Master Unit Tests (native — no hardware)
-        run: |
-          cd firmware/master
-          pio test -e native --verbose
-
+        run: cd firmware/master && pio test -e native --verbose
       - name: Check firmware size
-        run: |
-          cd firmware/master
-          pio run -e master -t size
-
-      # Upload firmware.bin sur builds de main → permet de re-flasher
-      # une release passée sans rebuild. Retention 30j.
+        run: cd firmware/master && pio run -e master -t size
       - name: Upload master .bin artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -59,39 +137,25 @@ jobs:
 
   build-slave:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-
-      - name: Setup PlatformIO
+      - name: Cache PlatformIO
         uses: actions/cache@v5
         with:
           path: ~/.platformio
           key: pio-slave-${{ hashFiles('firmware/slave/platformio.ini') }}
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
-      - name: Install PlatformIO
-        run: pip install platformio
-
+      - name: Install PlatformIO (épinglé)
+        run: pip install "platformio==${PIO_VERSION}"
       - name: Build Slave Firmware
-        run: |
-          cd firmware/slave
-          pio run -e slave
-
+        run: cd firmware/slave && pio run -e slave
       - name: Run Slave Unit Tests (native — no hardware)
-        run: |
-          cd firmware/slave
-          pio test -e native --verbose
-
+        run: cd firmware/slave && pio test -e native --verbose
       - name: Check firmware size
-        run: |
-          cd firmware/slave
-          pio run -e slave -t size
-
-      # Upload firmware.bin sur builds de main → permet de re-flasher
-      # une release passée sans rebuild. Retention 30j.
+        run: cd firmware/slave && pio run -e slave -t size
       - name: Upload slave .bin artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -106,46 +170,33 @@ jobs:
           if-no-files-found: warn
 
   # ----------------------------------------------------------------
-  # lint — pio check (cppcheck) on both firmwares.
-  #
-  # HARD GATE en escalier :
-  #   2026-05-18 (am) : --fail-on-defect=high
-  #   2026-05-18 (pm) : --fail-on-defect=medium  ← actuel
-  #   (futur)         : --fail-on-defect=low (quand medium reste vert
-  #                      sur plusieurs commits consécutifs)
-  #
-  # Si le bump fait rouge le CI : revert à --fail-on-defect=high et
-  # fixer les defects MEDIUM dans un commit séparé avant de re-bumper.
-  # Le palier intermédiaire (high → medium → low) évite un mur de
-  # warnings à traiter d'un coup.
+  # lint — pio check (cppcheck) sur les deux firmwares. HARD GATE.
+  #   escalier : high (2026-05-18 am) → medium (actuel) → low (futur).
+  #   Si un bump rougit la CI : revert à high + fixer les MEDIUM à part.
   # ----------------------------------------------------------------
   lint:
     name: Lint (${{ matrix.firmware }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         firmware: [master, slave]
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
-      - name: Install PlatformIO
-        run: pip install platformio
-
+      - name: Install PlatformIO (épinglé)
+        run: pip install "platformio==${PIO_VERSION}"
       - name: Run pio check (${{ matrix.firmware }})
-        run: |
-          cd firmware/${{ matrix.firmware }}
-          pio check --skip-packages --fail-on-defect=medium
+        run: cd firmware/${{ matrix.firmware }} && pio check --skip-packages --fail-on-defect=medium
 
   protocol-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-
       - name: Verify Protocol.h consistency
         run: |
           echo "Checking Protocol.h is identical in common/"
@@ -159,54 +210,46 @@ jobs:
             echo "Protocol.h MISSING ❌"
             exit 1
           fi
-
       - name: Check config_common.h
         run: |
           echo "Checking shared constants..."
           grep -c 'constexpr' firmware/common/config_common.h
           echo "Constants defined ✅"
+      # TODO P1 : durcir — static_assert(sizeof(...)) sur les structs ESP-NOW
+      # + comparaison à un golden ABI (offsets/packing) master↔esclave.
 
   # ----------------------------------------------------------------
-  # Mobile app — Vite + TypeScript + Vitest (introduced 2026-05-18,
-  # refactor production-quality du proto HTML legacy)
+  # Mobile app — Vite + TypeScript + Vitest
   # ----------------------------------------------------------------
   mobile-app:
     name: Mobile app (TS + tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile-app
     steps:
       - uses: actions/checkout@v5
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: mobile-app/package-lock.json
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Lint
         run: npm run lint
-
       - name: Format check
         run: npm run format:check
-
       - name: Unit tests + coverage
         run: npm run test:coverage
-
       - name: Build PWA
         run: npm run build
-
       - name: Build standalone (single-file)
         run: npm run build:standalone
-
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -214,7 +257,6 @@ jobs:
           name: mobile-coverage-${{ github.sha }}
           path: mobile-app/coverage
           retention-days: 30
-
       - name: Upload PWA build
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-artifact@v4
