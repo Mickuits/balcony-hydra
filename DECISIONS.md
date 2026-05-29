@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-05-29 — Résolution effective du conflit GPIO 18 : remap SPI minimal (CLK→19, MISO→35)
+
+**Décision** : conflit `GPIO 18 = Relay sécurité ET SPI CLK` résolu **en pratique** par un remap minimal du bus SPI TFT/XPT2046, et non par le pinout HSPI brut esquissé le 2026-04-24.
+- **SPI CLK : 18 → 19**
+- **SPI MISO : 19 → 35** (GPIO 35 est input-only, ce qui est parfaitement valide pour un MISO = entrée côté ESP32 ; libère le 19 pour le CLK)
+- **SPI MOSI : 23** (inchangé) · **TFT_CS 13 / TFT_DC 12 / TOUCH_CS 15** (inchangés)
+- **Relay : reste sur GPIO 18**, désormais sans collision.
+
+**Contexte / pourquoi on dévie de la note du 2026-04-24** : le remap HSPI proposé alors (`SCLK=14, MISO=12, MOSI=13, CS=15, DC=2`) était une esquisse non vérifiée. Confronté à `config_master.h`, il **entre en collision** avec deux signaux existants :
+- `TFT_SCLK=14` ⟷ `PIN_US1_TRIG=14` (trigger ultrason)
+- `TFT_DC=2` ⟷ `PIN_LED_B=2` (LED RGB bleu)
+
+Sur DevKit 30 pins, il n'existe **aucun GPIO output libre** : déplacer tout le bus créerait une cascade de conflits. Le remap retenu ne touche que 2 signaux, n'utilise qu'un pin input-only déjà libre (35), et ne déplace pas le relay. C'est la solution de moindre risque.
+
+**Alternatives écartées** :
+- *HSPI par défaut (note 04-24)* : casse US TRIG (14) + LED_B (2). Rejeté.
+- *Déplacer le Relay ailleurs* : aucun pin output libre. Rejeté.
+- *GPIO expander I2C* : surcoût BOM + complexité, non justifié pour 1 signal. Rejeté.
+
+**Conséquences** :
+- Appliqué dans `firmware/master/include/config_master.h` (`PIN_TFT_SCLK=19`, `PIN_TFT_MISO=35`), `firmware/master/platformio.ini` (flags TFT_eSPI `USER_SETUP_LOADED` fusionnés dans `build_flags`), `docs/wiring_master.svg`, `CLAUDE.md` (table pins).
+- ⚠ **À valider au 1er flash avec TFT branché** : init écran (driver/fréquence SPI) + lecture tactile XPT2046 sur MISO=35. Procédure : `docs/hardware_bringup_checklist.md §0`.
+- Aucun test SIL impacté (TftDashboard n'est pas instancié en natif, cf. `lib_ignore`).
+- **Remplace** la résolution esquissée le 2026-04-24 (HSPI) ci-dessous.
+
+---
+
 ## 2026-05-17 — Intégration prototype mobile comme couche client (PWA cible)
 
 **Décision** : ajouter une couche client mobile à l'architecture v4, sous forme de prototype HTML autonome (`mobile/balcony-hydra-mobile.html`) servant de référence UX. Cible long-terme : **PWA** (Progressive Web App) servie depuis Vercel/GitHub Pages, consommant l'API REST + MQTT du master.
@@ -32,7 +59,11 @@
 
 ---
 
-## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI
+## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI  [⚠ REMPLACÉE par l'entrée 2026-05-29]
+
+> ⚠ **Note 2026-05-29** : le pinout HSPI esquissé ci-dessous (`SCLK=14, DC=2`)
+> entrait en collision avec `PIN_US1_TRIG=14` et `PIN_LED_B=2`. Remplacé par le
+> remap minimal CLK→19 / MISO→35 (voir entrée 2026-05-29). Conservée pour traçabilité.
 
 **Décision** : le conflit `GPIO 18 = Relay sécurité ET VSPI CLK` côté maître sera résolu en passant le TFT ILI9341 + XPT2046 sur le bus **HSPI** (GPIO 14 CLK, 12 MISO, 13 MOSI — remappables). Le Relay reste sur GPIO 18. Décision **non encore implémentée** dans le firmware (pas de `TftDashboard` branché sur vrai hardware à ce jour).
 

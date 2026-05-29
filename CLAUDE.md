@@ -152,14 +152,16 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 | 32,33,25,26 | MUX S0-S3 | Adresse partagée |
 | 4 | MUX EN | Active LOW |
 | 27 | MOSFET Pompe B | Pull-down 10kΩ obligatoire |
-| 18 | Relay sécurité | ⚠ **CONFLIT VSPI CLK** — décision actée (DECISIONS.md 2026-04-24) : TFT→HSPI ; **non encore implémentée** (config_master.h + SVG montrent encore le VSPI, à remapper au 1er flash HW) |
+| 18 | Relay sécurité | ✅ Conflit CLK **résolu** (2026-05-29) : bus SPI TFT remappé (CLK→19, MISO→35). Relay seul sur 18. |
 | 21, 22 | I2C SDA/SCL | DS3231 0x68, pull-up 4.7kΩ |
 | 5 | Bouton poussoir | INPUT_PULLUP, ISR FALLING, anti-rebond 300ms |
 | 16, 17, 2 | LED RGB (R, G, B) | LEDC PWM ch4/5/6 — déplacée pour éviter SPI |
 | 13 | TFT CS | ILI9341 |
 | 12 | TFT DC | (strapping — forcer état safe au boot) |
 | 15 | TOUCH CS | XPT2046 |
-| 23, 19, 18 | VSPI MOSI/MISO/CLK | TFT + Touch — **CLK en conflit avec Relay** |
+| 23 | SPI MOSI | TFT + Touch |
+| 35 | SPI MISO | TFT + Touch (input-only, valide pour MISO) |
+| 19 | SPI CLK | TFT + Touch — remappé depuis 18 pour libérer le relay |
 
 ### Table Esclave (balcon, zone A)
 
@@ -445,7 +447,7 @@ struct PumpStatus {
 - [x] Implémenter `Protocol.h` (structs messages ESP-NOW bidirectionnels)
 - [x] Firmware esclave: `EspNowSlave`, `DegradedMode`, `SafetyLocal`
 - [x] Firmware maître: `EspNowMaster`, `TftDashboard` (ILI9341 + XPT2046)
-- [~] Conflit SPI/LED : LED RGB déplacée sur 16/17/2 ✅ ; reste le conflit **Relay GPIO 18 vs VSPI CLK** — décision HSPI actée (DECISIONS.md), **remap non encore appliqué** dans `config_master.h`/`platformio.ini`/`wiring_master.svg` (en attente 1er flash HW)
+- [x] Conflit SPI/LED résolu : LED RGB sur 16/17/2 ✅ ; bus SPI TFT remappé (CLK 18→19, MISO 19→35) → relay seul sur GPIO 18. Appliqué dans `config_master.h` + `platformio.ini` + `wiring_master.svg` (2026-05-29). Reste à valider l'init TFT au 1er flash HW.
 - [x] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot (`TftDashboard` écran WIFI)
 - [x] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
 - [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 234,60 €)
@@ -512,6 +514,7 @@ help     — Liste des commandes
 | `docs/safety_analysis.md` | Analyse de sécurité v4 (défense en profondeur, seuils chiffrés) |
 | `docs/PAIRING.md` | Procédure d'appairage ESP-NOW maître ↔ esclave |
 | `docs/test_matrix.md` | Matrice de tests hardware (132 tests T1-T12) |
+| `docs/hardware_bringup_checklist.md` | Checklist de mise en route HW (§0 remap SPI/relay → T1-T12 → sign-off *fully operational*) |
 | `docs/wiring_master.svg` + `wiring_slave.svg` | Wiring électrique par MCU |
 | `docs/firmware_architecture.svg` | Architecture firmware (modules, tâches FreeRTOS) |
 | `docs/hydra-sysml-diagrams.pdf` | Diagrammes SysML/UML système |

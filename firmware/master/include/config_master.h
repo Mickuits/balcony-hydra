@@ -14,6 +14,8 @@ constexpr uint8_t PIN_PUMP_B       = 27;
 constexpr uint8_t PIN_PUMP         = PIN_PUMP_B;  // Legacy alias
 
 // ---- SAFETY RELAY ----
+// GPIO 18 — conflit VSPI CLK RÉSOLU 2026-05-29 : le bus SPI TFT a été remappé
+// (CLK 18→19, MISO 19→35). Le relay garde donc le 18 sans collision.
 constexpr uint8_t PIN_SAFETY_RELAY = 18;
 
 // ---- SENSORS (Zone B local, 10 capteurs MUX) ----
@@ -36,7 +38,16 @@ constexpr uint8_t PIN_US2_ECHO     = 0xFF;
 constexpr uint8_t PIN_SDA          = 21;
 constexpr uint8_t PIN_SCL          = 22;
 
-// ---- TFT ILI9341 + XPT2046 (VSPI) ----
+// ---- TFT ILI9341 + XPT2046 (bus SPI remappé, conflit relay résolu) ----
+// Remap 2026-05-29 pour libérer le relay sur GPIO 18 :
+//   CLK  18 -> 19   (sortie ; le 18 reste au relay)
+//   MISO 19 -> 35   (GPIO 35 input-only : valide pour MISO = entrée ESP32)
+//   MOSI 23         (inchangé)
+// Le pinout est piloté depuis platformio.ini (TFT_eSPI USER_SETUP_LOADED).
+// Constantes miroir ci-dessous pour la doc et le code non-TFT_eSPI.
+constexpr uint8_t PIN_TFT_SCLK     = 19;
+constexpr uint8_t PIN_TFT_MOSI     = 23;
+constexpr uint8_t PIN_TFT_MISO     = 35;
 constexpr uint8_t PIN_TFT_CS       = 13;
 constexpr uint8_t PIN_TFT_DC       = 12;
 constexpr uint8_t PIN_TFT_RST      = 0xFF;
