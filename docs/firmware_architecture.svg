@@ -1,338 +1,214 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1010" font-family="Arial, sans-serif">
   <defs>
-    <marker id="a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker>
-    <marker id="ab" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#3b82f6"/></marker>
-    <marker id="ag" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#22c55e"/></marker>
-    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ef4444"/></marker>
-    <marker id="ap" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a855f7"/></marker>
-    <filter id="s"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.12"/></filter>
+    <marker id="a"  markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#64748b"/></marker>
+    <marker id="ab" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#3b82f6"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#22c55e"/></marker>
+    <marker id="ap" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#a855f7"/></marker>
+    <marker id="ap0" markerWidth="9" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="9 0,0 3.5,9 7" fill="#a855f7"/></marker>
+    <filter id="s"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.14"/></filter>
   </defs>
 
-  <rect width="1200" height="900" fill="#0f172a" rx="8"/>
+  <rect width="1280" height="1010" fill="#0f172a" rx="8"/>
 
   <!-- Title -->
-  <text x="600" y="35" text-anchor="middle" font-size="22" font-weight="bold" fill="#22d3ee">BALCONY HYDRA v3 — Architecture Firmware</text>
-  <text x="600" y="55" text-anchor="middle" font-size="11" fill="#64748b">ESP32 WROOM-32 · FreeRTOS · 8 modules C++ · PlatformIO</text>
+  <text x="640" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#22d3ee">BALCONY HYDRA v4 — Architecture Firmware Distribuée</text>
+  <text x="640" y="55" text-anchor="middle" font-size="11" fill="#64748b">2× ESP32 WROOM-32 · ESP-NOW (AES-128-CCM) + MQTT fallback · FreeRTOS · PlatformIO (master / slave / common)</text>
 
-  <!-- ============ FREERTOS LAYER ============ -->
-  <rect x="30" y="70" width="1140" height="35" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <text x="600" y="92" text-anchor="middle" font-size="12" font-weight="bold" fill="#94a3b8">FreeRTOS — ESP32 Dual Core (240 MHz)</text>
-
-  <!-- Core 1 label -->
-  <rect x="40" y="115" width="540" height="25" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
-  <text x="310" y="132" text-anchor="middle" font-size="10" font-weight="bold" fill="#60a5fa">CORE 1 — Capteurs &amp; Actionneurs</text>
-
-  <!-- Core 0 label -->
-  <rect x="620" y="115" width="540" height="25" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
-  <text x="890" y="132" text-anchor="middle" font-size="10" font-weight="bold" fill="#60a5fa">CORE 0 — Réseau &amp; Communication</text>
-
-  <!-- ============ TASK BOXES (Core 1) ============ -->
-
-  <!-- Task: Sensors (Core 1) -->
+  <!-- ============ COMMON BAND ============ -->
   <g filter="url(#s)">
-    <rect x="50" y="150" width="250" height="42" rx="6" fill="#134e4a" stroke="#14b8a6" stroke-width="1.5"/>
-    <text x="80" y="170" font-size="9" fill="#5eead4" font-weight="bold">Task: Sensors</text>
-    <text x="80" y="183" font-size="8" fill="#94a3b8">30s interval · Core 1 · 4KB stack</text>
-    <circle cx="66" cy="171" r="6" fill="#14b8a6"/>
-    <text x="66" y="174" text-anchor="middle" font-size="7" fill="#0f172a" font-weight="bold">S</text>
+    <rect x="360" y="72" width="560" height="48" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="640" y="92" text-anchor="middle" font-size="11" font-weight="bold" fill="#f59e0b">firmware/common/  —  code partagé maître + esclave</text>
+    <text x="640" y="108" text-anchor="middle" font-size="8.5" fill="#cbd5e1">Protocol.h (messages ESP-NOW packed · CmdType/DataType)  ·  config_common.h (seuils, timing, PMK/LMK, coords Mougins)</text>
   </g>
 
-  <!-- Task: Pump (Core 1) -->
-  <g filter="url(#s)">
-    <rect x="320" y="150" width="250" height="42" rx="6" fill="#451a03" stroke="#f97316" stroke-width="1.5"/>
-    <text x="350" y="170" font-size="9" fill="#fb923c" font-weight="bold">Task: Pump</text>
-    <text x="350" y="183" font-size="8" fill="#94a3b8">1s interval · Core 1 · Prio 2 · 4KB</text>
-    <circle cx="336" cy="171" r="6" fill="#f97316"/>
-    <text x="336" y="174" text-anchor="middle" font-size="7" fill="#0f172a" font-weight="bold">P</text>
+  <!-- ============================================================ -->
+  <!-- ===================  MASTER PANEL  ========================= -->
+  <!-- ============================================================ -->
+  <rect x="30" y="135" width="510" height="545" rx="10" fill="#111c30" stroke="#3b82f6" stroke-width="2"/>
+  <rect x="30" y="135" width="510" height="34" rx="10 10 0 0" fill="#1e3a5f"/>
+  <text x="285" y="151" text-anchor="middle" font-size="13" font-weight="bold" fill="#60a5fa">ESP32 MAÎTRE — Intérieur (Zone B)</text>
+  <text x="285" y="164" text-anchor="middle" font-size="8.5" fill="#94a3b8">USB secteur · TFT tactile · Web/MQTT/Telegram/OTA · 16 modules</text>
+
+  <!-- FreeRTOS tasks (master only) -->
+  <text x="42" y="187" font-size="9" font-weight="bold" fill="#94a3b8">FreeRTOS — dual-core 240 MHz (4 tâches)</text>
+  <g font-size="8">
+    <rect x="42"  y="194" width="116" height="40" rx="5" fill="#134e4a" stroke="#14b8a6" stroke-width="1.2"/>
+    <text x="100" y="210" text-anchor="middle" fill="#5eead4" font-weight="bold">Sensors</text>
+    <text x="100" y="224" text-anchor="middle" fill="#94a3b8">Core1 · 30s · 4KB</text>
+    <rect x="166" y="194" width="116" height="40" rx="5" fill="#451a03" stroke="#f97316" stroke-width="1.2"/>
+    <text x="224" y="210" text-anchor="middle" fill="#fb923c" font-weight="bold">Pump</text>
+    <text x="224" y="224" text-anchor="middle" fill="#94a3b8">Core1 · 1s · Prio2</text>
+    <rect x="290" y="194" width="116" height="40" rx="5" fill="#172554" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="348" y="210" text-anchor="middle" fill="#60a5fa" font-weight="bold">WiFi</text>
+    <text x="348" y="224" text-anchor="middle" fill="#94a3b8">Core0 · 500ms</text>
+    <rect x="414" y="194" width="116" height="40" rx="5" fill="#3b0764" stroke="#a855f7" stroke-width="1.2"/>
+    <text x="472" y="210" text-anchor="middle" fill="#c084fc" font-weight="bold">Comms</text>
+    <text x="472" y="224" text-anchor="middle" fill="#94a3b8">Core0 · 1s · 8KB</text>
   </g>
 
-  <!-- Task: WiFi (Core 0) -->
-  <g filter="url(#s)">
-    <rect x="630" y="150" width="250" height="42" rx="6" fill="#172554" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="660" y="170" font-size="9" fill="#60a5fa" font-weight="bold">Task: WiFi</text>
-    <text x="660" y="183" font-size="8" fill="#94a3b8">500ms interval · Core 0 · 4KB</text>
-    <circle cx="646" cy="171" r="6" fill="#3b82f6"/>
-    <text x="646" y="174" text-anchor="middle" font-size="7" fill="#fff" font-weight="bold">W</text>
+  <!-- Master modules (16 chips, 2 cols x 8 rows) -->
+  <text x="42" y="252" font-size="9" font-weight="bold" fill="#94a3b8">Modules C++ (lib/)</text>
+  <g font-size="8.5" font-weight="bold">
+    <!-- row1 -->
+    <rect x="42"  y="258" width="232" height="22" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/><text x="52" y="273" fill="#fcd34d">⚙ ConfigManager</text>
+    <rect x="298" y="258" width="232" height="22" rx="4" fill="#1e293b" stroke="#14b8a6" stroke-width="1.2"/><text x="308" y="273" fill="#5eead4">📡 SensorManager (MUX×1, US#1)</text>
+    <!-- row2 -->
+    <rect x="42"  y="284" width="232" height="22" rx="4" fill="#1e293b" stroke="#f97316" stroke-width="1.2"/><text x="52" y="299" fill="#fb923c">💧 PumpController (Pompe B)</text>
+    <rect x="298" y="284" width="232" height="22" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/><text x="308" y="299" fill="#f87171">🛡 SafetyManager (relay+thermal)</text>
+    <!-- row3 -->
+    <rect x="42"  y="310" width="232" height="22" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2"/><text x="52" y="325" fill="#60a5fa">📶 WifiManager (AP+STA)</text>
+    <rect x="298" y="310" width="232" height="22" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1.2"/><text x="308" y="325" fill="#67e8f9">🌐 WebPortal (REST + token)</text>
+    <!-- row4 -->
+    <rect x="42"  y="336" width="232" height="22" rx="4" fill="#1e293b" stroke="#a855f7" stroke-width="1.2"/><text x="52" y="351" fill="#c084fc">📊 MqttClient</text>
+    <rect x="298" y="336" width="232" height="22" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1.2"/><text x="308" y="351" fill="#22d3ee">💬 TelegramBot</text>
+    <!-- row5 -->
+    <rect x="42"  y="362" width="232" height="22" rx="4" fill="#1e293b" stroke="#6366f1" stroke-width="1.2"/><text x="52" y="377" fill="#a5b4fc">🕐 TimeManager (NTP+DS3231+NOAA)</text>
+    <rect x="298" y="362" width="232" height="22" rx="4" fill="#1e293b" stroke="#6366f1" stroke-width="1.2"/><text x="308" y="377" fill="#a5b4fc">😴 SleepManager</text>
+    <!-- row6 -->
+    <rect x="42"  y="388" width="232" height="22" rx="4" fill="#1e293b" stroke="#84cc16" stroke-width="1.2"/><text x="52" y="403" fill="#bef264">🌿 PlantProfile (apprentissage)</text>
+    <rect x="298" y="388" width="232" height="22" rx="4" fill="#1e293b" stroke="#84cc16" stroke-width="1.2"/><text x="308" y="403" fill="#bef264">📅 AutonomyCalculator</text>
+    <!-- row7 -->
+    <rect x="42"  y="414" width="232" height="22" rx="4" fill="#1e293b" stroke="#84cc16" stroke-width="1.2"/><text x="52" y="429" fill="#bef264">📍 WiFiGeolocation</text>
+    <rect x="298" y="414" width="232" height="22" rx="4" fill="#1e293b" stroke="#a855f7" stroke-width="1.2"/><text x="308" y="429" fill="#c084fc">🔗 EspNowMaster (pairing)</text>
+    <!-- row8 -->
+    <rect x="42"  y="440" width="232" height="22" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1.2"/><text x="52" y="455" fill="#67e8f9">🖥 TftDashboard (7 écrans)</text>
+    <rect x="298" y="440" width="232" height="22" rx="4" fill="#1e293b" stroke="#eab308" stroke-width="1.2"/><text x="308" y="455" fill="#fde047">💡 StatusLED</text>
   </g>
 
-  <!-- Task: Comms (Core 0) -->
+  <!-- Master hardware box -->
   <g filter="url(#s)">
-    <rect x="900" y="150" width="250" height="42" rx="6" fill="#3b0764" stroke="#a855f7" stroke-width="1.5"/>
-    <text x="930" y="170" font-size="9" fill="#c084fc" font-weight="bold">Task: Comms</text>
-    <text x="930" y="183" font-size="8" fill="#94a3b8">1s interval · Core 0 · 8KB</text>
-    <circle cx="916" cy="171" r="6" fill="#a855f7"/>
-    <text x="916" y="174" text-anchor="middle" font-size="7" fill="#fff" font-weight="bold">C</text>
-  </g>
-
-  <!-- ============ MODULE BOXES ============ -->
-
-  <!-- ConfigManager -->
-  <g filter="url(#s)">
-    <rect x="50" y="220" width="230" height="130" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
-    <rect x="50" y="220" width="230" height="28" rx="8 8 0 0" fill="#f59e0b"/>
-    <text x="165" y="239" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f172a">⚙ ConfigManager</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="65" y="265">NVS Flash persistence</text>
-      <text x="65" y="280">15+ paramètres (schedule, seuils,</text>
-      <text x="65" y="295">réseau, mode arrosage)</text>
-      <text x="65" y="315" fill="#f59e0b">toJson() / fromJson()</text>
-      <text x="65" y="330" fill="#f59e0b">Validation + constrain()</text>
-      <text x="65" y="345" fill="#64748b">Struct: SystemConfig</text>
+    <rect x="42" y="474" width="488" height="194" rx="8" fill="#0c1626" stroke="#334155" stroke-width="1.5"/>
+    <text x="52" y="491" font-size="9" font-weight="bold" fill="#94a3b8">HARDWARE MAÎTRE — GPIO / I2C / ADC1 / VSPI</text>
+    <g font-size="8.3" fill="#cbd5e1">
+      <text x="52" y="510">MUX CD74HC4067 ×1 → 10 capteurs humidité Zone B (SIG GPIO 36, ADC1)</text>
+      <text x="52" y="527">US JSN-SR04T ×1 → réservoir intérieur 25 L (TRIG 14 / ECHO 34)</text>
+      <text x="52" y="544">Pompe B 12 V → MOSFET D4184 GPIO 27 (pull-down 10kΩ)</text>
+      <text x="52" y="561" fill="#f87171">Relay sécurité GPIO 18 — coupe la pompe B si MCU non-responsive</text>
+      <text x="52" y="578">I2C GPIO 21/22 → DS3231 RTC (0x68) · pull-up 4.7kΩ</text>
+      <text x="52" y="595">TFT ILI9341 + XPT2046 tactile · LED RGB 16/17/2 · Bouton GPIO 5</text>
+      <text x="52" y="615" fill="#fbbf24">⚠ Conflit GPIO 18 (Relay) vs VSPI CLK → TFT à passer sur HSPI</text>
+      <text x="52" y="629" fill="#64748b">   (décision DECISIONS.md 2026-04-24 ; remap config/SVG au 1er flash HW)</text>
+      <text x="52" y="649" fill="#22c55e">Alim : 100 % USB secteur — pas de batterie / solaire</text>
     </g>
   </g>
 
-  <!-- SensorManager -->
+  <!-- ============================================================ -->
+  <!-- ===================  SLAVE PANEL  ========================== -->
+  <!-- ============================================================ -->
+  <rect x="740" y="135" width="510" height="545" rx="10" fill="#0f2018" stroke="#22c55e" stroke-width="2"/>
+  <rect x="740" y="135" width="510" height="34" rx="10 10 0 0" fill="#14532d"/>
+  <text x="995" y="151" text-anchor="middle" font-size="13" font-weight="bold" fill="#4ade80">ESP32 ESCLAVE — Balcon (Zone A)</text>
+  <text x="995" y="164" text-anchor="middle" font-size="8.5" fill="#94a3b8">USB secteur · boîtier IP65 · pas de TFT/Web/Telegram · 7 modules</text>
+
+  <!-- Slave loop note -->
+  <text x="752" y="187" font-size="9" font-weight="bold" fill="#94a3b8">Exécution — boucle non-RTOS</text>
+  <g font-size="8">
+    <rect x="752" y="194" width="488" height="40" rx="5" fill="#0c2a1a" stroke="#22c55e" stroke-width="1.2"/>
+    <text x="996" y="211" text-anchor="middle" fill="#86efac" font-weight="bold">Loop 10 Hz · callbacks ESP-NOW (RX commandes / TX données)</text>
+    <text x="996" y="225" text-anchor="middle" fill="#94a3b8">Mode dégradé autonome si maître perdu (schedule NVS)</text>
+  </g>
+
+  <!-- Slave modules (7 chips) -->
+  <text x="752" y="252" font-size="9" font-weight="bold" fill="#94a3b8">Modules C++ (lib/) — adaptés esclave</text>
+  <g font-size="8.5" font-weight="bold">
+    <rect x="752"  y="258" width="232" height="22" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/><text x="762" y="273" fill="#fcd34d">⚙ ConfigManager</text>
+    <rect x="1008" y="258" width="232" height="22" rx="4" fill="#1e293b" stroke="#14b8a6" stroke-width="1.2"/><text x="1018" y="273" fill="#5eead4">📡 SensorManager (MUX×1+BME+INA)</text>
+
+    <rect x="752"  y="284" width="232" height="22" rx="4" fill="#1e293b" stroke="#f97316" stroke-width="1.2"/><text x="762" y="299" fill="#fb923c">💧 PumpController (Pompe A)</text>
+    <rect x="1008" y="284" width="232" height="22" rx="4" fill="#1e293b" stroke="#a855f7" stroke-width="1.2"/><text x="1018" y="299" fill="#c084fc">🔗 EspNowSlave</text>
+
+    <rect x="752"  y="310" width="232" height="22" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/><text x="762" y="325" fill="#f87171">🛡 SafetyLocal (MOSFET+fusible)</text>
+    <rect x="1008" y="310" width="232" height="22" rx="4" fill="#1e293b" stroke="#38bdf8" stroke-width="1.2"/><text x="1018" y="325" fill="#7dd3fc">🌙 DegradedMode (NVS schedule)</text>
+
+    <rect x="752"  y="336" width="232" height="22" rx="4" fill="#1e293b" stroke="#eab308" stroke-width="1.2"/><text x="762" y="351" fill="#fde047">💡 StatusLED</text>
+    <rect x="1008" y="336" width="232" height="22" rx="4" fill="#0f2018" stroke="#334155" stroke-width="1" stroke-dasharray="3,3"/><text x="1018" y="351" fill="#475569">(pas de Web / Telegram / TFT)</text>
+  </g>
+
+  <!-- Slave hardware box -->
   <g filter="url(#s)">
-    <rect x="50" y="370" width="230" height="165" rx="8" fill="#1e293b" stroke="#14b8a6" stroke-width="2"/>
-    <rect x="50" y="370" width="230" height="28" rx="8 8 0 0" fill="#14b8a6"/>
-    <text x="165" y="389" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f172a">📡 SensorManager</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="65" y="415">20× capteurs humidité (MUX ×2)</text>
-      <text x="65" y="430">  → CD74HC4067, ADC1, oversampling ×5</text>
-      <text x="65" y="448">2× ultrasons JSN-SR04T</text>
-      <text x="65" y="463">  → Médiane ×3, failsafe divergence</text>
-      <text x="65" y="481">BME280 (I2C 0x76)</text>
-      <text x="65" y="496">  → T° / HR / Pression (forced mode)</text>
-      <text x="65" y="514">INA219 (I2C 0x40)</text>
-      <text x="65" y="529">  → Courant pompe, détection dry-run</text>
+    <rect x="752" y="382" width="488" height="286" rx="8" fill="#0a1a12" stroke="#334155" stroke-width="1.5"/>
+    <text x="762" y="399" font-size="9" font-weight="bold" fill="#94a3b8">HARDWARE ESCLAVE — GPIO / I2C / ADC1</text>
+    <g font-size="8.3" fill="#cbd5e1">
+      <text x="762" y="420">MUX CD74HC4067 ×1 → 10 capteurs humidité Zone A (SIG GPIO 36, ADC1)</text>
+      <text x="762" y="438">US JSN-SR04T ×1 → bidon de tête (2×25 L vases communicants = 50 L)</text>
+      <text x="762" y="456">   (TRIG 14 / ECHO 34) — 1 seul US/zone (pas de divergence US en v4)</text>
+      <text x="762" y="474">Pompe A 12 V → MOSFET GPIO 27 · fusible 3A + pull-down 10kΩ</text>
+      <text x="762" y="492">I2C GPIO 21/22 → BME280 (0x76) + INA219 (0x40) · pull-up 4.7kΩ</text>
+      <text x="762" y="510">LED RGB 17/19/23 · LED onboard GPIO 2 (heartbeat)</text>
+      <text x="762" y="530" fill="#f87171">Pas de relay côté esclave</text>
+      <text x="762" y="544" fill="#64748b">   → protection MOSFET + fusible 3A + firmware SafetyLocal</text>
+      <text x="762" y="564" fill="#22c55e">Alim : 100 % USB secteur (prise balcon) — pas de batterie / solaire</text>
+    </g>
+    <!-- Failsafes recap -->
+    <rect x="762" y="578" width="468" height="78" rx="6" fill="#1a0b0b" stroke="#ef4444" stroke-width="1.2"/>
+    <text x="772" y="595" font-size="8.5" font-weight="bold" fill="#f87171">Failsafes pompe (communs maître/esclave, tous modes)</text>
+    <g font-size="8" fill="#fca5a5">
+      <text x="772" y="612">Tank &lt;10% → STOP (auto-recovery)   ·   Runtime &gt;300s → STOP</text>
+      <text x="772" y="628">Courant &gt;3A → hard lockout (/unlock)   ·   Dry-run &lt;50mA/3s → hard lockout</text>
+      <text x="772" y="644">Thermal &gt;58°C → lockout, reprise &lt;45°C stable 5 min   ·   Pull-down HW</text>
     </g>
   </g>
 
-  <!-- PumpController -->
+  <!-- ============ ESP-NOW LINK (center channel) ============ -->
   <g filter="url(#s)">
-    <rect x="310" y="370" width="230" height="165" rx="8" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
-    <rect x="310" y="370" width="230" height="28" rx="8 8 0 0" fill="#f97316"/>
-    <text x="425" y="389" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f172a">💧 PumpController</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="325" y="415" font-weight="bold" fill="#fb923c">3 modes:</text>
-      <text x="325" y="430">AUTO — capteurs décident</text>
-      <text x="325" y="445">SCHEDULÉ — heures fixes</text>
-      <text x="325" y="460">MANUEL — commande uniquement</text>
-      <text x="325" y="480" font-weight="bold" fill="#ef4444">6 failsafes:</text>
-      <text x="325" y="495">Tank critique | Max runtime 5min</text>
-      <text x="325" y="510">Surintensité >3A | Dry-run <50mA</text>
-      <text x="325" y="525">Divergence US | Pull-down HW</text>
-    </g>
+    <rect x="578" y="320" width="124" height="118" rx="10" fill="#2e1065" stroke="#a855f7" stroke-width="2"/>
+    <text x="640" y="345" text-anchor="middle" font-size="12" font-weight="bold" fill="#c084fc">ESP-NOW</text>
+    <text x="640" y="362" text-anchor="middle" font-size="7.5" fill="#ddd6fe">peer-to-peer</text>
+    <text x="640" y="376" text-anchor="middle" font-size="7.5" fill="#ddd6fe">AES-128-CCM</text>
+    <text x="640" y="390" text-anchor="middle" font-size="7.5" fill="#ddd6fe">unicast chiffré</text>
+    <text x="640" y="406" text-anchor="middle" font-size="7.5" fill="#94a3b8">pairing 0xBA</text>
+    <text x="640" y="422" text-anchor="middle" font-size="7.5" fill="#94a3b8">+ MQTT fallback</text>
+  </g>
+  <!-- bidirectional arrows master <-> espnow <-> slave -->
+  <line x1="540" y1="362" x2="578" y2="362" stroke="#a855f7" stroke-width="2" marker-end="url(#ap)"/>
+  <line x1="578" y1="396" x2="540" y2="396" stroke="#a855f7" stroke-width="2" marker-end="url(#ap)"/>
+  <line x1="702" y1="362" x2="740" y2="362" stroke="#a855f7" stroke-width="2" marker-end="url(#ap)"/>
+  <line x1="740" y1="396" x2="702" y2="396" stroke="#a855f7" stroke-width="2" marker-end="url(#ap)"/>
+
+  <!-- ============ CLIENT / SERVICES BAND ============ -->
+  <rect x="30" y="700" width="1220" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="640" y="721" text-anchor="middle" font-size="12" font-weight="bold" fill="#94a3b8">Couche cliente &amp; services — via WiFi routeur (maître)</text>
+
+  <g filter="url(#s)" font-size="8">
+    <rect x="40"   y="744" width="228" height="58" rx="6" fill="#1e293b" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="154" y="764" text-anchor="middle" font-size="10" font-weight="bold" fill="#67e8f9">📱 App mobile PWA</text>
+    <text x="154" y="779" text-anchor="middle" fill="#94a3b8">mobile-app/ (Vite+TS, 16 écrans)</text>
+    <text x="154" y="792" text-anchor="middle" fill="#94a3b8">REST X-Hydra-Token + MQTT.js</text>
+
+    <rect x="288"  y="744" width="228" height="58" rx="6" fill="#1e293b" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="402" y="764" text-anchor="middle" font-size="10" font-weight="bold" fill="#67e8f9">🌐 WebPortal embarqué</text>
+    <text x="402" y="779" text-anchor="middle" fill="#94a3b8">AsyncWebServer :80 (maître)</text>
+    <text x="402" y="792" text-anchor="middle" fill="#94a3b8">POST /api/* → token requis</text>
+
+    <rect x="536"  y="744" width="228" height="58" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="650" y="764" text-anchor="middle" font-size="10" font-weight="bold" fill="#c084fc">📊 Broker MQTT</text>
+    <text x="650" y="779" text-anchor="middle" fill="#94a3b8">Mosquitto (1883 + 9001 WS)</text>
+    <text x="650" y="792" text-anchor="middle" fill="#94a3b8">hydra/sensors|pump|alerts|cmd</text>
+
+    <rect x="784"  y="744" width="228" height="58" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+    <text x="898" y="764" text-anchor="middle" font-size="10" font-weight="bold" fill="#22d3ee">💬 Telegram</text>
+    <text x="898" y="779" text-anchor="middle" fill="#94a3b8">Alertes push + heartbeat 12h</text>
+    <text x="898" y="792" text-anchor="middle" fill="#94a3b8">/status /water /unlock /autonomy</text>
+
+    <rect x="1032" y="744" width="218" height="58" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="1141" y="764" text-anchor="middle" font-size="10" font-weight="bold" fill="#a5b4fc">🕐 Temps</text>
+    <text x="1141" y="779" text-anchor="middle" fill="#94a3b8">NTP pool.ntp.org</text>
+    <text x="1141" y="792" text-anchor="middle" fill="#94a3b8">+ DS3231 (maître) + NOAA solaire</text>
   </g>
 
-  <!-- WifiManager -->
-  <g filter="url(#s)">
-    <rect x="570" y="220" width="230" height="130" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
-    <rect x="570" y="220" width="230" height="28" rx="8 8 0 0" fill="#3b82f6"/>
-    <text x="685" y="239" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">📶 WifiManager</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="585" y="265">Mode AP (portail captif) au 1er boot</text>
-      <text x="585" y="280">Mode STA avec auto-reconnexion</text>
-      <text x="585" y="295">DNS captive portal redirect</text>
-      <text x="585" y="310">3 retries → fallback AP</text>
-      <text x="585" y="325">NTP sync (pool.ntp.org)</text>
-      <text x="585" y="345" fill="#3b82f6">States: DISCONNECTED → CONNECTING</text>
-    </g>
-  </g>
+  <!-- arrows master panel -> services -->
+  <line x1="285" y1="680" x2="285" y2="700" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ab)"/>
+  <text x="300" y="694" font-size="7.5" fill="#64748b">WiFi (REST/MQTT/Telegram/NTP)</text>
 
-  <!-- WebPortal -->
-  <g filter="url(#s)">
-    <rect x="570" y="370" width="230" height="165" rx="8" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
-    <rect x="570" y="370" width="230" height="28" rx="8 8 0 0" fill="#22d3ee"/>
-    <text x="685" y="389" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f172a">🌐 WebPortal</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="585" y="415">AsyncWebServer (port 80)</text>
-      <text x="585" y="430">HTML/CSS/JS embarqué (PROGMEM)</text>
-      <text x="585" y="445">Dashboard temps réel (poll 5s)</text>
-      <text x="585" y="465" fill="#22d3ee" font-weight="bold">API REST:</text>
-      <text x="585" y="480">GET  /api/status — état complet</text>
-      <text x="585" y="495">GET  /api/sensors — 20 capteurs</text>
-      <text x="585" y="510">POST /api/config — maj config</text>
-      <text x="585" y="525">POST /api/pump/start|stop|reset</text>
-    </g>
-  </g>
+  <!-- ============ LEGEND / FOOTER ============ -->
+  <rect x="30" y="824" width="1220" height="40" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="44" y="848" font-size="9" font-weight="bold" fill="#94a3b8">LÉGENDE:</text>
+  <rect x="112" y="841" width="14" height="10" rx="2" fill="none" stroke="#3b82f6" stroke-width="1.5"/><text x="130" y="849" font-size="8" fill="#cbd5e1">Maître</text>
+  <rect x="182" y="841" width="14" height="10" rx="2" fill="none" stroke="#22c55e" stroke-width="1.5"/><text x="200" y="849" font-size="8" fill="#cbd5e1">Esclave</text>
+  <rect x="256" y="841" width="14" height="10" rx="2" fill="none" stroke="#f59e0b" stroke-width="1.5"/><text x="274" y="849" font-size="8" fill="#cbd5e1">Common</text>
+  <rect x="334" y="841" width="14" height="10" rx="2" fill="none" stroke="#a855f7" stroke-width="1.5"/><text x="352" y="849" font-size="8" fill="#cbd5e1">ESP-NOW</text>
+  <rect x="416" y="841" width="14" height="10" rx="2" fill="none" stroke="#ef4444" stroke-width="1.5"/><text x="434" y="849" font-size="8" fill="#cbd5e1">Sécurité / failsafes</text>
+  <text x="640" y="849" font-size="8" fill="#64748b">Maître : 16 modules · 4 tâches FreeRTOS    |    Esclave : 7 modules · loop 10 Hz</text>
 
-  <!-- MqttClient -->
-  <g filter="url(#s)">
-    <rect x="830" y="220" width="230" height="130" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
-    <rect x="830" y="220" width="230" height="28" rx="8 8 0 0" fill="#a855f7"/>
-    <text x="945" y="239" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">📊 MqttClient</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="845" y="265">PubSubClient → broker MQTT</text>
-      <text x="845" y="280">Auto-reconnexion (15s interval)</text>
-      <text x="845" y="298" fill="#a855f7" font-weight="bold">Topics publish (60s auto):</text>
-      <text x="845" y="313">hydra/sensors | hydra/pump</text>
-      <text x="845" y="328">hydra/alerts</text>
-      <text x="845" y="345" fill="#a855f7" font-weight="bold">Subscribe: hydra/cmd/*</text>
-    </g>
-  </g>
-
-  <!-- TelegramBot -->
-  <g filter="url(#s)">
-    <rect x="830" y="370" width="230" height="165" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
-    <rect x="830" y="370" width="230" height="28" rx="8 8 0 0" fill="#06b6d4"/>
-    <text x="945" y="389" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f172a">💬 TelegramBot</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="845" y="415">Alertes push (critique, warning)</text>
-      <text x="845" y="430">Heartbeat toutes les 12h</text>
-      <text x="845" y="448" fill="#06b6d4" font-weight="bold">Commandes interactives:</text>
-      <text x="845" y="463">/status — rapport complet</text>
-      <text x="845" y="478">/water — arroser maintenant</text>
-      <text x="845" y="493">/stop — arrêter pompe</text>
-      <text x="845" y="508">/reset — reset failsafe</text>
-      <text x="845" y="523">/reboot — redémarrer</text>
-    </g>
-  </g>
-
-  <!-- SleepManager -->
-  <g filter="url(#s)">
-    <rect x="310" y="220" width="230" height="130" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
-    <rect x="310" y="220" width="230" height="28" rx="8 8 0 0" fill="#6366f1"/>
-    <text x="425" y="239" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">😴 SleepManager</text>
-    <g font-size="8" fill="#cbd5e1">
-      <text x="325" y="265">Deep sleep ESP32 (~10µA)</text>
-      <text x="325" y="280">Réveil timer RTC (1-6h config)</text>
-      <text x="325" y="295">Désactive WiFi+BT avant sleep</text>
-      <text x="325" y="310">Force pompe OFF avant sleep</text>
-      <text x="325" y="328" fill="#6366f1">Wakeup cause detection</text>
-      <text x="325" y="345" fill="#64748b">Configurable via portail web</text>
-    </g>
-  </g>
-
-  <!-- ============ DATA FLOW ARROWS ============ -->
-
-  <!-- ConfigManager feeds everything (horizontal) -->
-  <line x1="280" y1="285" x2="310" y2="285" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#a)"/>
-  <line x1="280" y1="285" x2="280" y2="430" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
-  <line x1="280" y1="430" x2="310" y2="430" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#a)"/>
-
-  <!-- SensorManager → PumpController -->
-  <line x1="280" y1="452" x2="310" y2="452" stroke="#14b8a6" stroke-width="2" marker-end="url(#ag)"/>
-  <text x="295" y="448" text-anchor="middle" font-size="7" fill="#14b8a6" transform="rotate(-90,295,448)">data</text>
-
-  <!-- PumpController uses SensorManager for failsafe checks -->
-  <path d="M310,480 L295,480 L295,500 L310,500" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="3,2" marker-end="url(#ar)"/>
-
-  <!-- WiFi → WebPortal -->
-  <line x1="685" y1="350" x2="685" y2="370" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ab)"/>
-
-  <!-- WiFi → MQTT + Telegram -->
-  <line x1="800" y1="285" x2="830" y2="285" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ab)"/>
-  <line x1="800" y1="285" x2="800" y2="430" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3"/>
-  <line x1="800" y1="430" x2="830" y2="430" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ab)"/>
-
-  <!-- SensorManager + PumpController → MQTT/Telegram (data flow) -->
-  <path d="M425,535 L425,560 L810,560 L810,300 L830,300" stroke="#a855f7" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#ap)"/>
-  <path d="M810,560 L810,440 L830,440" stroke="#06b6d4" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#ap)"/>
-  <text x="620" y="555" text-anchor="middle" font-size="7" fill="#a855f7">sensor data + pump status → publish</text>
-
-  <!-- Alerts from PumpController → Telegram -->
-  <path d="M540,400 L560,400 L560,570 L820,570 L820,450 L830,450" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,2" marker-end="url(#ar)"/>
-  <text x="700" y="580" text-anchor="middle" font-size="7" fill="#ef4444">alerts (failsafe, critique)</text>
-
-  <!-- ============ HARDWARE LAYER ============ -->
-  <rect x="30" y="600" width="1140" height="35" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <text x="600" y="622" text-anchor="middle" font-size="12" font-weight="bold" fill="#94a3b8">Couche Hardware — GPIO / I2C / ADC / WiFi</text>
-
-  <!-- Hardware blocks -->
-  <g filter="url(#s)">
-    <!-- MUX -->
-    <rect x="50" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#14b8a6" stroke-width="1.5"/>
-    <text x="115" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#14b8a6">MUX ×2</text>
-    <text x="115" y="686" text-anchor="middle" font-size="7" fill="#64748b">CD74HC4067</text>
-    <text x="115" y="698" text-anchor="middle" font-size="7" fill="#64748b">20 capteurs → ADC1</text>
-
-    <!-- Ultrasonic -->
-    <rect x="200" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#14b8a6" stroke-width="1.5"/>
-    <text x="265" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#14b8a6">US ×2</text>
-    <text x="265" y="686" text-anchor="middle" font-size="7" fill="#64748b">JSN-SR04T</text>
-    <text x="265" y="698" text-anchor="middle" font-size="7" fill="#64748b">GPIO 14/34, 12/35</text>
-
-    <!-- I2C -->
-    <rect x="350" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
-    <text x="415" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#a855f7">I2C Bus</text>
-    <text x="415" y="686" text-anchor="middle" font-size="7" fill="#64748b">BME280 + INA219</text>
-    <text x="415" y="698" text-anchor="middle" font-size="7" fill="#64748b">GPIO 21/22</text>
-
-    <!-- Pump MOSFET -->
-    <rect x="500" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#f97316" stroke-width="1.5"/>
-    <text x="565" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#f97316">Pompe 12V</text>
-    <text x="565" y="686" text-anchor="middle" font-size="7" fill="#64748b">MOSFET IRLZ44N</text>
-    <text x="565" y="698" text-anchor="middle" font-size="7" fill="#64748b">GPIO 27</text>
-
-    <!-- WiFi Radio -->
-    <rect x="650" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="715" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#3b82f6">WiFi 2.4GHz</text>
-    <text x="715" y="686" text-anchor="middle" font-size="7" fill="#64748b">802.11 b/g/n</text>
-    <text x="715" y="698" text-anchor="middle" font-size="7" fill="#64748b">AP + STA</text>
-
-    <!-- NVS Flash -->
-    <rect x="800" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
-    <text x="865" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#f59e0b">NVS Flash</text>
-    <text x="865" y="686" text-anchor="middle" font-size="7" fill="#64748b">4MB SPI Flash</text>
-    <text x="865" y="698" text-anchor="middle" font-size="7" fill="#64748b">Preferences API</text>
-
-    <!-- RTC -->
-    <rect x="950" y="650" width="130" height="55" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
-    <text x="1015" y="672" text-anchor="middle" font-size="9" font-weight="bold" fill="#6366f1">RTC / WDT</text>
-    <text x="1015" y="686" text-anchor="middle" font-size="7" fill="#64748b">Deep sleep timer</text>
-    <text x="1015" y="698" text-anchor="middle" font-size="7" fill="#64748b">Watchdog 30s</text>
-  </g>
-
-  <!-- Vertical lines from modules to hardware -->
-  <line x1="115" y1="535" x2="115" y2="650" stroke="#14b8a6" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="265" y1="535" x2="265" y2="650" stroke="#14b8a6" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="415" y1="535" x2="415" y2="650" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="565" y1="535" x2="565" y2="650" stroke="#f97316" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="715" y1="350" x2="715" y2="650" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="865" y1="350" x2="865" y2="650" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,3"/>
-  <line x1="1015" y1="350" x2="1015" y2="650" stroke="#6366f1" stroke-width="1" stroke-dasharray="3,3"/>
-
-  <!-- ============ EXTERNAL SERVICES ============ -->
-  <rect x="30" y="730" width="1140" height="35" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <text x="600" y="752" text-anchor="middle" font-size="12" font-weight="bold" fill="#94a3b8">Services Externes (Cloud / Mobile)</text>
-
-  <g filter="url(#s)">
-    <rect x="100" y="780" width="160" height="50" rx="6" fill="#1e293b" stroke="#22d3ee" stroke-width="1.5"/>
-    <text x="180" y="802" text-anchor="middle" font-size="10" font-weight="bold" fill="#22d3ee">📱 Navigateur</text>
-    <text x="180" y="818" text-anchor="middle" font-size="8" fill="#64748b">Dashboard HTML (WiFi local)</text>
-
-    <rect x="320" y="780" width="160" height="50" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
-    <text x="400" y="802" text-anchor="middle" font-size="10" font-weight="bold" fill="#a855f7">📊 Grafana</text>
-    <text x="400" y="818" text-anchor="middle" font-size="8" fill="#64748b">MQTT → InfluxDB → Grafana</text>
-
-    <rect x="540" y="780" width="160" height="50" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
-    <text x="620" y="802" text-anchor="middle" font-size="10" font-weight="bold" fill="#06b6d4">💬 Telegram</text>
-    <text x="620" y="818" text-anchor="middle" font-size="8" fill="#64748b">Alertes + commandes</text>
-
-    <rect x="760" y="780" width="160" height="50" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
-    <text x="840" y="802" text-anchor="middle" font-size="10" font-weight="bold" fill="#f59e0b">☁ HiveMQ</text>
-    <text x="840" y="818" text-anchor="middle" font-size="8" fill="#64748b">MQTT Broker (free tier)</text>
-
-    <rect x="980" y="780" width="160" height="50" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
-    <text x="1060" y="802" text-anchor="middle" font-size="10" font-weight="bold" fill="#6366f1">🕐 NTP</text>
-    <text x="1060" y="818" text-anchor="middle" font-size="8" fill="#64748b">pool.ntp.org</text>
-  </g>
-
-  <!-- Arrows to external -->
-  <line x1="180" y1="770" x2="180" y2="780" stroke="#22d3ee" stroke-width="1.5"/>
-  <line x1="400" y1="770" x2="400" y2="780" stroke="#a855f7" stroke-width="1.5"/>
-  <line x1="620" y1="770" x2="620" y2="780" stroke="#06b6d4" stroke-width="1.5"/>
-  <line x1="840" y1="770" x2="840" y2="780" stroke="#f59e0b" stroke-width="1.5"/>
-
-  <!-- ============ LEGEND ============ -->
-  <g>
-    <rect x="30" y="850" width="1140" height="40" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-    <text x="50" y="874" font-size="9" font-weight="bold" fill="#94a3b8">LÉGENDE:</text>
-    <circle cx="120" cy="870" r="5" fill="#f59e0b"/><text x="130" y="874" font-size="8" fill="#cbd5e1">Config/NVS</text>
-    <circle cx="210" cy="870" r="5" fill="#14b8a6"/><text x="220" y="874" font-size="8" fill="#cbd5e1">Capteurs</text>
-    <circle cx="290" cy="870" r="5" fill="#f97316"/><text x="300" y="874" font-size="8" fill="#cbd5e1">Pompe</text>
-    <circle cx="360" cy="870" r="5" fill="#3b82f6"/><text x="370" y="874" font-size="8" fill="#cbd5e1">WiFi</text>
-    <circle cx="420" cy="870" r="5" fill="#22d3ee"/><text x="430" y="874" font-size="8" fill="#cbd5e1">Web</text>
-    <circle cx="470" cy="870" r="5" fill="#a855f7"/><text x="480" y="874" font-size="8" fill="#cbd5e1">MQTT</text>
-    <circle cx="530" cy="870" r="5" fill="#06b6d4"/><text x="540" y="874" font-size="8" fill="#cbd5e1">Telegram</text>
-    <circle cx="610" cy="870" r="5" fill="#6366f1"/><text x="620" y="874" font-size="8" fill="#cbd5e1">Sleep/RTC</text>
-    <line x1="690" y1="870" x2="720" y2="870" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2"/>
-    <text x="725" y="874" font-size="8" fill="#cbd5e1">Alertes</text>
-    <line x1="780" y1="870" x2="810" y2="870" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="815" y="874" font-size="8" fill="#cbd5e1">Data flow</text>
-    <text x="920" y="874" font-size="8" fill="#64748b">~3200 lignes C++ · 8 modules · MIT</text>
-  </g>
-
-  <text x="1170" y="893" text-anchor="end" font-size="7" fill="#334155">Balcony Hydra v3 — Firmware Architecture — Rev 1.0 — Avril 2026</text>
+  <text x="1250" y="884" text-anchor="end" font-size="7.5" fill="#475569">Balcony Hydra v4 — Firmware Architecture — Rev 2.0 — Mai 2026</text>
 </svg>

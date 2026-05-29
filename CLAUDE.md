@@ -58,66 +58,46 @@ firmware/
 ├── master/                     # Firmware maître (intérieur, USB secteur)
 │   ├── platformio.ini          # ESP32, TFT_eSPI, ArduinoJson, Telegram, etc.
 │   ├── src/main.cpp            # 4 tâches FreeRTOS, 12-step boot
-│   ├── include/config_master.h # Pins GPIO, MQTT topics, aliases v3
-│   ├── test/test_main.cpp      # 26 unit tests (Protocol, config, packing)
+│   ├── include/config_master.h # Pins maître, MQTT topics, aliases v3
+│   ├── test/test_functional.cpp # Tests natifs (Protocol, config, packing)
 │   └── lib/                    # 16 modules C++ complets
-│       ├── ConfigManager/      ├── SensorManager/
-│       ├── PumpController/     ├── SafetyManager/
-│       ├── StatusLED/          ├── WifiManager/
-│       ├── WebPortal/          ├── MqttClient/
-│       ├── TelegramBot/        ├── SleepManager/
-│       ├── TimeManager/        ├── PlantProfile/
-│       ├── AutonomyCalculator/ ├── WiFiGeolocation/
-│       ├── EspNowMaster/       └── TftDashboard/  (7 écrans)
-├── slave/                      # Firmware esclave (balcon, USB secteur)
-│   ├── platformio.ini          # ESP32 léger (pas de TFT/Telegram/Web)
-│   ├── src/main.cpp            # Boucle 10Hz, callbacks ESP-NOW
-│   ├── include/config_slave.h  # Pins + aliases + single MUX/tank
-│   ├── test/test_main.cpp      # 16 unit tests
-│   └── lib/                    # 6 modules adaptés
-│       ├── SensorManager/      # Single MUX, single tank (vases comm.)
-│       ├── PumpController/     # Zone A only, no PlantProfile
-│       ├── EspNowSlave/        ├── DegradedMode/
-│       ├── SafetyLocal/        └── StatusLED/
-├── master/                     # Firmware maître (intérieur, USB secteur)
-│   ├── platformio.ini
-│   ├── src/main.cpp
-│   ├── include/
-│   │   ├── config_master.h     # Pins maître, seuils spécifiques
-│   │   └── secrets.h.example
-│   └── lib/
 │       ├── ConfigManager/      # NVS, JSON, validation
-│       ├── SensorManager/      # MUX×1 (10 capteurs intérieur), US#2
+│       ├── SensorManager/      # MUX×1 (10 capteurs zone B), US#1 intérieur
 │       ├── PumpController/     # Pompe B intérieur (filaire GPIO 27)
 │       ├── SafetyManager/      # Relay, thermal, crash, remote unlock
 │       ├── StatusLED/          # LED RGB maître
 │       ├── WifiManager/        # AP+STA, config écran tactile
-│       ├── EspNowMaster/       # ESP-NOW comm + MQTT fallback vers esclave
-│       ├── TftDashboard/       # ILI9341 + XPT2046 tactile (5 écrans)
-│       ├── WebPortal/          # AsyncWebServer, dashboard web
-│       ├── MqttClient/         # MQTT cloud
+│       ├── WebPortal/          # AsyncWebServer, dashboard web (+ auth token)
+│       ├── MqttClient/         # MQTT cloud + fallback ESP-NOW
 │       ├── TelegramBot/        # Alertes push + commandes
+│       ├── SleepManager/       # Gestion veille
 │       ├── TimeManager/        # DS3231 + NTP + solaire NOAA
-│       └── SleepManager/       # Gestion veille
+│       ├── PlantProfile/       # Profils hydriques + apprentissage
+│       ├── AutonomyCalculator/ # Calcul autonomie N jours
+│       ├── WiFiGeolocation/    # Géoloc scan WiFi → lat/lon
+│       ├── EspNowMaster/       # ESP-NOW comm + peering esclave
+│       └── TftDashboard/       # ILI9341 + XPT2046 tactile (7 écrans)
 └── slave/                      # Firmware esclave (balcon, USB secteur)
-    ├── platformio.ini
-    ├── src/main.cpp
-    ├── include/config_slave.h
-    └── lib/
-        ├── SensorManager/      # MUX×1 (10 capteurs balcon), US#1, BME280, INA219
-        ├── PumpController/     # Pompe A balcon (locale GPIO 27)
+    ├── platformio.ini          # ESP32 léger (pas de TFT/Telegram/Web)
+    ├── src/main.cpp            # Boucle 10Hz, callbacks ESP-NOW
+    ├── include/config_slave.h  # Pins + aliases + single MUX/tank
+    ├── test/test_main.cpp      # Tests natifs esclave
+    └── lib/                    # 7 modules adaptés
+        ├── ConfigManager/      # NVS, JSON (config locale dégradée)
+        ├── SensorManager/      # MUX×1 (10 capteurs zone A), US#1, BME280, INA219
+        ├── PumpController/     # Pompe A balcon (locale GPIO 27), no PlantProfile
         ├── EspNowSlave/        # Réception commandes + envoi données
         ├── SafetyLocal/        # Failsafes locaux (sans relay, MOSFET + fusibles)
         ├── StatusLED/          # LED RGB esclave
         └── DegradedMode/       # Arrosage autonome si maître perdu (NVS schedule)
 ```
 
-### Modules existants (v3, à restructurer en master/ et slave/)
-Le code actuel dans `firmware/lib/` est le firmware monolithique v3. Il doit être
-découpé en `firmware/master/lib/` et `firmware/slave/lib/` avec le code commun
-dans `firmware/common/`. Les modules existants sont fonctionnels et testés:
+> **État refactor (✅ terminé)** : la séparation `firmware/master/` + `firmware/slave/`
+> + `firmware/common/` est **réalisée**. Le monolithe v3 `firmware/lib/` n'existe plus.
+> `Protocol.h` et tous les modules maître/esclave sont implémentés et testés.
 
-### Modules de gestion hydrique
+### Modules de gestion hydrique (maître)
+Modules fonctionnels et testés :
 - **PlantProfile** : profil hydrique par plante (espèce, catégorie, volume pot, débit goutteur, coefficient saisonnier × 12 mois, seuil humidité spécifique). 7 catégories prédéfinies (Agrume, Aromate, Succulente, Tropicale, Méditerranéenne, Fleurie, Custom). Apprentissage automatique du taux d'assèchement par régression linéaire sur l'historique d'humidité. Persistance NVS.
 - **AutonomyCalculator** : calcul de consommation sur N jours avec prise en compte du changement de mois/saisonnalité. Estime la consommation journalière par zone, le nombre de cycles/jour, l'autonomie max avec le stockage actuel, et signale le déficit si insuffisant. Commande Telegram `/autonomy 21` (21 jours d'absence).
 - **WiFiGeolocation** : géolocalisation automatique par scan des réseaux WiFi (BSSID + RSSI) → API Mozilla Location Service (gratuit, pas de clé). Précision ~50-100m en zone urbaine. Exécuté une seule fois au premier boot, résultat stocké en NVS. Fournit automatiquement lat/lon à TimeManager (calcul solaire) et PlantProfile (coefficients saisonniers). Fallback: coordonnées Mougins le Haut (43.61°N, 6.99°E).
@@ -172,7 +152,7 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 | 32,33,25,26 | MUX S0-S3 | Adresse partagée |
 | 4 | MUX EN | Active LOW |
 | 27 | MOSFET Pompe B | Pull-down 10kΩ obligatoire |
-| 18 | Relay sécurité | ⚠ **CONFLIT SPI CLK** — voir TODO.md (décision : TFT en HSPI) |
+| 18 | Relay sécurité | ⚠ **CONFLIT VSPI CLK** — décision actée (DECISIONS.md 2026-04-24) : TFT→HSPI ; **non encore implémentée** (config_master.h + SVG montrent encore le VSPI, à remapper au 1er flash HW) |
 | 21, 22 | I2C SDA/SCL | DS3231 0x68, pull-up 4.7kΩ |
 | 5 | Bouton poussoir | INPUT_PULLUP, ISR FALLING, anti-rebond 300ms |
 | 16, 17, 2 | LED RGB (R, G, B) | LEDC PWM ch4/5/6 — déplacée pour éviter SPI |
@@ -300,10 +280,11 @@ COUCHE 1 — ALIMENTATION  USB secteur (pas de batterie = pas de risque thermiqu
 - Rollback automatique si update échoue
 - Upload: `pio run -t upload --upload-port hydra.local`
 
-### Alimentation (3 rails)
-- **5V** (USB secteur) → ESP32, capteurs, pompe péristaltique 5V ou 12V via boost
-- **5V** (sortie LM2596) → ESP32 VIN, capteurs US JSN-SR04T
-- **3.3V** (pin 3V3 ESP32, AMS1117 onboard max 500mA) → MUX ×2, BME280, INA219, capteurs humidité
+### Alimentation (2 rails — 100 % secteur, ni batterie ni solaire)
+- **5V** (chargeur USB secteur 2A, 1 par MCU) → ESP32 VIN, capteurs US JSN-SR04T, MUX, etc.
+- **3.3V** (pin 3V3 ESP32, AMS1117 onboard max 500mA) → MUX ×1/zone, BME280, INA219, capteurs humidité
+- Pompe péristaltique 12V alimentée par bloc secteur dédié (MOSFET côté MCU)
+- **Supprimé vs v3** (cf. BOM) : panneau solaire, MPPT, LiFePO4, LM2596 — plus de gestion thermique batterie
 
 ## Structs de données clés
 
@@ -347,18 +328,25 @@ struct PumpStatus {
 
 ## API REST (WebPortal)
 
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET | `/` | Page HTML dashboard (PROGMEM) |
-| GET | `/api/status` | État complet (sensors + pump + config + wifi) |
-| GET | `/api/sensors` | Détail des 20 capteurs humidité |
-| GET | `/api/config` | Config actuelle (JSON) |
-| POST | `/api/config` | Mise à jour config (body JSON) |
-| POST | `/api/pump/start` | Démarrer pompe |
-| POST | `/api/pump/stop` | Arrêter pompe |
-| POST | `/api/pump/reset` | Reset failsafe |
-| POST | `/api/reboot` | Redémarrer ESP32 |
-| POST | `/api/factory-reset` | Reset usine + reboot |
+> **🔐 Auth** : tous les **POST `/api/*`** exigent le header `X-Hydra-Token: <32 hex>`
+> (sinon `401`). Le token est généré au 1er boot, persisté en NVS (`hydra/apiToken`),
+> et affiché dans le log série au démarrage du master. Les `GET` restent ouverts.
+> Détail dans `docs/mobile_api_contract.md §4.1`.
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| GET | `/` | — | Page HTML dashboard (PROGMEM) |
+| GET | `/api/status` | — | État complet (sensors + pump + config + wifi) |
+| GET | `/api/sensors` | — | Détail des 20 capteurs humidité |
+| GET | `/api/config` | — | Config actuelle (JSON) |
+| GET | `/api/safety/status` | — | État détaillé SafetyManager (JSON) |
+| POST | `/api/config` | 🔐 | Mise à jour config (body JSON) |
+| POST | `/api/pump/start` | 🔐 | Démarrer pompe |
+| POST | `/api/pump/stop` | 🔐 | Arrêter pompe |
+| POST | `/api/pump/reset` | 🔐 | Reset failsafe |
+| POST | `/api/safety/unlock` | 🔐 | Déverrouille un hard lockout (équiv. `/unlock` Telegram) |
+| POST | `/api/reboot` | 🔐 | Redémarrer ESP32 |
+| POST | `/api/factory-reset` | 🔐 | Reset usine + reboot |
 
 **Captive portal:** Les routes `/generate_204`, `/hotspot-detect.html`, `/canonical.html` redirigent vers `/` pour le portail captif en mode AP.
 
@@ -445,25 +433,24 @@ struct PumpStatus {
 - **Maître (intérieur appartement)** : ESP32 + TFT 2.4" + pompe B + 10 capteurs. USB secteur.
   - Boîtier ABS 200×150×85mm, pas besoin IP65 (intérieur)
   - Réservoir intérieur 25L dédié
-- **Esclave (balcon plein sud, Mougins le Haut)** : ESP32 + pompe A + 10 capteurs. Solaire.
-  - Boîtier IP65 ABS BLANC, presse-étoupes
+- **Esclave (balcon plein sud, Mougins le Haut)** : ESP32 + pompe A + 10 capteurs. **USB secteur (prise balcon)** — pas de solaire/batterie.
+  - Boîtier IP65 ABS BLANC, presse-étoupes (PG7/PG9/PG11)
   - 2 réservoirs 25L en vases communicants (50L)
-  - Derrière les bidons : boîtier énergie ventilé (LiFePO4 + MPPT + fusibles)
 - **Communication** : ESP-NOW (peer-to-peer, pas besoin routeur) + MQTT fallback (via WiFi routeur)
 - **Aucun câble entre intérieur et balcon** — tout est sans fil
 - **Wago 221** pour toutes les connexions (zéro soudure)
 
 ### Prochaines étapes v4 (TODO)
-- [ ] Restructurer le repo en `firmware/master/` + `firmware/slave/` + `firmware/common/`
-- [ ] Implémenter `Protocol.h` (structs messages ESP-NOW bidirectionnels)
-- [ ] Firmware esclave: `EspNowSlave`, `DegradedMode`, `SafetyLocal`
-- [ ] Firmware maître: `EspNowMaster`, `TftDashboard` (ILI9341 + XPT2046)
-- [ ] Résoudre conflit SPI/LED (pins 18,19,23 partagés entre SPI TFT et LED RGB)
-- [ ] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot
-- [ ] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
-- [ ] BOM finale v4 avec quantités consolidées
-- [ ] Tests unitaires PlatformIO (par firmware)
-- [ ] CI/CD GitHub Actions (build master + slave)
+- [x] Restructurer le repo en `firmware/master/` + `firmware/slave/` + `firmware/common/`
+- [x] Implémenter `Protocol.h` (structs messages ESP-NOW bidirectionnels)
+- [x] Firmware esclave: `EspNowSlave`, `DegradedMode`, `SafetyLocal`
+- [x] Firmware maître: `EspNowMaster`, `TftDashboard` (ILI9341 + XPT2046)
+- [~] Conflit SPI/LED : LED RGB déplacée sur 16/17/2 ✅ ; reste le conflit **Relay GPIO 18 vs VSPI CLK** — décision HSPI actée (DECISIONS.md), **remap non encore appliqué** dans `config_master.h`/`platformio.ini`/`wiring_master.svg` (en attente 1er flash HW)
+- [x] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot (`TftDashboard` écran WIFI)
+- [x] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
+- [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 234,60 €)
+- [x] Tests unitaires PlatformIO (par firmware)
+- [x] CI/CD GitHub Actions (build master + slave) — `.github/workflows/ci.yml`
 
 ### Calibration capteurs humidité
 - **Air sec** : ADC ~3200 → 0%
