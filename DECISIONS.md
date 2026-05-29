@@ -227,7 +227,9 @@ Voir `docs/architecture_v4.md` §Pin assignments et `TODO.md` §Hardware.
 
 **Décision** : `git rm -r firmware/lib firmware/src firmware/include firmware/test firmware/platformio.ini` — suppression complète de l'ancien firmware monolithique v3 (~5300 lignes) qui dormait dans le repo depuis la restructure v4 (commit `73233ea`).
 
-**Contexte** : aucun `platformio.ini` actif (master ou slave) ne référençait ce code, mais il était toujours dans le repo, créait des fausses pistes (`firmware/lib/ConfigManager.cpp` vs `firmware/master/lib/ConfigManager/ConfigManager.cpp`), et polluait les recherches grep. Note : un fichier `firmware/master/include/config_v3_ref.h` est intentionnellement gardé comme référence historique pour les valeurs constantes que l'on a transférées vers `config_master.h` / `config_common.h`.
+**Contexte** : aucun `platformio.ini` actif (master ou slave) ne référençait ce code, mais il était toujours dans le repo, créait des fausses pistes (`firmware/lib/ConfigManager.cpp` vs `firmware/master/lib/ConfigManager/ConfigManager.cpp`), et polluait les recherches grep. Note : un fichier `firmware/master/include/config_v3_ref.h` avait alors été gardé comme référence historique.
+
+> **MAJ 2026-05-29** : `config_v3_ref.h` a finalement été **supprimé**. Orphelin (jamais inclus), ses valeurs étaient déjà transférées dans `config_master.h`/`config_common.h`, et il était la source d'une fausse "incohérence" (`PIN_PUMP_B=15` v3 vs `27` v4 — simple artefact mono-MCU→distribué). Le pinout v3 reste archivé dans `docs/legacy/`. Repo firmware désormais sans relique.
 
 **Alternatives** :
 - Garder pour référence historique (état avant la session) — pollution permanente, fausses pistes.

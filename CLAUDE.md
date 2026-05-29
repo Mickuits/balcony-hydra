@@ -8,6 +8,8 @@ Système d'arrosage automatique **distribué maître/esclave** pour 20 pots rép
 
 **Propriétaire:** Micka — ingénieur système, captain de yacht, basé Cogolin (semaine) / Mougins (weekends). Profil technique exigeant, approche ingénierie rigoureuse.
 
+**Versions** (composants versionnés indépendamment sous l'architecture **v4**) : **firmware v4.2.1** (ESP32 master/slave) · **app mobile v4.3** (`mobile-app/`, PWA). Toute mention `v4.2.1` = firmware, `v4.3` = app mobile.
+
 ## Stack technique
 
 - **MCU:** 2× ESP32 WROOM-32 DevKit (30 pins), dual-core 240MHz, 4MB flash

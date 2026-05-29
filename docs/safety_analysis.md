@@ -39,7 +39,7 @@ Toutes les valeurs proviennent de `firmware/common/config_common.h` et `config_m
 | Boot crash threshold | 3 | Safe mode au 3ᵉ crash en < 60 s de boot stable | `SAFETY_MAX_BOOT_CRASHES=3` |
 | Boot stable timeout | 60 s | Compteur crash reset après 60 s de marche nominale | `SAFETY_STABLE_BOOT_MS=60000` |
 
-> **Divergence US > 15 %** mentionnée dans `CLAUDE.md` §Failsafes : **non implémentée** à ce jour côté firmware. À ajouter ou à retirer de la doc projet (voir TODO.md §SafetyManager).
+> **Divergence US > 15 %** : failsafe de l'ère v3 (2 capteurs US par zone) — **retiré en v4** et non applicable. L'architecture v4 n'a qu'**un seul capteur US par zone** (Zone A : 1 US sur le bidon de tête des 2×25 L en vases communicants ; Zone B : 1 US sur le réservoir 25 L). Plus aucune mention dans `CLAUDE.md` ni dans le firmware. Aucune action requise.
 
 ## Asymétrie Maître / Esclave
 

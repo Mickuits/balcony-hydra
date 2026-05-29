@@ -200,7 +200,7 @@ Ordre de chargement explicite dans main.ts (variables → reset → layout → c
 ### 2.7 Linting : ESLint + Prettier
 
 - ESLint avec règles strictes (no-any, no-magic-numbers, no-console sauf catch)
-- Prettier 2 spaces, single quotes, no semi colons (à confirmer avec user)
+- Prettier (config figée dans `mobile-app/.prettierrc.json`) : 2 spaces, single quotes, **semi: true**, trailingComma es5, printWidth 100
 
 ### 2.8 mqtt.js bundlé via npm
 

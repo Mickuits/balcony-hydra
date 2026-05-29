@@ -91,7 +91,7 @@ Ces groupes ne sont **pas** couverts par le SIL et nécessitent le hardware :
 - [ ] TimeManager : NTP + DS3231 + algorithme solaire NOAA
 - [ ] OTA : `pio run -t upload --upload-port hydra-master.local` (pompe OFF + relay désarmé pendant update)
 - [ ] FreeRTOS : 4 tâches dual-core, pas de watchdog reset intempestif
-- [ ] **Valider `PIN_PUMP_B = 27`** vs `config_v3_ref.h` (=15) — lever l'ambiguïté historique *(TODO.md)*
+- [ ] Confirmer au flash que **Pompe B = GPIO 27** (maître) et **Pompe A = GPIO 27** (esclave) commandent bien chacune leur pompe (chaque pompe est seule sur son MCU — aucun partage de pin entre zones)
 
 ---
 

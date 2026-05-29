@@ -76,7 +76,7 @@ Voir conversation 2026-04-08 pour les détails complets et le pourquoi de ces li
   - Web portal sur master (toutes les routes existantes)
   - Telegram heartbeat 12h
 - [ ] **Test communication ESP-NOW à travers murs** (master intérieur ↔ slave balcon)
-- [ ] **Valider PIN_PUMP_B = 27** vs `config_v3_ref.h` qui dit 15 (incohérence non documentée)
+- [x] **PIN_PUMP_B = 27 confirmé** (2026-05-29) — la "divergence" avec l'ancien `config_v3_ref.h` (=15) était un artefact **v3 mono-MCU** (2 pompes sur 1 ESP32 → pins distincts 27/15). En v4 distribué, chaque pompe est seule sur son ESP32 → les deux sur GPIO 27. Aucun bug. `config_v3_ref.h` (orphelin, jamais inclus) supprimé.
 - [ ] **Renseigner les MACs ESP-NOW dans la procédure de premier déploiement** (commande série pour les afficher)
 
 ## Sprint en cours
@@ -159,7 +159,8 @@ Prototype mobile haute fidélité disponible dans `mobile/balcony-hydra-mobile.h
 - [x] **Définir l'authentification** — 2026-05-18 : header `X-Hydra-Token: <secret>` (token statique persisté localStorage). ✅ **Vérification côté firmware implémentée** (session 5, cf. plus bas) — `WebPortal::_authorized` valide le header en constant-time sur tous les POST sensibles, 401 sinon
 - [x] **Reconnexion MQTT avec backoff** + bandeau "déconnecté" quand le master n'est plus joignable — backoff exponentiel 2/4/8/16/30s implémenté dans `mqttBridge._scheduleRetry`
 - [ ] **Web portal sert le HTML** : décider si on embarque l'app dans le firmware (PROGMEM) ou si on la sert depuis Vercel/GitHub Pages
-- [ ] **Synchroniser les topics MQTT** : le proto référence `/hydra/state` et `/hydra/p07/+` qui n'existent pas dans le firmware. Aligner.
+- [x] **Topics MQTT synchronisés** (2026-05-29) : l'app de prod `mobile-app/` utilise les topics canoniques du firmware (`hydra/sensors|pump|alerts`, `hydra/cmd/*`) — cf. `mqtt-bridge.ts`. Les topics fictifs `/hydra/state` et `/hydra/p07/+` ne subsistent que dans le proto legacy `mobile/balcony-hydra-mobile.html` (figé, référence UX). Aucun écart en production.
+- [ ] **(optionnel) REST plant profiles & autonomy** : exposer `GET/POST /api/profiles` + `GET /api/autonomy` dans WebPortal (aujourd'hui accessibles uniquement via Telegram `/profiles` `/autonomy`). Voir le commentaire `WebPortal.cpp` (fin de `_setupRoutes`). Non bloquant.
 
 #### Distribution (Phase 3)
 
