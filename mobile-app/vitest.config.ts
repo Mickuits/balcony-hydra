@@ -27,10 +27,12 @@ export default defineConfig({
         '**/*.template.ts'  // templates fns testées via les screen tests
       ],
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 75,
-        statements: 80
+        // Cliquet P1 (2026-05-29) : verrouille le niveau atteint
+        // (mesuré ~96 % lignes/stmts, 95 % funcs, 86 % branches) avec marge.
+        lines: 90,
+        functions: 90,
+        branches: 82,
+        statements: 90
       }
     }
   }
