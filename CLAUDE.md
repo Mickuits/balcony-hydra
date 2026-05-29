@@ -449,7 +449,7 @@ struct PumpStatus {
 - [x] Implémenter `Protocol.h` (structs messages ESP-NOW bidirectionnels)
 - [x] Firmware esclave: `EspNowSlave`, `DegradedMode`, `SafetyLocal`
 - [x] Firmware maître: `EspNowMaster`, `TftDashboard` (ILI9341 + XPT2046)
-- [x] Conflit SPI/LED résolu : LED RGB sur 16/17/2 ✅ ; bus SPI TFT remappé (CLK 18→19, MISO 19→35) → relay seul sur GPIO 18. Appliqué dans `config_master.h` + `platformio.ini` + `wiring_master.svg` (2026-05-29). Reste à valider l'init TFT au 1er flash HW.
+- [x] Conflit SPI/LED résolu : LED RGB sur 16/17/2 ✅ ; bus SPI TFT remappé (CLK 18→19, MISO 19→35) → relay seul sur GPIO 18. Pinout acté dans `config_master.h` + docs + `wiring_master.svg` (2026-05-29). Les flags TFT_eSPI restent **commentés** dans `platformio.ini` (non validables en CI sans écran) → à décommenter au 1er flash HW.
 - [x] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot (`TftDashboard` écran WIFI)
 - [x] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
 - [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 234,60 €)

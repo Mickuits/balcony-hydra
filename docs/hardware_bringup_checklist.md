@@ -35,7 +35,8 @@ Pinout cible maître (cf. `config_master.h` + `platformio.ini`) :
 
 - [ ] Câbler le TFT/XPT2046 sur **MOSI=23, MISO=35, CLK=19, CS=13, DC=12, TOUCH_CS=15** (Wago/Dupont)
 - [ ] Câbler le relay sécurité sur **GPIO 18** uniquement (plus de partage)
-- [ ] `pio run -e master` compile sans erreur avec les flags `USER_SETUP_LOADED` (déjà dans `platformio.ini`)
+- [ ] **Activer le pinout TFT** : décommenter le bloc de flags `USER_SETUP_LOADED` dans `firmware/master/platformio.ini` (gardé commenté jusqu'ici car non validable en CI sans écran), puis copier les lignes dans `build_flags`
+- [ ] `pio run -e master` compile sans erreur avec ces flags actifs
 - [ ] **Init écran OK** : au boot, le TFT affiche le 1er écran (pas blanc/noir). Sinon → ajuster `ILI9341_DRIVER` / `SPI_FREQUENCY` (essayer 27 MHz)
 - [ ] **Tactile OK** : la lecture XPT2046 répond sur MISO=35 (toucher l'écran bouge le curseur / déclenche les zones)
 - [ ] **Relay OK et indépendant** : `SafetyManager` arme/désarme le relay sur 18 sans perturber l'affichage (les deux fonctionnent simultanément → preuve que le conflit est levé)

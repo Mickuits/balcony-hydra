@@ -43,8 +43,9 @@ constexpr uint8_t PIN_SCL          = 22;
 //   CLK  18 -> 19   (sortie ; le 18 reste au relay)
 //   MISO 19 -> 35   (GPIO 35 input-only : valide pour MISO = entrée ESP32)
 //   MOSI 23         (inchangé)
-// Le pinout est piloté depuis platformio.ini (TFT_eSPI USER_SETUP_LOADED).
-// Constantes miroir ci-dessous pour la doc et le code non-TFT_eSPI.
+// Le pinout TFT est piloté par un bloc de flags dans platformio.ini, gardé
+// COMMENTÉ tant qu'aucun écran n'est branché (non validable en CI), à activer
+// au 1er flash HW. Constantes miroir ci-dessous = source de vérité du pinout.
 constexpr uint8_t PIN_TFT_SCLK     = 19;
 constexpr uint8_t PIN_TFT_MOSI     = 23;
 constexpr uint8_t PIN_TFT_MISO     = 35;

@@ -26,7 +26,8 @@ Sur DevKit 30 pins, il n'existe **aucun GPIO output libre** : déplacer tout le 
 - *GPIO expander I2C* : surcoût BOM + complexité, non justifié pour 1 signal. Rejeté.
 
 **Conséquences** :
-- Appliqué dans `firmware/master/include/config_master.h` (`PIN_TFT_SCLK=19`, `PIN_TFT_MISO=35`), `firmware/master/platformio.ini` (flags TFT_eSPI `USER_SETUP_LOADED` fusionnés dans `build_flags`), `docs/wiring_master.svg`, `CLAUDE.md` (table pins).
+- Pinout acté dans `firmware/master/include/config_master.h` (`PIN_TFT_SCLK=19`, `PIN_TFT_MISO=35`, source de vérité), `docs/wiring_master.svg`, `CLAUDE.md`, `architecture_v4.md`.
+- Les flags TFT_eSPI (`USER_SETUP_LOADED` + pinout) sont préparés mais **gardés commentés** dans `platformio.ini` : les activer force le build à utiliser ce pinout au lieu du `User_Setup.h` embarqué, ce qui n'est **pas validable en CI** (pas d'écran) et cassait `build-master`. On les active au 1er flash (décommenter le bloc). C'est la même approche délibérée que le repo appliquait déjà.
 - ⚠ **À valider au 1er flash avec TFT branché** : init écran (driver/fréquence SPI) + lecture tactile XPT2046 sur MISO=35. Procédure : `docs/hardware_bringup_checklist.md §0`.
 - Aucun test SIL impacté (TftDashboard n'est pas instancié en natif, cf. `lib_ignore`).
 - **Remplace** la résolution esquissée le 2026-04-24 (HSPI) ci-dessous.
