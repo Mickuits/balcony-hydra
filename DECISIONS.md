@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-05-29 — Remise à plat de la CI (dette cachée révélée par des dépendances flottantes)
+
+**Décision** : corriger 5 jobs CI rouges qui étaient **tous pré-existants** (rien à voir avec le diff docs/pinout de la PR #1), causés par la dérive de dépendances à versions flottantes depuis le dernier run réellement vert (~2026-05-18).
+
+**Constat clé** : le **build ESP32 réel** (`build-master`) et les **tests natifs** n'avaient en fait plus tourné/compilé depuis le 18/05 — seul le SIL mocké passait, ce qui masquait la dette. Les versions flottantes ont avancé : `espressif32`→7.0.1, `ArduinoJson`→7.4.3, `@eslint/js`→10, cppcheck CI plus récent.
+
+**Corrections retenues** :
+- **ESPAsyncWebServer** : `me-no-dev/ESPAsyncWebServer@^1.2.3` → `mathieucarbou/ESPAsyncWebServer@^3.0.0` (fork maintenu, ESP32Async). L'ancien est abandonné, incompatible `espressif32@7.x`, tirait le mauvais TCP (ESPAsyncTCP ESP8266) et n'a pas `collectHeaders`. Conséquences code : `req->send_P()` → `req->send()` (variantes `_P` retirées ; PROGMEM = RAM normale sur ESP32) ; suppression de l'appel `collectHeaders()` (le fork 3.x conserve **tous** les headers par défaut, donc `req->getHeader("X-Hydra-Token")` marche directement — l'auth reste opérationnelle).
+- **ESLint (mobile-app)** : `@eslint/js@^10.0.1` (exigeait `eslint@10`) → `@eslint/js@^9.17.0`, aligné sur `eslint@^9.17.0`, lockfile régénéré. `npm ci` repassait en ERESOLVE sinon.
+- **cppcheck (Lint)** : init des membres dans les mocks de test (`PlantProfile::_profiles{}`, `ConfigManager::_config{}`) — `uninitMemberVar` (medium) nouvellement signalé par le cppcheck CI.
+
+**Alternatives écartées** :
+- *Épingler les plateformes/libs à d'anciennes versions* : repousse le problème, garde du code mort-vivant non compilé. Rejeté au profit de la migration vers les libs maintenues.
+- *Supprimer la ligne `collectHeaders` sans changer de lib* : aurait cassé l'auth au runtime sur me-no-dev (headers custom non conservés). Rejeté.
+
+**Conséquences / leçon** :
+- **5/5 jobs verts** + le build ESP32 et les tests natifs compilent réellement à nouveau.
+- ⚠ **Recommandation** : épingler à terme les versions majeures critiques (`platform = espressif32@7.0.1`, `ArduinoJson@^7.4`) pour éviter que la CI ne re-dérive silencieusement. Non fait dans cette PR pour rester minimal — à considérer.
+- Le diagnostic a été fait sans accès aux logs Actions (403 sur l'intégration) ni compilation locale (réseau sandbox bloquant le téléchargement plateforme) — d'où une boucle « push → log collé → fix ». Ouvrir le réseau PlatformIO du sandbox accélérerait fortement ce type de tâche.
+
+---
+
 ## 2026-05-29 — Résolution effective du conflit GPIO 18 : remap SPI minimal (CLK→19, MISO→35)
 
 **Décision** : conflit `GPIO 18 = Relay sécurité ET SPI CLK` résolu **en pratique** par un remap minimal du bus SPI TFT/XPT2046, et non par le pinout HSPI brut esquissé le 2026-04-24.
