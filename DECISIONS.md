@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-05-29 — Couverture firmware gcov (env `native_cov` séparé + seuils escalier)
+
+**Décision** : mesurer la couverture lignes des modules SIL (`lib/`) via gcov/gcovr et la passer en **hard-gate** CI, avec un env PlatformIO dédié `native_cov` (≠ `native`) et des seuils par firmware démarrés sous la baseline.
+
+**Comment** :
+- Nouvel `[env:native_cov]` qui `extends = env:native` + `--coverage -O0 -g`. Linkage : `pio test` **n'applique pas** `link_flags` au runner natif → un pre-script SCons (`coverage.py`, `env.Append(LINKFLAGS=["--coverage"])`) injecte `-lgcov` (sinon `undefined reference to __gcov_init`).
+- `scripts/firmware_coverage.sh <dir> <min>` : build/run `native_cov`, puis `gcovr --filter lib/ --fail-under-line <min>` (+ XML/HTML artefact).
+- Job CI `firmware-coverage` (matrix master/slave).
+
+**Baselines mesurées (2026-05-29)** : master **68,4 %** lignes (ConfigManager 93 %, SafetyManager 77 %, SensorManager 59 %, PumpController 57 %, StatusLED 28 %), slave **100 %** (DegradedMode + SafetyLocal).
+
+**Seuils retenus (escalier)** : master **65 %**, slave **95 %** — volontairement *sous* la baseline pour absorber un refactor trivial sans rougir, tout en bloquant l'ajout de code non testé. À **relever par paliers** quand des tests SIL sont ajoutés (cible master 70→75 quand PumpController/SensorManager/StatusLED montent).
+
+**Alternatives écartées** :
+- *Instrumenter directement `[env:native]`* : coupler couverture et exécution des tests, ralentir/polluer les jobs `build-master`/`build-slave` avec des `.gcda` inutilisés. Rejeté → env séparé.
+- *Exclure StatusLED du calcul pour viser 70 %* : tentant (driver LED PWM, peu de logique SIL) mais ç'aurait été du *gaming* du chiffre. Rejeté → on mesure tout ce qui compile et on assume une baseline honnête de 65 %.
+- *`link_flags = --coverage`* : ignoré par le runner de test natif (vérifié : absent de la ligne de link). Rejeté → pre-script SCons.
+
+**Conséquences** : `[env:native]` (utilisé par `build-master`/`build-slave`) reste non instrumenté et rapide. `coverage.py` est versionné ; les rapports `coverage.*` sont gitignorés.
+
+---
+
 ## 2026-05-29 — Remise à plat de la CI (dette cachée révélée par des dépendances flottantes)
 
 **Décision** : corriger 5 jobs CI rouges qui étaient **tous pré-existants** (rien à voir avec le diff docs/pinout de la PR #1), causés par la dérive de dépendances à versions flottantes depuis le dernier run réellement vert (~2026-05-18).

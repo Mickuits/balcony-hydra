@@ -218,6 +218,9 @@ void test_safety_blocks_pump_on_low_tank() {
     sl.begin();
     TEST_ASSERT_FALSE(sl.canPumpRun(TANK_LEVEL_CRITICAL - 1, 150.0f));
     TEST_ASSERT_TRUE(sl.canPumpRun(TANK_LEVEL_CRITICAL, 150.0f));  // pile au seuil
+    // checkTank() : même seuil, utilisé comme failsafe runtime indépendant.
+    TEST_ASSERT_FALSE(sl.checkTank(TANK_LEVEL_CRITICAL - 1));
+    TEST_ASSERT_TRUE(sl.checkTank(TANK_LEVEL_CRITICAL));
 }
 
 void test_safety_current_failsafes() {

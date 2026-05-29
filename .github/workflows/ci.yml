@@ -13,8 +13,10 @@ name: Balcony Hydra CI
 #  Plus aucun continue-on-error : un secret / une vuln high / une alerte CodeQL
 #  error / une régression ABI ou de couverture bloque désormais la CI.
 #
-# RESTE (nécessite réseau/HW) : SHA-pin de chaque `uses:` (tags @vN → SHA) ;
-# couverture firmware gcov + seuil.
+# Couverture firmware gcov + seuil bloquant (2026-05-29) : job firmware-coverage
+#  (gcovr sur l'env native_cov, hard-gate lignes — master 65 %, slave 95 %).
+#
+# RESTE (nécessite réseau/HW) : SHA-pin de chaque `uses:` (tags @vN → SHA).
 # ============================================================
 
 on:
@@ -195,6 +197,51 @@ jobs:
         run: pip install "platformio==${PIO_VERSION}"
       - name: Run pio check (${{ matrix.firmware }})
         run: cd firmware/${{ matrix.firmware }} && pio check --skip-packages --fail-on-defect=medium
+
+  # ----------------------------------------------------------------
+  # firmware-coverage — couverture gcov des modules SIL (lib/). HARD GATE.
+  #   Seuils ESCALIER (staircase) : démarrent sous la baseline mesurée,
+  #   à relever quand de nouveaux tests SIL sont ajoutés (voir DECISIONS.md).
+  #   Baselines 2026-05-29 : master 68.4 % lignes, slave 100 %.
+  # ----------------------------------------------------------------
+  firmware-coverage:
+    name: Coverage (${{ matrix.firmware }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - firmware: master
+            min_line: 65
+          - firmware: slave
+            min_line: 95
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache PlatformIO
+        uses: actions/cache@v5
+        with:
+          path: ~/.platformio
+          key: pio-${{ matrix.firmware }}-${{ hashFiles(format('firmware/{0}/platformio.ini', matrix.firmware)) }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install PlatformIO (épinglé) + gcovr
+        run: pip install "platformio==${PIO_VERSION}" "gcovr==8.6"
+      - name: Couverture ${{ matrix.firmware }} (seuil ${{ matrix.min_line }}% lignes)
+        run: bash scripts/firmware_coverage.sh firmware/${{ matrix.firmware }} ${{ matrix.min_line }}
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-coverage-${{ matrix.firmware }}-${{ github.sha }}
+          path: |
+            firmware/${{ matrix.firmware }}/coverage.xml
+            firmware/${{ matrix.firmware }}/coverage*.html
+            firmware/${{ matrix.firmware }}/coverage.css
+            firmware/${{ matrix.firmware }}/coverage.js
+          retention-days: 30
+          if-no-files-found: warn
 
   protocol-check:
     runs-on: ubuntu-latest

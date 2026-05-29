@@ -15,7 +15,7 @@
 **Au signal « start pio », faire dans l'ordre :**
 1. **Vérifier l'environnement** : `pio --version` ; `cd firmware/master && pio run -e master` ; `pio test -e native` (≈154 tests) ; idem `firmware/slave`. Si `pio` échoue (réseau non ouvert), le signaler.
 2. **Reprendre les items CI restants** (désormais faisables ; **vérifier en local AVANT push**, 1 PR par item, squash-merge) :
-   - **P1 — couverture firmware gcov** : flags `--coverage`/`-lgcov` sur l'env `native` (master+slave), rapport `gcovr`, seuil bloquant (démarrer ~70 % lignes, escalier).
+   - ✅ **P1 — couverture firmware gcov** (FAIT 2026-05-29) : env `native_cov` (`--coverage` + pre-script SCons pour `-lgcov`), `scripts/firmware_coverage.sh` + `gcovr`, job CI `firmware-coverage` hard-gate. Baselines : master 68,4 % / slave 100 %. Seuils escalier : master 65 %, slave 95 % (cf. DECISIONS.md).
    - ✅ **P2 — mode dégradé esclave E2E** (FAIT 2026-05-29) : tests Unity T5/T6/T7 dans `firmware/slave/test/test_main.cpp` exerçant `DegradedMode` (maître perdu → arrosage sur seuils NVS) + `SafetyLocal`, contre un mock HAL (millis contrôlable + NVS en mémoire). 32/32 tests slave verts. **Dernier trou SIL comblé.**
    - **P1 — SHA-pin des actions** : si `api.github.com` accessible (authentifié), résoudre tags→SHA et épingler chaque `uses:` du workflow.
 3. **Workflow PR** : branch protection active sur `main` (checks requis + PR obligatoire, approvals=0). Brancher depuis `origin/main`, pousser, ouvrir PR, merger en squash quand vert.
