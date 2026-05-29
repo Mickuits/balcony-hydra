@@ -7,12 +7,16 @@ name: Balcony Hydra CI
 #  - durcissement : permissions least-privilege, concurrency, timeouts
 #  - couverture déclencheur : firmware/** + mobile-app/** + workflows
 #
-# P1 (2026-05-29) : scans sécurité passés en HARD-GATE (gitleaks, npm audit,
-# dependency-review, CodeQL) — verts sur PR #2. + garde-fou ABI ESP-NOW
-# (protocol-check) + cliquet de couverture mobile.
+# P1 (2026-05-29) :
+#  - HARD-GATE : npm audit (deps CVE), + garde-fou ABI ESP-NOW (protocol-check)
+#    + cliquet de couverture mobile (vitest 90/90/82/90).
+#  - BEST-EFFORT (continue-on-error) : gitleaks (licence/config requise),
+#    dependency-review + CodeQL (exigent GitHub Advanced Security, indispo sur
+#    ce repo). Deviennent hard-gate si repo public OU GHAS activé OU, pour les
+#    secrets, en activant le secret scanning natif GitHub / un binaire gitleaks.
 #
-# RESTE (P1 non fait ici, nécessite réseau/HW) : SHA-pin de chaque `uses:`
-# (tags @vN mutables → SHA de commit) ; couverture firmware gcov + seuil.
+# RESTE (nécessite réseau/HW) : SHA-pin de chaque `uses:` (tags @vN → SHA) ;
+# couverture firmware gcov + seuil.
 # ============================================================
 
 on:
@@ -48,7 +52,11 @@ jobs:
           fetch-depth: 0
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
-        # P1 : hard-gate (vert sur PR #2). Un secret committé bloque désormais.
+        # Best-effort : gitleaks-action exige une licence/config absente ici
+        # (échec sur PR #3) → non-bloquant. Alternatives hard-gate possibles :
+        # licence gitleaks, OU binaire gitleaks lancé en direct, OU push
+        # protection GitHub (secret scanning natif). Voir note PR.
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -82,7 +90,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/dependency-review-action@v4
-        # P1 : hard-gate (vert sur PR #2 ⇒ dependency graph disponible).
+        # Best-effort : exige le Dependency graph / GitHub Advanced Security
+        # (indisponible sur ce repo → non-bloquant). Retirer continue-on-error
+        # une fois GHAS activé OU le repo passé public.
+        continue-on-error: true
 
   codeql:
     name: CodeQL (JS/TS)
@@ -96,8 +107,11 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-        # P1 : hard-gate (vert sur PR #2 ⇒ code scanning disponible).
+        # Best-effort : code scanning exige GitHub Advanced Security (indispo
+        # sur ce repo) → non-bloquant. Hard-gate possible si repo public/GHAS.
+        continue-on-error: true
       - uses: github/codeql-action/analyze@v3
+        continue-on-error: true
 
   # ---------------- Build firmware (reproductible) ----------------
   build-master:
