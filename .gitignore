@@ -23,8 +23,10 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
-# Secrets (ne jamais committer)
+# Secrets (ne jamais committer) — couvre tous les emplacements (v3 + v4 master/slave)
+**/secrets.h
 firmware/include/secrets.h
+secrets.h
 
 # Claude Code internal state (agent memory, settings locales)
 .claude/
