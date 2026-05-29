@@ -280,11 +280,10 @@ void WebPortal::stop() {
 }
 
 void WebPortal::_setupRoutes() {
-    // Headers à collecter (par défaut ESPAsyncWebServer ne garde que les
-    // headers standards HTTP — il faut déclarer les headers custom pour
-    // que req->getHeader("X-Hydra-Token") fonctionne).
-    static const char* const collectedHeaders[] = { "X-Hydra-Token" };
-    _server.collectHeaders(collectedHeaders, 1);
+    // NB : avec le fork ESPAsyncWebServer 3.x (ESP32Async/mathieucarbou),
+    // TOUS les headers de requête sont conservés par défaut. La méthode
+    // collectHeaders() de l'ancien me-no-dev a été supprimée et n'est plus
+    // nécessaire : req->getHeader("X-Hydra-Token") fonctionne directement.
 
     // Main page
     _server.on("/", HTTP_GET, [this](AsyncWebServerRequest* req) { _servePage(req); });
@@ -340,7 +339,9 @@ void WebPortal::_setupRoutes() {
 }
 
 void WebPortal::_servePage(AsyncWebServerRequest* req) {
-    req->send_P(200, "text/html", _html);
+    // send() (pas send_P) : le fork ESPAsyncWebServer 3.x a retiré les variantes
+    // _P ; sur ESP32 le PROGMEM est de la mémoire normale, send() suffit.
+    req->send(200, "text/html", _html);
 }
 
 void WebPortal::_handleCaptivePortal(AsyncWebServerRequest* req) {

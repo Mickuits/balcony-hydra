@@ -274,7 +274,7 @@ Le système v4 introduit une couche client mobile **au-dessus** du master, à ut
 | `hydra/cmd/stop` | pub | Arrêt pompe |
 | `hydra/cmd/reset` | pub | Reset failsafe |
 
-> **Écart à corriger** : le proto référence des topics fictifs (`/hydra/state`, `/hydra/p07/+`) qui ne correspondent pas au firmware. Voir `TODO.md` §Mobile App.
+> **Note** : l'app de production `mobile-app/` consomme les **topics canoniques** ci-dessus (`hydra/sensors|pump|alerts`, cf. `mqtt-bridge.ts`). Les topics fictifs `/hydra/state` et `/hydra/p07/+` n'existent **que** dans le prototype legacy `mobile/balcony-hydra-mobile.html` (figé comme référence UX) — aucun écart côté production.
 
 ### API REST consommée
 
@@ -367,23 +367,26 @@ balcony-hydra/
 
 | GPIO | Fonction | Notes |
 |------|----------|-------|
-| 36 | MUX SIG (10 capteurs intérieur) | ADC1_CH0 |
-| 34 | US#2 ECHO (réservoir intérieur) | Input only |
-| 32,33,25,26 | MUX S0-S3 | Shared address |
+| 36 | MUX SIG (10 capteurs Zone B) | ADC1_CH0, input only |
+| 34 | US#1 ECHO (réservoir intérieur) | Input only |
+| 14 | US#1 TRIGGER | — |
+| 32,33,25,26 | MUX S0-S3 | Adresse partagée |
 | 4 | MUX EN | Active LOW |
 | 27 | Pompe B MOSFET | Pull-down 10kΩ |
-| 18 | Relay sécurité | Coupe pompe B |
+| 18 | Relay sécurité | Coupe pompe B (seul sur 18) |
 | 21,22 | I2C (DS3231 0x68) | Pull-up 4.7kΩ |
 | 5 | Bouton poussoir | INPUT_PULLUP, ISR |
-| 17 | LED R | PWM |
-| 19 | LED G | PWM |
-| 23 | LED B | PWM |
+| 16 | LED R | LEDC PWM |
+| 17 | LED G | LEDC PWM |
+| 2 | LED B | LEDC PWM |
 | 13 | TFT CS | SPI |
-| 14 | TFT DC | SPI |
+| 12 | TFT DC | SPI (strapping — état safe au boot) |
 | 15 | TOUCH CS | SPI |
-| VSPI | TFT MOSI/MISO/CLK | SPI default (18,19,23 — CONFLIT LED!) |
+| 23 | SPI MOSI | TFT + Touch |
+| 35 | SPI MISO | input only (valide pour MISO) |
+| 19 | SPI CLK | remappé depuis 18 |
 
-**⚠ CONFLIT SPI/LED résolu (Option A) :** côté maître, la LED RGB est déplacée sur GPIO 16, 17, 2 pour libérer les pins VSPI par défaut (18, 19, 23) utilisés par le TFT. Le GPIO 18 est réassigné au relay sécurité côté maître uniquement (voir table maître ci-dessus) — **conflit restant à lever** entre relay (GPIO 18) et SPI CLK (GPIO 18) : déplacer le relay sur un GPIO libre (candidat : GPIO 26 si MUX S3 libérable), voir TODO.md.
+**✅ Conflit SPI/relay résolu (2026-05-29) :** la LED RGB est sur GPIO 16/17/2 (hors bus SPI) et le bus SPI TFT a été remappé (CLK 18→19, MISO 19→35) pour que le **relay sécurité reste seul sur GPIO 18**. Plus aucune double affectation. Détail dans `DECISIONS.md 2026-05-29` et `CLAUDE.md` §Table Maître. Reste à valider l'init TFT au 1er flash HW (`docs/hardware_bringup_checklist.md §0`).
 
 ### ESP32 Esclave (balcon)
 

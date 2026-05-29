@@ -50,7 +50,7 @@ struct DryingHistory {
 
 class PlantProfile {
 public:
-    PlantProfile() {
+    PlantProfile() : _profiles{} {
         for (uint8_t z = 0; z < 2; z++)
             for (uint8_t p = 0; p < 10; p++)
                 _configured[z][p] = false;

@@ -95,6 +95,8 @@ class String{public:
     String(double v,int d=2){char b[32];snprintf(b,32,"%.*f",d,v);_s=b;}
     const char*c_str()const{return _s.c_str();}
     size_t length()const{return _s.length();}
+    char charAt(unsigned int i)const{return i<_s.size()?_s[i]:0;}
+    char operator[](unsigned int i)const{return i<_s.size()?_s[i]:0;}
     bool isEmpty()const{return _s.empty();}
     String&operator+=(const String&r){_s+=r._s;return*this;}
     String&operator+=(const char*r){if(r)_s+=r;return*this;}

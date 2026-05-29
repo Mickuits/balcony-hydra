@@ -12,7 +12,9 @@
 #include <esp_random.h>
 #endif
 
-ConfigManager::ConfigManager() {}
+// _config value-initialisé (zéro) pour éviter tout état indéterminé avant
+// begin()/loadDefaults() — silence aussi cppcheck uninitMemberVar.
+ConfigManager::ConfigManager() : _config{} {}
 
 void ConfigManager::begin() {
     loadDefaults();

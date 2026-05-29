@@ -6,6 +6,56 @@
 
 ---
 
+## 2026-05-29 — Remise à plat de la CI (dette cachée révélée par des dépendances flottantes)
+
+**Décision** : corriger 5 jobs CI rouges qui étaient **tous pré-existants** (rien à voir avec le diff docs/pinout de la PR #1), causés par la dérive de dépendances à versions flottantes depuis le dernier run réellement vert (~2026-05-18).
+
+**Constat clé** : le **build ESP32 réel** (`build-master`) et les **tests natifs** n'avaient en fait plus tourné/compilé depuis le 18/05 — seul le SIL mocké passait, ce qui masquait la dette. Les versions flottantes ont avancé : `espressif32`→7.0.1, `ArduinoJson`→7.4.3, `@eslint/js`→10, cppcheck CI plus récent.
+
+**Corrections retenues** :
+- **ESPAsyncWebServer** : `me-no-dev/ESPAsyncWebServer@^1.2.3` → `mathieucarbou/ESPAsyncWebServer@^3.0.0` (fork maintenu, ESP32Async). L'ancien est abandonné, incompatible `espressif32@7.x`, tirait le mauvais TCP (ESPAsyncTCP ESP8266) et n'a pas `collectHeaders`. Conséquences code : `req->send_P()` → `req->send()` (variantes `_P` retirées ; PROGMEM = RAM normale sur ESP32) ; suppression de l'appel `collectHeaders()` (le fork 3.x conserve **tous** les headers par défaut, donc `req->getHeader("X-Hydra-Token")` marche directement — l'auth reste opérationnelle).
+- **ESLint (mobile-app)** : `@eslint/js@^10.0.1` (exigeait `eslint@10`) → `@eslint/js@^9.17.0`, aligné sur `eslint@^9.17.0`, lockfile régénéré. `npm ci` repassait en ERESOLVE sinon.
+- **cppcheck (Lint)** : init des membres dans les mocks de test (`PlantProfile::_profiles{}`, `ConfigManager::_config{}`) — `uninitMemberVar` (medium) nouvellement signalé par le cppcheck CI.
+
+**Alternatives écartées** :
+- *Épingler les plateformes/libs à d'anciennes versions* : repousse le problème, garde du code mort-vivant non compilé. Rejeté au profit de la migration vers les libs maintenues.
+- *Supprimer la ligne `collectHeaders` sans changer de lib* : aurait cassé l'auth au runtime sur me-no-dev (headers custom non conservés). Rejeté.
+
+**Conséquences / leçon** :
+- **5/5 jobs verts** + le build ESP32 et les tests natifs compilent réellement à nouveau.
+- ⚠ **Recommandation** : épingler à terme les versions majeures critiques (`platform = espressif32@7.0.1`, `ArduinoJson@^7.4`) pour éviter que la CI ne re-dérive silencieusement. Non fait dans cette PR pour rester minimal — à considérer.
+- Le diagnostic a été fait sans accès aux logs Actions (403 sur l'intégration) ni compilation locale (réseau sandbox bloquant le téléchargement plateforme) — d'où une boucle « push → log collé → fix ». Ouvrir le réseau PlatformIO du sandbox accélérerait fortement ce type de tâche.
+
+---
+
+## 2026-05-29 — Résolution effective du conflit GPIO 18 : remap SPI minimal (CLK→19, MISO→35)
+
+**Décision** : conflit `GPIO 18 = Relay sécurité ET SPI CLK` résolu **en pratique** par un remap minimal du bus SPI TFT/XPT2046, et non par le pinout HSPI brut esquissé le 2026-04-24.
+- **SPI CLK : 18 → 19**
+- **SPI MISO : 19 → 35** (GPIO 35 est input-only, ce qui est parfaitement valide pour un MISO = entrée côté ESP32 ; libère le 19 pour le CLK)
+- **SPI MOSI : 23** (inchangé) · **TFT_CS 13 / TFT_DC 12 / TOUCH_CS 15** (inchangés)
+- **Relay : reste sur GPIO 18**, désormais sans collision.
+
+**Contexte / pourquoi on dévie de la note du 2026-04-24** : le remap HSPI proposé alors (`SCLK=14, MISO=12, MOSI=13, CS=15, DC=2`) était une esquisse non vérifiée. Confronté à `config_master.h`, il **entre en collision** avec deux signaux existants :
+- `TFT_SCLK=14` ⟷ `PIN_US1_TRIG=14` (trigger ultrason)
+- `TFT_DC=2` ⟷ `PIN_LED_B=2` (LED RGB bleu)
+
+Sur DevKit 30 pins, il n'existe **aucun GPIO output libre** : déplacer tout le bus créerait une cascade de conflits. Le remap retenu ne touche que 2 signaux, n'utilise qu'un pin input-only déjà libre (35), et ne déplace pas le relay. C'est la solution de moindre risque.
+
+**Alternatives écartées** :
+- *HSPI par défaut (note 04-24)* : casse US TRIG (14) + LED_B (2). Rejeté.
+- *Déplacer le Relay ailleurs* : aucun pin output libre. Rejeté.
+- *GPIO expander I2C* : surcoût BOM + complexité, non justifié pour 1 signal. Rejeté.
+
+**Conséquences** :
+- Pinout acté dans `firmware/master/include/config_master.h` (`PIN_TFT_SCLK=19`, `PIN_TFT_MISO=35`, source de vérité), `docs/wiring_master.svg`, `CLAUDE.md`, `architecture_v4.md`.
+- Les flags TFT_eSPI (`USER_SETUP_LOADED` + pinout) sont préparés mais **gardés commentés** dans `platformio.ini` : les activer force le build à utiliser ce pinout au lieu du `User_Setup.h` embarqué, ce qui n'est **pas validable en CI** (pas d'écran) et cassait `build-master`. On les active au 1er flash (décommenter le bloc). C'est la même approche délibérée que le repo appliquait déjà.
+- ⚠ **À valider au 1er flash avec TFT branché** : init écran (driver/fréquence SPI) + lecture tactile XPT2046 sur MISO=35. Procédure : `docs/hardware_bringup_checklist.md §0`.
+- Aucun test SIL impacté (TftDashboard n'est pas instancié en natif, cf. `lib_ignore`).
+- **Remplace** la résolution esquissée le 2026-04-24 (HSPI) ci-dessous.
+
+---
+
 ## 2026-05-17 — Intégration prototype mobile comme couche client (PWA cible)
 
 **Décision** : ajouter une couche client mobile à l'architecture v4, sous forme de prototype HTML autonome (`mobile/balcony-hydra-mobile.html`) servant de référence UX. Cible long-terme : **PWA** (Progressive Web App) servie depuis Vercel/GitHub Pages, consommant l'API REST + MQTT du master.
@@ -32,7 +82,11 @@
 
 ---
 
-## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI
+## 2026-04-24 — Résolution conflit GPIO 18 côté maître : TFT en HSPI  [⚠ REMPLACÉE par l'entrée 2026-05-29]
+
+> ⚠ **Note 2026-05-29** : le pinout HSPI esquissé ci-dessous (`SCLK=14, DC=2`)
+> entrait en collision avec `PIN_US1_TRIG=14` et `PIN_LED_B=2`. Remplacé par le
+> remap minimal CLK→19 / MISO→35 (voir entrée 2026-05-29). Conservée pour traçabilité.
 
 **Décision** : le conflit `GPIO 18 = Relay sécurité ET VSPI CLK` côté maître sera résolu en passant le TFT ILI9341 + XPT2046 sur le bus **HSPI** (GPIO 14 CLK, 12 MISO, 13 MOSI — remappables). Le Relay reste sur GPIO 18. Décision **non encore implémentée** dans le firmware (pas de `TftDashboard` branché sur vrai hardware à ce jour).
 
@@ -196,7 +250,9 @@ Voir `docs/architecture_v4.md` §Pin assignments et `TODO.md` §Hardware.
 
 **Décision** : `git rm -r firmware/lib firmware/src firmware/include firmware/test firmware/platformio.ini` — suppression complète de l'ancien firmware monolithique v3 (~5300 lignes) qui dormait dans le repo depuis la restructure v4 (commit `73233ea`).
 
-**Contexte** : aucun `platformio.ini` actif (master ou slave) ne référençait ce code, mais il était toujours dans le repo, créait des fausses pistes (`firmware/lib/ConfigManager.cpp` vs `firmware/master/lib/ConfigManager/ConfigManager.cpp`), et polluait les recherches grep. Note : un fichier `firmware/master/include/config_v3_ref.h` est intentionnellement gardé comme référence historique pour les valeurs constantes que l'on a transférées vers `config_master.h` / `config_common.h`.
+**Contexte** : aucun `platformio.ini` actif (master ou slave) ne référençait ce code, mais il était toujours dans le repo, créait des fausses pistes (`firmware/lib/ConfigManager.cpp` vs `firmware/master/lib/ConfigManager/ConfigManager.cpp`), et polluait les recherches grep. Note : un fichier `firmware/master/include/config_v3_ref.h` avait alors été gardé comme référence historique.
+
+> **MAJ 2026-05-29** : `config_v3_ref.h` a finalement été **supprimé**. Orphelin (jamais inclus), ses valeurs étaient déjà transférées dans `config_master.h`/`config_common.h`, et il était la source d'une fausse "incohérence" (`PIN_PUMP_B=15` v3 vs `27` v4 — simple artefact mono-MCU→distribué). Le pinout v3 reste archivé dans `docs/legacy/`. Repo firmware désormais sans relique.
 
 **Alternatives** :
 - Garder pour référence historique (état avant la session) — pollution permanente, fausses pistes.
