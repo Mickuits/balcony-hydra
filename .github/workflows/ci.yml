@@ -20,10 +20,10 @@ name: Balcony Hydra CI
 on:
   push:
     branches: [main, develop]
-    paths: ['firmware/**', 'mobile-app/**', '.github/workflows/**']
+    paths: ['firmware/**', 'mobile-app/**', 'scripts/**', '.github/workflows/**']
   pull_request:
     branches: [main]
-    paths: ['firmware/**', 'mobile-app/**', '.github/workflows/**']
+    paths: ['firmware/**', 'mobile-app/**', 'scripts/**', '.github/workflows/**']
   workflow_dispatch:
 
 # Least privilege par défaut (un job qui a besoin de plus l'élève localement).

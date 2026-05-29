@@ -1,6 +1,26 @@
 # TODO — Balcony Hydra v4
 
-> Dernière MAJ : 2026-05-18 (sessions Phase 2 mobile + sécurité firmware) — audit cohérence docs 2026-05-29
+> Dernière MAJ : 2026-05-29 (durcissement CI P0→P2 + setup cloud autonome)
+
+## 🔌 POINT DE REPRISE — session cloud autonome · cue utilisateur : « start pio »
+
+> À lire en priorité par l'agent si l'utilisateur dit **« start pio »**.
+> Contexte : la network policy de l'environnement autorise désormais
+> `*.platformio.org` + un *setup script* (`scripts/setup-cloud-env.sh`)
+> pré-installe `platformio==6.1.19` et pré-chauffe le cache. Donc **`pio` est
+> exécutable** (build ESP32 + tests natifs) — ce qui était impossible dans les
+> sessions de mai 2026 (sandbox réseau fermé → on poussait puis l'utilisateur
+> collait les logs CI).
+
+**Au signal « start pio », faire dans l'ordre :**
+1. **Vérifier l'environnement** : `pio --version` ; `cd firmware/master && pio run -e master` ; `pio test -e native` (≈154 tests) ; idem `firmware/slave`. Si `pio` échoue (réseau non ouvert), le signaler.
+2. **Reprendre les items CI restants** (désormais faisables ; **vérifier en local AVANT push**, 1 PR par item, squash-merge) :
+   - **P1 — couverture firmware gcov** : flags `--coverage`/`-lgcov` sur l'env `native` (master+slave), rapport `gcovr`, seuil bloquant (démarrer ~70 % lignes, escalier).
+   - **P2 — mode dégradé esclave E2E** : test Unity dans `firmware/slave/test/` exerçant `DegradedMode` (maître perdu → arrosage sur schedule NVS) + `SafetyLocal`. **Dernier trou SIL** ("mode dégradé slave bout-en-bout NON couvert").
+   - **P1 — SHA-pin des actions** : si `api.github.com` accessible (authentifié), résoudre tags→SHA et épingler chaque `uses:` du workflow.
+3. **Workflow PR** : branch protection active sur `main` (checks requis + PR obligatoire, approvals=0). Brancher depuis `origin/main`, pousser, ouvrir PR, merger en squash quand vert.
+
+**État CI au 2026-05-29** : niveau 🟠 3 industriel. Mergés : P0 (#2 reproductibilité+durcissement), P1 (#3 ABI guard+couverture+npm audit ; #5 scans hard-gate repo public), P2 (#6 digital-twin ESP-NOW). Repo **public**. Garde-fous : ABI ESP-NOW (`tools/protocol_abi_check.cpp`), twin (`tools/protocol_twin_test.cpp`), 10 jobs hard-gate.
 
 ## État du sprint
 
