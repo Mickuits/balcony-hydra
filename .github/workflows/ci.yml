@@ -227,8 +227,26 @@ jobs:
             tools/protocol_abi_check.cpp -o /tmp/abi_check
           /tmp/abi_check
           echo "ABI ESP-NOW stable ✅"
-      # NOTE P1 : static_assert(sizeof(...)) sur les structs ESP-NOW
-      # + comparaison à un golden ABI (offsets/packing) master↔esclave.
+
+  # ----------------------------------------------------------------
+  # P2 — Simulation système / digital-twin ESP-NOW (sans hardware)
+  # Exerce la sérialisation/désérialisation RÉELLE maître↔esclave (memcpy de
+  # structs packed = ce que fait esp_now_send/recv) : handshake pairing,
+  # PING/PONG, PUMP_START/ACK, round-trip DataSensors, signalement de pannes
+  # (DataAlert ×5), rejet d'en-tête corrompu. Comble le trou SIL "ESP-NOW
+  # jamais testé bout-en-bout".
+  # ----------------------------------------------------------------
+  system-sim:
+    name: System sim (ESP-NOW twin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Digital-twin ESP-NOW (round-trip + pannes + rejet en-tête)
+        run: |
+          g++ -std=c++17 -I firmware/common -I firmware/master/test/mocks \
+            tools/protocol_twin_test.cpp -o /tmp/twin
+          /tmp/twin
 
   # ----------------------------------------------------------------
   # Mobile app — Vite + TypeScript + Vitest
