@@ -7,12 +7,16 @@ name: Balcony Hydra CI
 #  - durcissement : permissions least-privilege, concurrency, timeouts
 #  - couverture déclencheur : firmware/** + mobile-app/** + workflows
 #
-# NOTE escalier (cf. lint) : les scans sécurité démarrent NON BLOQUANTS
-# (continue-on-error) pour rester verts ; les passer en hard-gate une fois
-# stabilisés (retirer continue-on-error).
+# P1 (2026-05-29) :
+#  - HARD-GATE : npm audit (deps CVE), + garde-fou ABI ESP-NOW (protocol-check)
+#    + cliquet de couverture mobile (vitest 90/90/82/90).
+#  - BEST-EFFORT (continue-on-error) : gitleaks (licence/config requise),
+#    dependency-review + CodeQL (exigent GitHub Advanced Security, indispo sur
+#    ce repo). Deviennent hard-gate si repo public OU GHAS activé OU, pour les
+#    secrets, en activant le secret scanning natif GitHub / un binaire gitleaks.
 #
-# TODO durcissement supply-chain : épingler chaque `uses:` par SHA de commit
-# (pas par tag mutable @vN). Fait en P1.
+# RESTE (nécessite réseau/HW) : SHA-pin de chaque `uses:` (tags @vN → SHA) ;
+# couverture firmware gcov + seuil.
 # ============================================================
 
 on:
@@ -48,7 +52,11 @@ jobs:
           fetch-depth: 0
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true   # escalier : passer en bloquant après validation
+        # Best-effort : gitleaks-action exige une licence/config absente ici
+        # (échec sur PR #3) → non-bloquant. Alternatives hard-gate possibles :
+        # licence gitleaks, OU binaire gitleaks lancé en direct, OU push
+        # protection GitHub (secret scanning natif). Voir note PR.
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -69,7 +77,7 @@ jobs:
           cache-dependency-path: mobile-app/package-lock.json
       - run: npm ci --no-audit --no-fund
       - name: npm audit (high+)
-        continue-on-error: true   # escalier ; réactive l'audit désactivé auparavant
+        # P1 : hard-gate (0 vuln high sur PR #2). Une vuln high bloque désormais.
         run: npm audit --audit-level=high
       # TODO P1 : osv-scanner pour les libs firmware (PlatformIO) — pas de feed
       # CVE simple aujourd'hui ; à instrumenter séparément.
@@ -82,7 +90,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/dependency-review-action@v4
-        continue-on-error: true   # nécessite dependency graph/GHAS selon visibilité repo
+        # Best-effort : exige le Dependency graph / GitHub Advanced Security
+        # (indisponible sur ce repo → non-bloquant). Retirer continue-on-error
+        # une fois GHAS activé OU le repo passé public.
+        continue-on-error: true
 
   codeql:
     name: CodeQL (JS/TS)
@@ -96,7 +107,9 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-        continue-on-error: true   # code scanning peut être indisponible (repo privé sans GHAS)
+        # Best-effort : code scanning exige GitHub Advanced Security (indispo
+        # sur ce repo) → non-bloquant. Hard-gate possible si repo public/GHAS.
+        continue-on-error: true
       - uses: github/codeql-action/analyze@v3
         continue-on-error: true
 
@@ -215,7 +228,15 @@ jobs:
           echo "Checking shared constants..."
           grep -c 'constexpr' firmware/common/config_common.h
           echo "Constants defined ✅"
-      # TODO P1 : durcir — static_assert(sizeof(...)) sur les structs ESP-NOW
+      - name: ABI / wire-format guard (ESP-NOW)
+        run: |
+          # Garde-fou binaire : static_assert sur sizeof/offsetof des messages
+          # Protocol.h. Toute dérive du format sur-le-fil maître↔esclave casse ici.
+          g++ -std=c++17 -I firmware/common -I firmware/master/test/mocks \
+            tools/protocol_abi_check.cpp -o /tmp/abi_check
+          /tmp/abi_check
+          echo "ABI ESP-NOW stable ✅"
+      # NOTE P1 : static_assert(sizeof(...)) sur les structs ESP-NOW
       # + comparaison à un golden ABI (offsets/packing) master↔esclave.
 
   # ----------------------------------------------------------------
