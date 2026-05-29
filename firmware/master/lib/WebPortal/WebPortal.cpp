@@ -340,7 +340,9 @@ void WebPortal::_setupRoutes() {
 }
 
 void WebPortal::_servePage(AsyncWebServerRequest* req) {
-    req->send_P(200, "text/html", _html);
+    // send() (pas send_P) : le fork ESPAsyncWebServer 3.x a retiré les variantes
+    // _P ; sur ESP32 le PROGMEM est de la mémoire normale, send() suffit.
+    req->send(200, "text/html", _html);
 }
 
 void WebPortal::_handleCaptivePortal(AsyncWebServerRequest* req) {
