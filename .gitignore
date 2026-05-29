@@ -31,6 +31,15 @@ secrets.h
 # Claude Code internal state (agent memory, settings locales)
 .claude/
 
+# Firmware — rapports de couverture gcov/gcovr (générés ; coverage.py est versionné)
+firmware/*/coverage.xml
+firmware/*/coverage.html
+firmware/*/coverage.*.html
+firmware/*/coverage.css
+firmware/*/coverage.js
+firmware/*/*.gcda
+firmware/*/*.gcno
+
 # Mobile app — build artifacts (Vite outputs)
 mobile-app/node_modules/
 mobile-app/dist/
