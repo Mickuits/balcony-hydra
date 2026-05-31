@@ -10,7 +10,7 @@
 > **MOSFET D4184** (pompe) ; le maître ajoute l'écran ILI9341 séparé + un module
 > **relais 3,3 V** opto. Capteurs : capacitif **v1.2**, LED **KY-016**. La carte
 > intégrée KC868 (**Option B**) est **écartée** — voir §2.2. BOM canonique :
-> `BOM_v4_secteur.xlsx` (235,06 € marge incluse).
+> `BOM_v4_secteur.xlsx` (246,56 € marge incluse).
 
 ## ⚠️ Conclusion structurante (à lire en premier)
 

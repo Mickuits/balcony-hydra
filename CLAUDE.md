@@ -456,7 +456,7 @@ struct PumpStatus {
 - [x] Conflit SPI/LED résolu : LED RGB sur 16/17/2 ✅ ; bus SPI TFT remappé (CLK 18→19, MISO 19→35) → relay seul sur GPIO 18. Pinout acté dans `config_master.h` + docs + `wiring_master.svg` (2026-05-29). Les flags TFT_eSPI restent **commentés** dans `platformio.ini` (non validables en CI sans écran) → à décommenter au 1er flash HW.
 - [x] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot (`TftDashboard` écran WIFI)
 - [x] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
-- [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 235,06 €)
+- [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 44 lignes / 246,56 €)
 - [x] Tests unitaires PlatformIO (par firmware)
 - [x] CI/CD GitHub Actions (build master + slave) — `.github/workflows/ci.yml`
 
@@ -516,7 +516,7 @@ help     — Liste des commandes
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/BOM_v4_secteur.xlsx` | **BOM canonique v4** (43 lignes, ~204 € + 15 % marge = 235,06 €) — solution figée Option A (DevKit 30P + breakout borniers + modules D4184/relais 3,3 V/MUX, capteurs v1.2, LED KY-016) |
+| `docs/BOM_v4_secteur.xlsx` | **BOM canonique v4** (44 lignes, ~214 € + 15 % marge = 246,56 €) — solution figée Option A (DevKit 30P + breakout borniers + modules D4184/relais 3,3 V/MUX, capteurs v1.2, LED KY-016, alim 12 V) |
 | `docs/sourcing_consolidation_v4.md` | Guide de consolidation des achats (sourcing EU/FR, vérif GPIO, modules vs cartes intégrées, listes AVANT→APRÈS) |
 | `docs/architecture_v4.md` | Architecture v4 distribuée (ESP-NOW + MQTT fallback) |
 | `docs/safety_analysis.md` | Analyse de sécurité v4 (défense en profondeur, seuils chiffrés) |
