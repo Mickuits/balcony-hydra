@@ -153,8 +153,8 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 | 14 | US#1 TRIGGER | — |
 | 32,33,25,26 | MUX S0-S3 | Adresse partagée |
 | 4 | MUX EN | Active LOW |
-| 27 | MOSFET Pompe B | Pull-down 10kΩ obligatoire |
-| 18 | Relay sécurité | ✅ Conflit CLK **résolu** (2026-05-29) : bus SPI TFT remappé (CLK→19, MISO→35). Relay seul sur 18. |
+| 27 | MOSFET Pompe B | Module **D4184** (MOSFET + pull-down 4,7kΩ + opto intégrés) ; pull-down 10kΩ externe conservé |
+| 18 | Relay sécurité | Module relais **3,3 V** opto (SRD-03VDC, low-level trigger). ✅ Conflit CLK **résolu** (2026-05-29) : bus SPI TFT remappé (CLK→19, MISO→35). Relay seul sur 18. |
 | 21, 22 | I2C SDA/SCL | DS3231 0x68, pull-up 4.7kΩ |
 | 5 | Bouton poussoir | INPUT_PULLUP, ISR FALLING, anti-rebond 300ms |
 | 16, 17, 2 | LED RGB (R, G, B) | LEDC PWM ch4/5/6 — déplacée pour éviter SPI |
@@ -174,7 +174,7 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 | 14 | US TRIGGER | — |
 | 32,33,25,26 | MUX S0-S3 | Adresse partagée |
 | 4 | MUX EN | Active LOW |
-| 27 | MOSFET Pompe A | Pull-down 10kΩ obligatoire |
+| 27 | MOSFET Pompe A | Module **D4184** (MOSFET + pull-down 4,7kΩ + opto intégrés) ; pull-down 10kΩ externe conservé |
 | 21, 22 | I2C SDA/SCL | BME280 0x76 + INA219 0x40, pull-up 4.7kΩ |
 | 17, 19, 23 | LED RGB (R, G, B) | LEDC PWM — pas de conflit (pas de TFT) |
 | 2 | LED onboard | Heartbeat |
@@ -205,6 +205,10 @@ SleepManager ──→ ConfigManager (durée sleep), PumpController (force OFF)
 ### Sécurité hardware (maître ET esclave, indépendant du firmware)
 - **Fusible 3A** sur ligne pompe 12V (protection pompe bloquée)
 - **Pull-down 10kΩ** sur Gate MOSFET (pompe OFF si MCU crash/reset)
+- **Driver pompe = module D4184/AOD4184** (MOSFET logic-level isolé) : pull-down 4,7kΩ + optocoupleur intégrés → déclenchement fiable en 3,3 V + failsafe pompe OFF au reset. ⚠️ **Ne pas utiliser de module IRF520** (seuil de grille ~4 V, ne sature pas en 3,3 V).
+- **Relais sécurité (maître) = module 3,3 V opto** (bobine SRD-03VDC), pas un module 5 V.
+
+> Solution d'achat consolidée (sourcing EU/FR, modules + lots) détaillée dans `docs/sourcing_consolidation_v4.md`. Composants & prix dans `docs/BOM_v4_secteur.xlsx` (BOM canonique).
 
 ## Architecture dual-zone
 
@@ -452,11 +456,12 @@ struct PumpStatus {
 - [x] Conflit SPI/LED résolu : LED RGB sur 16/17/2 ✅ ; bus SPI TFT remappé (CLK 18→19, MISO 19→35) → relay seul sur GPIO 18. Pinout acté dans `config_master.h` + docs + `wiring_master.svg` (2026-05-29). Les flags TFT_eSPI restent **commentés** dans `platformio.ini` (non validables en CI sans écran) → à décommenter au 1er flash HW.
 - [x] Écran config WiFi: scan réseaux + clavier virtuel tactile au premier boot (`TftDashboard` écran WIFI)
 - [x] Wiring diagrams séparés: `wiring_master.svg` + `wiring_slave.svg`
-- [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 234,60 €)
+- [x] BOM finale v4 avec quantités consolidées (`docs/BOM_v4_secteur.xlsx`, 43 lignes / 235,06 €)
 - [x] Tests unitaires PlatformIO (par firmware)
 - [x] CI/CD GitHub Actions (build master + slave) — `.github/workflows/ci.yml`
 
 ### Calibration capteurs humidité
+- **Matériel** : capteur capacitif **v1.2** (puce TLC555, fonctionne en 3,3 V). ⚠️ Éviter la **v2.0** (défaut de fab R4-GND connu) ; tester chaque unité à réception.
 - **Air sec** : ADC ~3200 → 0%
 - **Immergé** : ADC ~1200 → 100%
 - Configurable via portail web (champs airValue/waterValue)
@@ -511,7 +516,8 @@ help     — Liste des commandes
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/BOM_v4_secteur.xlsx` | Bill of Materials v4 (43 lignes, ~204 € + 15 % marge = 234,60 €) |
+| `docs/BOM_v4_secteur.xlsx` | **BOM canonique v4** (43 lignes, ~204 € + 15 % marge = 235,06 €) — solution figée Option A (DevKit 30P + breakout borniers + modules D4184/relais 3,3 V/MUX, capteurs v1.2, LED KY-016) |
+| `docs/sourcing_consolidation_v4.md` | Guide de consolidation des achats (sourcing EU/FR, vérif GPIO, modules vs cartes intégrées, listes AVANT→APRÈS) |
 | `docs/architecture_v4.md` | Architecture v4 distribuée (ESP-NOW + MQTT fallback) |
 | `docs/safety_analysis.md` | Analyse de sécurité v4 (défense en profondeur, seuils chiffrés) |
 | `docs/PAIRING.md` | Procédure d'appairage ESP-NOW maître ↔ esclave |

@@ -5,6 +5,13 @@
 > figé dans `config_master.h` / `config_slave.h`). Sourcing prioritaire **EU/France**
 > (Amazon.fr, AZ-Delivery, Berrybase, Mouser). Recherche multi-sources, mai 2026.
 
+> ✅ **SOLUTION FIGÉE (2026-05-31) — Option A** pour les deux nœuds : ESP32 DevKit
+> WROOM-32 **30 pins** + shield à borniers à vis 30P + module **CD74HC4067** + module
+> **MOSFET D4184** (pompe) ; le maître ajoute l'écran ILI9341 séparé + un module
+> **relais 3,3 V** opto. Capteurs : capacitif **v1.2**, LED **KY-016**. La carte
+> intégrée KC868 (**Option B**) est **écartée** — voir §2.2. BOM canonique :
+> `BOM_v4_secteur.xlsx` (235,06 € marge incluse).
+
 ## ⚠️ Conclusion structurante (à lire en premier)
 
 **Aucune carte « tout-en-un » ne peut remplacer l'ensemble du montage.** C'est une
@@ -79,7 +86,10 @@ et garde **2 ESP32 identiques** (stock de rechange commun maître/esclave).
 | Pompe A | **Module D4184** (failsafe intégré) | ~1,5-2 € |
 | Env. | BME280 (vrai, ID 0x60) + INA219 + KY-016 | ~13-18 € |
 
-#### ⚠️ Option B — KC868-A16 industrielle (alternative)
+#### ❌ Option B — KC868-A16 industrielle (ÉCARTÉE, archivée)
+> Non retenue. Le BOM qui l'encodait est archivé dans
+> `docs/legacy/BOM_v4.1_simplifiee_secteur_OPTION-B_ARCHIVE.xlsx`.
+
 Apporte **alim 12 V mono-prise + relais matériel + boîtier industriel + borniers**
 en un seul PCB. Mais :
 - **+60-90 €** vs option A ;

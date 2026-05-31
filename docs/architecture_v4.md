@@ -307,7 +307,8 @@ balcony-hydra/
 ├── DECISIONS.md
 ├── LICENSE
 ├── docs/
-│   ├── BOM_v4_secteur.xlsx
+│   ├── BOM_v4_secteur.xlsx         (BOM canonique — solution figée)
+│   ├── sourcing_consolidation_v4.md
 │   ├── architecture_v4.md          (ce fichier)
 │   ├── safety_analysis.md
 │   ├── PAIRING.md
